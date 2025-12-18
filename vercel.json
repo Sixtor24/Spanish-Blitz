@@ -1,7 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "server.js": {
+    "api/server.js": {
       "runtime": "@vercel/node@3.3.4",
       "includeFiles": "build/**"
     }
@@ -9,7 +9,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "/server.js"
+      "dest": "/api/server"
     }
   ]
 }
