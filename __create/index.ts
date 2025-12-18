@@ -273,12 +273,7 @@ if (!isVercel) {
   startWsServer();
 }
 
-const server = !isVercel
-  ? await createHonoServer({
-      app,
-      defaultLogger: false,
-    })
-  : app;
-
+// Don't auto-start server - let server.js handle it
+// This prevents "EADDRINUSE" error when deployed
 export { app };
-export default server;
+export default app;
