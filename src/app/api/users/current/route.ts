@@ -2,6 +2,25 @@
 import sql from "../../utils/sql";
 import { auth } from "@/auth";
 
+async function ensureUserColumns() {
+  // Add preferred_locale and has_seen_welcome if they are missing
+  await sql`
+    DO $$
+    BEGIN
+      BEGIN
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_locale text;
+      EXCEPTION WHEN others THEN
+        NULL;
+      END;
+      BEGIN
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS has_seen_welcome boolean DEFAULT false;
+      EXCEPTION WHEN others THEN
+        NULL;
+      END;
+    END$$;
+  `;
+}
+
 // Get current user
 export async function GET(request) {
   try {
@@ -10,6 +29,8 @@ export async function GET(request) {
     if (!session?.user?.email) {
       return Response.json({ error: "Not authenticated" }, { status: 401 });
     }
+
+    await ensureUserColumns();
 
     const rows = await sql`
       SELECT id, email, display_name, role, preferred_locale, is_premium, plan, has_seen_welcome, created_at, updated_at
@@ -40,6 +61,8 @@ export async function PATCH(request) {
 
     const body = await request.json();
     const { display_name, preferred_locale } = body;
+
+  await ensureUserColumns();
 
     const rows = await sql`
       UPDATE users

@@ -2,6 +2,45 @@
 import sql from "../utils/sql";
 import { auth } from "@/auth";
 
+async function ensureDeckColumns() {
+  await sql`
+    DO $$
+    BEGIN
+      BEGIN
+        ALTER TABLE decks ADD COLUMN IF NOT EXISTS title text;
+      EXCEPTION WHEN others THEN NULL; END;
+      BEGIN
+        ALTER TABLE decks ADD COLUMN IF NOT EXISTS name text;
+      EXCEPTION WHEN others THEN NULL; END;
+      BEGIN
+        ALTER TABLE decks ADD COLUMN IF NOT EXISTS description text;
+      EXCEPTION WHEN others THEN NULL; END;
+      BEGIN
+        ALTER TABLE decks ADD COLUMN IF NOT EXISTS owner_user_id integer;
+      EXCEPTION WHEN others THEN NULL; END;
+      BEGIN
+        -- if owner_user_id exists but is integer, widen to text to accept UUIDs
+        ALTER TABLE decks ALTER COLUMN owner_user_id TYPE text USING owner_user_id::text;
+      EXCEPTION WHEN others THEN NULL; END;
+      BEGIN
+        ALTER TABLE decks ADD COLUMN IF NOT EXISTS owner_id uuid;
+      EXCEPTION WHEN others THEN NULL; END;
+      BEGIN
+        ALTER TABLE decks ADD COLUMN IF NOT EXISTS is_public boolean DEFAULT false;
+      EXCEPTION WHEN others THEN NULL; END;
+      BEGIN
+        ALTER TABLE decks ADD COLUMN IF NOT EXISTS primary_color_hex text;
+      EXCEPTION WHEN others THEN NULL; END;
+      BEGIN
+        ALTER TABLE decks ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT NOW();
+      EXCEPTION WHEN others THEN NULL; END;
+      BEGIN
+        ALTER TABLE decks ADD COLUMN IF NOT EXISTS updated_at timestamptz DEFAULT NOW();
+      EXCEPTION WHEN others THEN NULL; END;
+    END$$;
+  `;
+}
+
 export async function GET(request) {
   try {
     const session = await auth();
@@ -23,7 +62,10 @@ export async function GET(request) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
-    const userId = userRows[0].id;
+  const userId = userRows[0].id;
+  const userIdText = String(userId);
+
+    await ensureDeckColumns();
 
     let query = `
       SELECT 
@@ -46,8 +88,8 @@ export async function GET(request) {
 
     // Apply filter
     if (filter === "owned") {
-      query += ` AND d.owner_user_id = $${paramIndex}`;
-      params.push(userId);
+  query += ` AND d.owner_user_id = $${paramIndex}`;
+  params.push(userIdText);
       paramIndex++;
     } else if (filter === "assigned") {
       query += ` AND EXISTS (
@@ -72,7 +114,18 @@ export async function GET(request) {
 
     query += ` GROUP BY d.id ORDER BY d.created_at DESC`;
 
-    const rows = await sql(query, params);
+    let rows;
+    try {
+      rows = await sql(query, params);
+    } catch (err) {
+      const message = (err?.message || "").toLowerCase();
+      if (message.includes("primary_color_hex") && message.includes("column")) {
+        const fallback = query.replace(/,\s*d\.primary_color_hex,/i, ",").replace(/d\.primary_color_hex,?/gi, "");
+        rows = await sql(fallback, params);
+      } else {
+        throw err;
+      }
+    }
 
     return Response.json(rows);
   } catch (error) {
@@ -90,7 +143,15 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { title, description, is_public, primary_color_hex } = body;
+    const { title, name: incomingName, description, is_public, primary_color_hex } = body;
+
+    const name = title || incomingName;
+    if (!name) {
+      return Response.json({ error: "Title is required" }, { status: 400 });
+    }
+
+    // Ensure schema is compatible before any queries/inserts
+    await ensureDeckColumns();
 
     // Get current user ID and plan
     const userRows = await sql`
@@ -101,13 +162,14 @@ export async function POST(request) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
-    const userId = userRows[0].id;
+  const userId = userRows[0].id; // uuid
+  const userIdText = String(userId); // text for owner_user_id
     const userPlan = userRows[0].plan;
 
     // Check deck limit for free users
     if (userPlan === "free") {
       const deckCountRows = await sql`
-        SELECT COUNT(*) as count FROM decks WHERE owner_user_id = ${userId}
+  SELECT COUNT(*) as count FROM decks WHERE owner_user_id = ${userIdText}
       `;
       const deckCount = parseInt(deckCountRows[0].count);
 
@@ -124,15 +186,39 @@ export async function POST(request) {
       }
     }
 
-    const rows = await sql`
-      INSERT INTO decks (title, description, owner_user_id, is_public, primary_color_hex)
-      VALUES (${title}, ${description}, ${userId}, ${is_public || false}, ${primary_color_hex || null})
-      RETURNING *
-    `;
+    let rows;
+    try {
+      rows = await sql`
+        INSERT INTO decks (name, title, description, owner_user_id, owner_id, is_public, primary_color_hex)
+        VALUES (${name}, ${title || name}, ${description}, ${userIdText}, ${userId}, ${is_public || false}, ${primary_color_hex || null})
+        RETURNING *
+      `;
+    } catch (err) {
+      // Fallback for older schemas that may not have primary_color_hex column
+      const message = (err?.message || "").toLowerCase();
+      if (message.includes("primary_color_hex") && message.includes("column") ) {
+        await ensureDeckColumns();
+        rows = await sql`
+          INSERT INTO decks (name, title, description, owner_user_id, owner_id, is_public)
+          VALUES (${name}, ${title || name}, ${description}, ${userIdText}, ${userId}, ${is_public || false})
+          RETURNING *
+        `;
+      } else if (message.includes("title") && message.includes("column")) {
+        await ensureDeckColumns();
+        rows = await sql`
+          INSERT INTO decks (name, title, description, owner_user_id, owner_id, is_public, primary_color_hex)
+          VALUES (${name}, ${title || name}, ${description}, ${userIdText}, ${userId}, ${is_public || false}, ${primary_color_hex || null})
+          RETURNING *
+        `;
+      } else {
+        throw err;
+      }
+    }
 
     return Response.json(rows[0]);
   } catch (error) {
     console.error("Error creating deck:", error);
-    return Response.json({ error: "Failed to create deck" }, { status: 500 });
+    const msg = typeof error?.message === "string" ? error.message : "Failed to create deck";
+    return Response.json({ error: msg }, { status: 500 });
   }
 }

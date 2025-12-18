@@ -23,7 +23,7 @@ export async function PATCH(request, { params }) {
     const currentAdminId = adminRows[0].id;
     const { id } = params;
     const body = await request.json();
-    const { role, is_premium } = body;
+  const { role, is_premium, plan } = body;
 
     // Prevent admin from removing their own admin role
     if (id === currentAdminId && role && role !== "admin") {
@@ -44,12 +44,21 @@ export async function PATCH(request, { params }) {
       paramIndex++;
     }
 
-    if (is_premium !== undefined) {
+    // If plan provided, normalize is_premium from plan; otherwise accept explicit is_premium toggle
+    if (plan !== undefined) {
+      const premiumFlag = plan === "premium";
+      updates.push(`plan = $${paramIndex}`);
+      values.push(plan);
+      paramIndex++;
+      updates.push(`is_premium = $${paramIndex}`);
+      values.push(premiumFlag);
+      paramIndex++;
+    } else if (is_premium !== undefined) {
       updates.push(`is_premium = $${paramIndex}`);
       values.push(is_premium);
       paramIndex++;
 
-      // Update plan based on is_premium
+      // keep plan in sync when only is_premium is toggled
       updates.push(`plan = $${paramIndex}`);
       values.push(is_premium ? "premium" : "free");
       paramIndex++;

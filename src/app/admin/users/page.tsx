@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import useUser from "@/shared/hooks/useUser";
 import Navigation from "@/shared/components/Navigation";
-import { Search, Shield, Crown } from "lucide-react";
+import { Search, Shield, Crown, ArrowUpDown } from "lucide-react";
 
 export default function AdminUsersPage() {
   const { data: currentUser, loading: userLoading } = useUser();
@@ -53,24 +53,22 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleTogglePremium = async (user) => {
-    const newPremium = !user.is_premium;
-    const action = newPremium ? "Grant Premium" : "Revoke Premium";
-
-    setConfirmDialog({
-      title: `${action}?`,
-      message: `Are you sure you want to ${action.toLowerCase()} for ${user.email}?`,
-      onConfirm: () => updateUser(user.id, { is_premium: newPremium }),
-    });
-  };
-
   const handleChangeRole = async (user, newRole) => {
     if (newRole === user.role) return;
-
     setConfirmDialog({
       title: "Change Role?",
       message: `Are you sure you want to change ${user.email}'s role to ${newRole}?`,
       onConfirm: () => updateUser(user.id, { role: newRole }),
+    });
+  };
+
+  const handleChangePlan = async (user, newPlan) => {
+    if (newPlan === user.plan) return;
+    const action = newPlan === "premium" ? "Grant Premium" : "Set Free";
+    setConfirmDialog({
+      title: `${action}?`,
+      message: `Change ${user.email} plan to ${newPlan}?`,
+      onConfirm: () => updateUser(user.id, { plan: newPlan }),
     });
   };
 
@@ -150,8 +148,7 @@ export default function AdminUsersPage() {
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Roles</option>
-              <option value="student">Student</option>
-              <option value="teacher">Teacher</option>
+              <option value="user">User</option>
               <option value="admin">Admin</option>
             </select>
 
@@ -212,34 +209,43 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <select
-                          value={user.role}
+                          value={user.role === "admin" ? "admin" : "user"}
                           onChange={(e) =>
                             handleChangeRole(user, e.target.value)
                           }
                           className="text-sm border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           disabled={user.id === currentUser?.id}
                         >
-                          <option value="student">Student</option>
-                          <option value="teacher">Teacher</option>
+                          <option value="user">User</option>
                           <option value="admin">Admin</option>
                         </select>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            user.is_premium
-                              ? "bg-yellow-100 text-yellow-800"
-                              : "bg-gray-100 text-gray-800"
-                          }`}
-                        >
-                          {user.is_premium ? (
-                            <>
-                              <Crown size={12} /> Premium
-                            </>
-                          ) : (
-                            "Free"
-                          )}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              user.plan === "premium"
+                                ? "bg-yellow-100 text-yellow-800"
+                                : "bg-gray-100 text-gray-800"
+                            }`}
+                          >
+                            {user.plan === "premium" ? (
+                              <>
+                                <Crown size={12} /> Premium
+                              </>
+                            ) : (
+                              "Free"
+                            )}
+                          </span>
+                          <select
+                            value={user.plan || (user.is_premium ? "premium" : "free")}
+                            onChange={(e) => handleChangePlan(user, e.target.value)}
+                            className="text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <option value="free">Free</option>
+                            <option value="premium">Premium</option>
+                          </select>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(user.created_at).toLocaleDateString()}

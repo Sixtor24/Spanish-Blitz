@@ -13,6 +13,9 @@ export default function CreateBlitzChallengePage({ params }) {
   const [numQuestions, setNumQuestions] = useState("10");
   const [timeLimit, setTimeLimit] = useState("5");
   const [isHost, setIsHost] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [challengeCode, setChallengeCode] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Check authentication
   useEffect(() => {
@@ -40,9 +43,35 @@ export default function CreateBlitzChallengePage({ params }) {
     }
   };
 
-  const handleCreateChallenge = (e) => {
+  const handleCreateChallenge = async (e) => {
     e.preventDefault();
-    alert("Blitz Challenge creation will be enabled in Phase 2.");
+    if (creating) return;
+    setError(null);
+    setChallengeCode(null);
+    try {
+      setCreating(true);
+      const res = await fetch("/api/play-sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          deckId,
+          questionCount: Number(numQuestions),
+          timeLimitMinutes: Number(timeLimit),
+          isTeacher: isHost,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(body.error || "Failed to create challenge");
+        return;
+      }
+      setChallengeCode(body.code);
+    } catch (err) {
+      console.error("Error creating challenge", err);
+      setError("Could not create challenge");
+    } finally {
+      setCreating(false);
+    }
   };
 
   if (userLoading || loading) {
@@ -112,6 +141,22 @@ export default function CreateBlitzChallengePage({ params }) {
               {deck.card_count || 0} cards available
             </p>
           </div>
+
+          {/* Quick explainer */}
+          <div className="mt-4 grid sm:grid-cols-3 gap-3 text-sm">
+            <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+              <p className="font-semibold text-gray-800">Roles</p>
+              <p className="text-gray-600 mt-1">Profesor (espectador) no responde; jugador sí responde. El profesor no bloquea el final.</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+              <p className="font-semibold text-gray-800">Puntaje</p>
+              <p className="text-gray-600 mt-1">Correcto +2 · Incorrecto -1. Todos ven las mismas preguntas, cada uno a su ritmo.</p>
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+              <p className="font-semibold text-gray-800">Fin del juego</p>
+              <p className="text-gray-600 mt-1">Termina cuando todos los jugadores acaban o se acaba el tiempo. Gana quien tenga más puntos.</p>
+            </div>
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
@@ -123,8 +168,8 @@ export default function CreateBlitzChallengePage({ params }) {
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Number of Questions
                 </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {["10", "15", "20"].map((num) => (
+                <div className="grid grid-cols-4 gap-3">
+                  {["10", "15", "20", "30"].map((num) => (
                     <button
                       key={num}
                       type="button"
@@ -139,6 +184,7 @@ export default function CreateBlitzChallengePage({ params }) {
                     </button>
                   ))}
                 </div>
+                <p className="text-xs text-gray-500 mt-2">Puedes ajustar la cantidad de preguntas que verán todos los jugadores.</p>
               </div>
 
               {/* Time Limit */}
@@ -146,8 +192,8 @@ export default function CreateBlitzChallengePage({ params }) {
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   Time Limit (minutes)
                 </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {["3", "5", "7"].map((time) => (
+                <div className="grid grid-cols-4 gap-3">
+                  {["3", "5", "7", "10"].map((time) => (
                     <button
                       key={time}
                       type="button"
@@ -163,7 +209,14 @@ export default function CreateBlitzChallengePage({ params }) {
                     </button>
                   ))}
                 </div>
+                <p className="text-xs text-gray-500 mt-2">El juego finaliza al agotar el tiempo o cuando todos los jugadores terminan.</p>
               </div>
+
+              {error && (
+                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+                  {error}
+                </div>
+              )}
 
               {/* Host Checkbox */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -183,7 +236,8 @@ export default function CreateBlitzChallengePage({ params }) {
                     </div>
                     <p className="text-sm text-gray-600 mt-1">
                       Host the challenge without answering questions. You'll
-                      monitor progress and see results.
+                      monitor progress and see results. Si desactivas, juegas como
+                      cualquier alumno.
                     </p>
                   </div>
                 </label>
@@ -199,9 +253,10 @@ export default function CreateBlitzChallengePage({ params }) {
                 </a>
                 <button
                   type="submit"
-                  className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 font-semibold transition-colors"
+                  className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  disabled={creating}
                 >
-                  Create Challenge
+                  {creating ? "Creating..." : "Create Challenge"}
                 </button>
               </div>
             </form>
@@ -217,32 +272,37 @@ export default function CreateBlitzChallengePage({ params }) {
 
               <div className="bg-white bg-opacity-20 backdrop-blur-sm rounded-lg p-6 text-center mb-4">
                 <p className="text-sm text-purple-100 mb-2">
-                  Code will appear here
+                  {challengeCode ? "Share this code with students" : "Code will appear here"}
                 </p>
                 <div className="text-4xl font-bold font-mono tracking-wider">
-                  ------
+                  {challengeCode || "------"}
                 </div>
               </div>
 
-              <div className="bg-white bg-opacity-10 rounded-lg p-4">
-                <p className="text-sm text-purple-100">
-                  <strong>Coming in Phase 2:</strong>
-                  <br />
-                  Share this code with students to join your challenge in
-                  real-time.
-                </p>
-              </div>
+              {challengeCode ? (
+                <div className="bg-white bg-opacity-10 rounded-lg p-4 space-y-2">
+                  <p className="text-sm text-purple-100">
+                    Students join at <strong>/blitz-challenge</strong> using this code.
+                  </p>
+                  <a
+                    href={`/blitz-challenge/session/${challengeCode}`}
+                    className="block w-full text-center bg-white text-purple-700 font-semibold py-2 rounded-lg hover:bg-purple-50"
+                  >
+                    Open Host View
+                  </a>
+                </div>
+              ) : (
+                <div className="bg-white bg-opacity-10 rounded-lg p-4">
+                  <p className="text-sm text-purple-100">
+                    Create the challenge to generate a join code for your class.
+                  </p>
+                  <p className="text-xs text-purple-100/80 mt-2">
+                    Recuerda: el host en modo profesor no responde; los jugadores sí. Mismo set, preguntas aleatorias.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-
-        {/* Info Box */}
-        <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-sm text-yellow-800">
-            <strong>Note:</strong> Blitz Challenge creation and real-time
-            multiplayer functionality will be enabled in Phase 2. This is a
-            preview of the setup interface.
-          </p>
         </div>
       </div>
     </div>

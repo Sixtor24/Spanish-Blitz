@@ -10,6 +10,7 @@ export default function BlitzChallengePage() {
   const [decks, setDecks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
 
   // Check authentication
   useEffect(() => {
@@ -40,9 +41,30 @@ export default function BlitzChallengePage() {
     }
   };
 
-  const handleJoinChallenge = (e) => {
+  const handleJoinChallenge = async (e) => {
     e.preventDefault();
-    alert("Blitz Challenge joining will be enabled in Phase 2.");
+    setMessage(null);
+    try {
+      const code = challengeCode.trim().toUpperCase();
+      if (!code) {
+        setMessage("Enter a challenge code");
+        return;
+      }
+      const res = await fetch("/api/play-sessions/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(body.error || "Could not join challenge");
+        return;
+      }
+      window.location.href = `/blitz-challenge/session/${code}`;
+    } catch (err) {
+      setMessage("Error joining challenge");
+      console.error(err);
+    }
   };
 
   if (userLoading || loading) {
@@ -117,6 +139,10 @@ export default function BlitzChallengePage() {
                   maxLength={6}
                 />
               </div>
+
+              {message && (
+                <div className="text-sm text-red-600">{message}</div>
+              )}
 
               <button
                 type="submit"

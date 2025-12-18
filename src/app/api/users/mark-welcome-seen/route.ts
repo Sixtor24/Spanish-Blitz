@@ -1,9 +1,24 @@
 // @ts-nocheck
 import sql from "../../utils/sql";
 
+async function ensureUserColumns() {
+  await sql`
+    DO $$
+    BEGIN
+      BEGIN
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS preferred_locale text;
+      EXCEPTION WHEN others THEN NULL; END;
+      BEGIN
+        ALTER TABLE users ADD COLUMN IF NOT EXISTS has_seen_welcome boolean DEFAULT false;
+      EXCEPTION WHEN others THEN NULL; END;
+    END$$;
+  `;
+}
+
 // Mark welcome as seen for current user
 export async function POST(request) {
   try {
+    await ensureUserColumns();
     const rows = await sql`
       UPDATE users
       SET 

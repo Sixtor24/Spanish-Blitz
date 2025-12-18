@@ -4,33 +4,22 @@ import Navigation from "@/shared/components/Navigation";
 import AdPlaceholder from "@/shared/components/AdPlaceholder";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition from "@/shared/components/SpeechRecognition";
+import { Trophy, Target, Clock, BookOpen, ArrowRight } from "lucide-react";
+
 import {
-  Trophy,
-  Target,
-  Clock,
-  Volume2,
-  BookOpen,
-  ArrowRight,
-} from "lucide-react";
+  QUESTION_TYPES,
+  QUESTION_TYPE_LIST,
+  getSpanishPrompt,
+  getSpanishAnswer,
+  getEnglishAnswer,
+  normalizeSpanish,
+  buildOptions,
+  getQuestionPrompt,
+  getQuestionTypeLabel,
+  isSpeechQuestion,
+  isAudioQuestion,
+} from "../lib/quizUtils";
 
-// Question types enum
-const QUESTION_TYPES = {
-  SPANISH_TEXT_TO_ENGLISH_TEXT: "spanish_text_to_english_text",
-  SPANISH_AUDIO_TO_ENGLISH_TEXT: "spanish_audio_to_english_text",
-  ENGLISH_TEXT_TO_SPANISH_TEXT: "english_text_to_spanish_text",
-  ENGLISH_TEXT_TO_SPANISH_SPEECH: "english_text_to_spanish_speech",
-};
-
-const QUESTION_TYPE_LIST = Object.values(QUESTION_TYPES);
-
-function normalizeSpanish(text) {
-  return text
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // Remove accents but keep ñ
-    .replace(/[^\wñ\s]/g, "") // Remove punctuation but keep ñ
-    .trim();
-}
 
 export default function PlaySoloPage() {
   const [showSetSelection, setShowSetSelection] = useState(true);
@@ -131,74 +120,19 @@ export default function PlaySoloPage() {
 
   // Generate options when card changes
   useEffect(() => {
-    if (currentCard && questionType && !isSpeechQuestion()) {
-      const newOptions = getOptions();
+    if (currentCard && questionType && !isSpeechQuestion(questionType)) {
+      const newOptions = buildOptions({
+        question: currentCard,
+        questions: cards,
+        questionType,
+      });
       setCurrentOptions(newOptions);
     } else {
       setCurrentOptions([]);
     }
-  }, [currentIndex, currentCard?.id]);
+  }, [currentIndex, currentCard?.id, questionType]);
 
-  // Generate distractors based on question type
-  const getDistractors = (correctAnswer, type, count = 3) => {
-    const otherCards = cards.filter((c) => c.id !== currentCard.id);
-    const distractors = [];
-
-    if (type === "english") {
-      // Use translation_en from other cards
-      otherCards.forEach((c) => {
-        if (c.translation_en && c.translation_en !== correctAnswer) {
-          distractors.push(c.translation_en);
-        }
-      });
-    } else {
-      // Use Spanish answers from other cards
-      otherCards.forEach((c) => {
-        if (c.answer_es && c.answer_es !== correctAnswer) {
-          distractors.push(c.answer_es);
-        }
-        if (
-          c.prompt_es &&
-          c.prompt_es !== correctAnswer &&
-          !distractors.includes(c.prompt_es)
-        ) {
-          distractors.push(c.prompt_es);
-        }
-      });
-    }
-
-    // Shuffle and take only the count needed
-    const shuffled = distractors.sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, count);
-  };
-
-  const getOptions = () => {
-    if (!currentCard || !questionType) return [];
-
-    let correctAnswer;
-    let distractorType;
-
-    switch (questionType) {
-      case QUESTION_TYPES.SPANISH_TEXT_TO_ENGLISH_TEXT:
-      case QUESTION_TYPES.SPANISH_AUDIO_TO_ENGLISH_TEXT:
-        correctAnswer = currentCard.translation_en;
-        distractorType = "english";
-        break;
-
-      case QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_TEXT:
-        correctAnswer = currentCard.answer_es;
-        distractorType = "spanish";
-        break;
-
-      default:
-        return [];
-    }
-
-    const distractors = getDistractors(correctAnswer, distractorType, 3);
-    const options = [correctAnswer, ...distractors].filter(Boolean);
-
-    return options.sort(() => Math.random() - 0.5);
-  };
+  // Options now generated via shared helper above
 
   const handleSelectOption = async (option) => {
     if (selectedOption) return; // Already answered
@@ -209,11 +143,11 @@ export default function PlaySoloPage() {
     switch (questionType) {
       case QUESTION_TYPES.SPANISH_TEXT_TO_ENGLISH_TEXT:
       case QUESTION_TYPES.SPANISH_AUDIO_TO_ENGLISH_TEXT:
-        correctAnswer = currentCard.translation_en;
+        correctAnswer = getEnglishAnswer(currentCard);
         break;
       case QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_TEXT:
-      case QUESTION_TYPES.SPANISH_AUDIO_TO_SPANISH_TEXT:
-        correctAnswer = currentCard.answer_es;
+      case QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_SPEECH:
+        correctAnswer = getSpanishAnswer(currentCard);
         break;
     }
 
@@ -237,7 +171,7 @@ export default function PlaySoloPage() {
 
   const handleSpeechAnswer = async (transcript) => {
     const normalized = normalizeSpanish(transcript);
-    const correctAnswer = normalizeSpanish(currentCard.answer_es);
+    const correctAnswer = normalizeSpanish(getSpanishAnswer(currentCard));
     const isCorrect = normalized === correctAnswer;
 
     setFeedback(isCorrect ? "correct" : "incorrect");
@@ -296,21 +230,6 @@ export default function PlaySoloPage() {
     const endTime = Date.now();
     const duration = Math.round((endTime - startTime) / 1000);
     const accuracy = Math.round((score / cards.length) * 100);
-
-    try {
-      await fetch("/api/play-sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deck_id: deck.id,
-          score,
-          accuracy,
-          ended_at: new Date().toISOString(),
-        }),
-      });
-    } catch (error) {
-      console.error("Error saving play session:", error);
-    }
   };
 
   const restartGame = () => {
@@ -336,43 +255,8 @@ export default function PlaySoloPage() {
   };
 
   // Get question prompt based on type
-  const getQuestionPrompt = () => {
-    switch (questionType) {
-      case QUESTION_TYPES.SPANISH_TEXT_TO_ENGLISH_TEXT:
-        return currentCard.prompt_es;
-      case QUESTION_TYPES.SPANISH_AUDIO_TO_ENGLISH_TEXT:
-        return ""; // Remove the "Listen and choose" text
-      case QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_TEXT:
-        return currentCard.translation_en || currentCard.prompt_es;
-      case QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_SPEECH:
-        return currentCard.translation_en || "Translate to Spanish";
-      default:
-        return "";
-    }
-  };
-
-  const getQuestionTypeLabel = () => {
-    switch (questionType) {
-      case QUESTION_TYPES.SPANISH_TEXT_TO_ENGLISH_TEXT:
-        return "Spanish → English (Text)";
-      case QUESTION_TYPES.SPANISH_AUDIO_TO_ENGLISH_TEXT:
-        return "Spanish → English (Audio)";
-      case QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_TEXT:
-        return "English → Spanish (Text)";
-      case QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_SPEECH:
-        return "English → Spanish (Speak)";
-      default:
-        return "";
-    }
-  };
-
-  const isSpeechQuestion = () => {
-    return questionType === QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_SPEECH;
-  };
-
-  const isAudioQuestion = () => {
-    return questionType === QUESTION_TYPES.SPANISH_AUDIO_TO_ENGLISH_TEXT;
-  };
+  const resolvedPrompt = getQuestionPrompt(currentCard, questionType);
+  const resolvedLabel = getQuestionTypeLabel(questionType);
 
   // Set Selection Screen
   if (showSetSelection) {
@@ -583,20 +467,20 @@ export default function PlaySoloPage() {
         <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
           <div className="text-center mb-8">
             <div className="inline-block px-4 py-2 bg-purple-100 text-purple-800 rounded-full text-sm font-medium mb-4">
-              {getQuestionTypeLabel()}
+              {resolvedLabel}
             </div>
 
-            {getQuestionPrompt() && (
+            {resolvedPrompt && (
               <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                {getQuestionPrompt()}
+                {resolvedPrompt}
               </h2>
             )}
 
             {/* Audio button for audio questions */}
-            {isAudioQuestion() && (
+            {isAudioQuestion(questionType) && (
               <div className="mb-4 flex flex-col items-center">
                 <TTSButton
-                  text={currentCard.answer_es || currentCard.prompt_es}
+                  text={getSpanishAnswer(currentCard)}
                   locale={userLocale}
                 />
                 <p className="text-sm text-gray-500 mt-2">
@@ -608,7 +492,7 @@ export default function PlaySoloPage() {
           </div>
 
           {/* Multiple Choice Questions */}
-          {!isSpeechQuestion() && (
+          {!isSpeechQuestion(questionType) && (
             <div className="space-y-3 min-h-[300px]">
               {currentOptions.map((option, index) => {
                 const isSelected = selectedOption === option;
@@ -617,10 +501,10 @@ export default function PlaySoloPage() {
                 switch (questionType) {
                   case QUESTION_TYPES.SPANISH_TEXT_TO_ENGLISH_TEXT:
                   case QUESTION_TYPES.SPANISH_AUDIO_TO_ENGLISH_TEXT:
-                    correctAnswer = currentCard.translation_en;
+                    correctAnswer = getEnglishAnswer(currentCard);
                     break;
                   case QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_TEXT:
-                    correctAnswer = currentCard.answer_es;
+                    correctAnswer = getSpanishAnswer(currentCard);
                     break;
                 }
 
@@ -657,7 +541,7 @@ export default function PlaySoloPage() {
           )}
 
           {/* Speech Questions */}
-          {isSpeechQuestion() && !selectedOption && (
+          {isSpeechQuestion(questionType) && !selectedOption && (
             <div className="space-y-6">
               <div className="flex justify-center">
                 <SpeechRecognition
@@ -674,7 +558,7 @@ export default function PlaySoloPage() {
           )}
 
           {/* Speech Feedback */}
-          {isSpeechQuestion() && selectedOption && (
+          {isSpeechQuestion(questionType) && selectedOption && (
             <div className="space-y-4">
               <div
                 className={`p-4 rounded-lg ${
@@ -691,7 +575,7 @@ export default function PlaySoloPage() {
                 <div className="p-4 bg-blue-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Correct answer:</p>
                   <p className="font-medium text-gray-900">
-                    {currentCard.answer_es}
+                    {getSpanishAnswer(currentCard)}
                   </p>
                 </div>
               )}

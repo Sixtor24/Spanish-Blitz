@@ -33,11 +33,24 @@ export async function POST(request, { params }) {
       translation_en,
     } = body;
 
+    const trimmedPrompt = (prompt_es || "").trim();
+    const trimmedTranslation = (translation_en || "").trim();
+
+    if (!trimmedPrompt || !trimmedTranslation) {
+      return Response.json(
+        { error: "Spanish prompt and English meaning are required." },
+        { status: 400 },
+      );
+    }
+
     // Check user plan and card limit
     const userRows = await sql`
       SELECT u.plan 
       FROM users u
-      JOIN decks d ON d.owner_user_id = u.id
+      JOIN decks d ON (
+        (d.owner_id IS NOT NULL AND d.owner_id = u.id)
+        OR (d.owner_user_id IS NOT NULL AND d.owner_user_id::text = u.id::text)
+      )
       WHERE d.id = ${id} AND u.email = 'guest@thespanishlearningclub.com'
       LIMIT 1
     `;
@@ -61,9 +74,12 @@ export async function POST(request, { params }) {
       }
     }
 
+  const question = trimmedPrompt;
+  const answer = trimmedTranslation;
+
     const rows = await sql`
-      INSERT INTO cards (deck_id, prompt_es, answer_es, distractor_1_es, distractor_2_es, distractor_3_es, notes, translation_en)
-      VALUES (${id}, ${prompt_es}, ${answer_es || prompt_es}, ${distractor_1_es || null}, ${distractor_2_es || null}, ${distractor_3_es || null}, ${notes || null}, ${translation_en || null})
+      INSERT INTO cards (deck_id, question, answer)
+      VALUES (${id}, ${question}, ${answer})
       RETURNING *
     `;
 

@@ -18,6 +18,7 @@ import NeonAdapter from './adapter';
 import { getHTMLForErrorPage } from './get-html-for-error-page';
 import { isAuthAction } from './is-auth-action';
 import { API_BASENAME, api } from './route-builder';
+import { startWsServer } from '../src/app/api/utils/ws-hub';
 neonConfig.webSocketConstructor = ws;
 
 const als = new AsyncLocalStorage<{ requestId: string }>();
@@ -265,6 +266,9 @@ app.use('/api/auth/*', async (c, next) => {
   return next();
 });
 app.route(API_BASENAME, api);
+
+// Start standalone WebSocket server for play-session real-time signals
+startWsServer();
 
 export default await createHonoServer({
   app,

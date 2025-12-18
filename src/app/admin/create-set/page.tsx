@@ -58,8 +58,8 @@ export default function CreateSetPage() {
           cardsData.length > 0
             ? cardsData.map((c) => ({
                 id: c.id,
-                spanish: c.prompt_es,
-                english: c.translation_en || "",
+                spanish: c.prompt_es || c.question || "",
+                english: c.translation_en || c.answer || "",
               }))
             : [{ id: null, spanish: "", english: "" }],
         );
@@ -460,7 +460,7 @@ export default function CreateSetPage() {
                     <strong>
                       {
                         cards.filter(
-                          (c) => c.spanish.trim() && c.english.trim(),
+                          (c) => (c.spanish || "").trim() && (c.english || "").trim(),
                         ).length
                       }
                     </strong>{" "}

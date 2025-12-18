@@ -13,6 +13,7 @@ export default function DeckDetailPage({ params }) {
   const [activeTab, setActiveTab] = useState("add-one");
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState("");
+  const [formError, setFormError] = useState("");
 
   const [cardForm, setCardForm] = useState({
     prompt_es: "",
@@ -58,10 +59,25 @@ export default function DeckDetailPage({ params }) {
     e.preventDefault();
 
     try {
+      const trimmedPrompt = (cardForm.prompt_es || "").trim();
+      const trimmedTranslation = (cardForm.translation_en || "").trim();
+      const trimmedAnswerEs = (cardForm.answer_es || "").trim();
+
+      if (!trimmedPrompt || !trimmedTranslation) {
+        setFormError("Both Spanish and English meaning are required.");
+        return;
+      }
+
+      setFormError("");
+
       const res = await fetch(`/api/decks/${deckId}/cards`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cardForm),
+        body: JSON.stringify({
+          prompt_es: trimmedPrompt,
+          answer_es: trimmedAnswerEs || undefined,
+          translation_en: trimmedTranslation,
+        }),
       });
 
       if (!res.ok) {
@@ -318,7 +334,7 @@ export default function DeckDetailPage({ params }) {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      English meaning (optional)
+                      English meaning *
                     </label>
                     <input
                       type="text"
@@ -331,8 +347,13 @@ export default function DeckDetailPage({ params }) {
                       }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="e.g., hello"
+                      required
                     />
                   </div>
+
+                  {formError && (
+                    <p className="text-sm text-red-600">{formError}</p>
+                  )}
 
                   <div className="flex gap-3 pt-4">
                     <button

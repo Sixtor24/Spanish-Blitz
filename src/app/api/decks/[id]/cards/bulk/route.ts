@@ -14,11 +14,14 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Check user plan and card limit
+    // Check user plan and card limit. Compare using owner_id (uuid) or owner_user_id text -> uuid string
     const userRows = await sql`
       SELECT u.plan 
       FROM users u
-      JOIN decks d ON d.owner_user_id = u.id
+      JOIN decks d ON (
+        (d.owner_id IS NOT NULL AND d.owner_id = u.id)
+        OR (d.owner_user_id IS NOT NULL AND d.owner_user_id::text = u.id::text)
+      )
       WHERE d.id = ${id} AND u.email = 'guest@thespanishlearningclub.com'
       LIMIT 1
     `;
@@ -46,25 +49,35 @@ export async function POST(request, { params }) {
       }
     }
 
+    // Map incoming fields to existing schema (cards.question, cards.answer, type)
     const values = [];
     const placeholders = [];
     let paramIndex = 1;
 
-    cards.forEach((card) => {
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      const question = (card.prompt_es || card.question || "").trim();
+      const answer =
+        (card.translation_en || card.answer_es || card.answer || "").trim();
+
+      if (!question || !answer) {
+        return Response.json(
+          {
+            error: `Each card needs a Spanish prompt and an English meaning (issue on line ${i + 1}).`,
+          },
+          { status: 400 },
+        );
+      }
+
       placeholders.push(
-        `($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2}, $${paramIndex + 3})`,
+        `($${paramIndex}, $${paramIndex + 1}, $${paramIndex + 2})`,
       );
-      values.push(
-        id,
-        card.prompt_es,
-        card.answer_es,
-        card.translation_en || null,
-      );
-      paramIndex += 4;
-    });
+      values.push(id, question, answer);
+      paramIndex += 3;
+    }
 
     const query = `
-      INSERT INTO cards (deck_id, prompt_es, answer_es, translation_en)
+      INSERT INTO cards (deck_id, question, answer)
       VALUES ${placeholders.join(", ")}
       RETURNING *
     `;
