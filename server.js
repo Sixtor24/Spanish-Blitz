@@ -1,12 +1,12 @@
-import { createHonoServer } from 'react-router-hono-server/node';
+import { serve } from '@hono/node-server';
 
 const PORT = process.env.PORT || 4000;
 
 console.log(`🚀 Server starting on port ${PORT}...`);
 
-// Import the compiled Hono app from build
+// Import the compiled server from build (already has React Router integrated)
 import('./build/server/index.js')
-  .then(async (module) => {
+  .then((module) => {
     const app = module.app || module.default;
     
     if (!app) {
@@ -16,15 +16,14 @@ import('./build/server/index.js')
     }
 
     console.log('✅ App loaded successfully');
+    console.log('✅ Starting HTTP server...');
 
-    // Create the server with react-router-hono-server integration
-    const server = await createHonoServer({
-      app,
-      defaultLogger: false,
-    });
-
-    server.listen(PORT, () => {
-      console.log(`✅ Server running on http://localhost:${PORT}`);
+    // Serve the Hono app (already has React Router routes integrated by build)
+    serve({
+      fetch: app.fetch,
+      port: PORT,
+    }, (info) => {
+      console.log(`✅ Server running on http://localhost:${info.port}`);
     });
   })
   .catch((error) => {
