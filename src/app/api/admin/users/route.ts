@@ -1,24 +1,10 @@
-// @ts-nocheck
 import sql from "../../utils/sql";
-import { auth } from "@/auth";
+import { requireAdmin } from "@/lib/auth/require-auth";
+import { withErrorHandler } from "@/lib/utils/error-handler";
 
 // Get all users (admin only)
-export async function GET(request) {
-  try {
-    const session = await auth();
-
-    if (!session?.user?.email) {
-      return Response.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
-    // Get current user and check if admin
-    const adminRows = await sql`
-      SELECT role FROM users WHERE email = ${session.user.email} LIMIT 1
-    `;
-
-    if (adminRows.length === 0 || adminRows[0].role !== "admin") {
-      return Response.json({ error: "Access denied" }, { status: 403 });
-    }
+export const GET = withErrorHandler(async (request: Request) => {
+  await requireAdmin(sql);
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search");
@@ -68,11 +54,7 @@ export async function GET(request) {
 
     query += ` ORDER BY u.created_at DESC`;
 
-    const rows = await sql(query, params);
+  const rows = await sql(query, params);
 
-    return Response.json(rows);
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    return Response.json({ error: "Failed to fetch users" }, { status: 500 });
-  }
-}
+  return Response.json(rows);
+}, 'GET /api/admin/users');

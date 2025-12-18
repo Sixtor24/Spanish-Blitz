@@ -1,14 +1,16 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import Navigation from "@/shared/components/Navigation";
 import AdPlaceholder from "@/shared/components/AdPlaceholder";
 import WelcomeModal from "@/shared/components/WelcomeModal";
 import { BookOpen, Zap, Search, Plus } from "lucide-react";
 import useUser from "@/shared/hooks/useUser";
+import type { DbDeck } from "@/lib/types/api.types";
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const { data: user, loading: userLoading } = useUser();
-  const [decks, setDecks] = useState([]);
+  const [decks, setDecks] = useState<DbDeck[]>([]);
   const [stats, setStats] = useState({
     cardsStudied: 0,
     accuracy: 0,
@@ -22,9 +24,9 @@ export default function DashboardPage() {
   // Check authentication
   useEffect(() => {
     if (!userLoading && !user) {
-      window.location.href = "/account/signin";
+      navigate("/account/signin");
     }
-  }, [user, userLoading]);
+  }, [user, userLoading, navigate]);
 
   useEffect(() => {
     if (user) {
@@ -52,7 +54,7 @@ export default function DashboardPage() {
 
   const handleCreateFirstSet = async () => {
     await handleDismissWelcome();
-    window.location.href = "/admin/create-set";
+    navigate("/admin/create-set");
   };
 
   const fetchData = async () => {

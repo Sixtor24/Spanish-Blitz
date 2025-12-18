@@ -1,5 +1,6 @@
-// @ts-nocheck
 import sql from "../../utils/sql";
+import { requireAuth } from "@/lib/auth/require-auth";
+import { withErrorHandler } from "@/lib/utils/error-handler";
 
 async function ensureUserColumns() {
   await sql`
@@ -16,25 +17,23 @@ async function ensureUserColumns() {
 }
 
 // Mark welcome as seen for current user
-export async function POST(request) {
-  try {
-    await ensureUserColumns();
-    const rows = await sql`
-      UPDATE users
-      SET 
-        has_seen_welcome = true,
-        updated_at = NOW()
-      WHERE email = 'guest@thespanishlearningclub.com'
-      RETURNING id, email, display_name, role, preferred_locale, is_premium, plan, has_seen_welcome
-    `;
+export const POST = withErrorHandler(async (request: Request) => {
+  const session = await requireAuth();
+  
+  await ensureUserColumns();
+  
+  const rows = await sql`
+    UPDATE users
+    SET 
+      has_seen_welcome = true,
+      updated_at = NOW()
+    WHERE email = ${session.user.email}
+    RETURNING id, email, display_name, role, preferred_locale, is_premium, plan, has_seen_welcome
+  `;
 
-    if (rows.length === 0) {
-      return Response.json({ error: "User not found" }, { status: 404 });
-    }
-
-    return Response.json(rows[0]);
-  } catch (error) {
-    console.error("Error marking welcome as seen:", error);
-    return Response.json({ error: "Failed to update user" }, { status: 500 });
+  if (rows.length === 0) {
+    return Response.json({ error: "User not found" }, { status: 404 });
   }
-}
+
+  return Response.json(rows[0]);
+}, 'POST /api/users/mark-welcome-seen');

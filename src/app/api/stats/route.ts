@@ -1,18 +1,12 @@
-// @ts-nocheck
 import sql from "../utils/sql";
+import { getCurrentUser, requireAuth } from "@/lib/auth/require-auth";
+import { withErrorHandler } from "@/lib/utils/error-handler";
+import type { StatsResponse } from "@/lib/types/api.types";
 
-export async function GET(request) {
-  try {
-    // Get guest user ID
-    const userRows = await sql`
-      SELECT id FROM users WHERE email = 'guest@thespanishlearningclub.com' LIMIT 1
-    `;
-
-    if (userRows.length === 0) {
-      return Response.json({ cardsStudied: 0, accuracy: 0, streak: 0 });
-    }
-
-    const userId = userRows[0].id;
+export const GET = withErrorHandler(async (request: Request) => {
+  const session = await requireAuth();
+  const user = await getCurrentUser(sql, session);
+  const userId = user.id;
 
     // Get total cards studied
     const studiedRows = await sql`
@@ -46,13 +40,11 @@ export async function GET(request) {
 
     const streak = streakRows[0]?.streak || 0;
 
-    return Response.json({
-      cardsStudied: Number(cardsStudied),
-      accuracy,
-      streak: Number(streak),
-    });
-  } catch (error) {
-    console.error("Error fetching stats:", error);
-    return Response.json({ error: "Failed to fetch stats" }, { status: 500 });
-  }
-}
+  const response: StatsResponse = {
+    cardsStudied: Number(cardsStudied),
+    accuracy,
+    streak: Number(streak),
+  };
+
+  return Response.json(response);
+}, 'GET /api/stats');

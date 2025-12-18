@@ -1,22 +1,20 @@
-// @ts-nocheck
 import sql from "../utils/sql";
+import { getCurrentUser, requireAuth } from "@/lib/auth/require-auth";
+import { withErrorHandler } from "@/lib/utils/error-handler";
+import type { CreateStudyEventBody } from "@/lib/types/api.types";
 
-export async function POST(request) {
-  try {
-    const body = await request.json();
-    const { deck_id, card_id, result, mode, response_type, transcript_es } =
-      body;
+export const POST = withErrorHandler(async (request: Request) => {
+  const session = await requireAuth();
+  const user = await getCurrentUser(sql, session);
+  const userId = user.id;
 
-    // Get guest user ID
-    const userRows = await sql`
-      SELECT id FROM users WHERE email = 'guest@thespanishlearningclub.com' LIMIT 1
-    `;
-
-    if (userRows.length === 0) {
-      return Response.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const userId = userRows[0].id;
+  const body = await request.json() as CreateStudyEventBody & {
+    deck_id?: string;
+    mode?: string;
+    response_type?: string;
+    transcript_es?: string;
+  };
+  const { deck_id, card_id, result, mode, response_type, transcript_es } = body;
 
     const rows = await sql`
       INSERT INTO study_events (user_id, deck_id, card_id, result, mode, response_type, transcript_es)
@@ -24,12 +22,5 @@ export async function POST(request) {
       RETURNING *
     `;
 
-    return Response.json(rows[0]);
-  } catch (error) {
-    console.error("Error creating study event:", error);
-    return Response.json(
-      { error: "Failed to create study event" },
-      { status: 500 },
-    );
-  }
-}
+  return Response.json(rows[0]);
+}, 'POST /api/study-events');

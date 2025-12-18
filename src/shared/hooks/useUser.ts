@@ -1,14 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession, type SessionData, type SessionUser } from '@auth/create/react';
-
-type DbUser = {
-  id: string;
-  email: string;
-  display_name?: string | null;
-  role?: string | null;
-  is_premium?: boolean | null;
-  plan?: 'free' | 'premium' | null;
-};
+import type { DbUser } from '@/lib/types/api.types';
 
 const useUser = () => {
   const sessionResult = useSession() ?? { data: null, status: 'loading' as const };
@@ -17,20 +9,23 @@ const useUser = () => {
 
   const [user, setUser] = useState<SessionUser | DbUser>(session?.user ?? null);
 
-  const fetchUser = useCallback(async (sessionData: SessionData, sessionStatus: typeof status) => {
-    const baseUser = sessionData?.user ?? null;
+  const fetchUser = useCallback(
+    async (sessionData: SessionData, sessionStatus: typeof status) => {
+      const baseUser = sessionData?.user ?? null;
 
-    if (sessionStatus !== 'authenticated') return baseUser;
+      if (sessionStatus !== 'authenticated') return baseUser;
 
-    try {
-      const res = await fetch('/api/users/current');
-      if (!res.ok) return baseUser;
-      const data = (await res.json()) as DbUser;
-      return data ?? baseUser;
-    } catch {
-      return baseUser;
-    }
-  }, []);
+      try {
+        const res = await fetch('/api/users/current');
+        if (!res.ok) return baseUser;
+        const data = (await res.json()) as DbUser;
+        return data ?? baseUser;
+      } catch {
+        return baseUser;
+      }
+    },
+    []
+  );
 
   const refetchUser = useCallback(() => {
     if (status === 'authenticated') {

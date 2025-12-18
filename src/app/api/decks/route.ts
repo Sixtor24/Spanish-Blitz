@@ -1,6 +1,7 @@
-// @ts-nocheck
 import sql from "../utils/sql";
-import { auth } from "@/auth";
+import { requireAuth, getCurrentUser } from "@/lib/auth/require-auth";
+import { withErrorHandler } from "@/lib/utils/error-handler";
+import type { CreateDeckBody } from "@/lib/types/api.types";
 
 async function ensureDeckColumns() {
   await sql`
@@ -41,29 +42,15 @@ async function ensureDeckColumns() {
   `;
 }
 
-export async function GET(request) {
-  try {
-    const session = await auth();
-
-    if (!session?.user?.email) {
-      return Response.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(request.url);
-    const search = searchParams.get("search");
-    const filter = searchParams.get("filter"); // all, owned, assigned, public
-
-    // Get current user ID
-    const userRows = await sql`
-      SELECT id FROM users WHERE email = ${session.user.email} LIMIT 1
-    `;
-
-    if (userRows.length === 0) {
-      return Response.json({ error: "User not found" }, { status: 404 });
-    }
-
-  const userId = userRows[0].id;
+export const GET = withErrorHandler(async (request: Request) => {
+  const session = await requireAuth();
+  const user = await getCurrentUser(sql, session);
+  const userId = user.id;
   const userIdText = String(userId);
+
+  const { searchParams } = new URL(request.url);
+  const search = searchParams.get("search");
+  const filter = searchParams.get("filter"); // all, owned, assigned, public
 
     await ensureDeckColumns();
 
@@ -127,44 +114,27 @@ export async function GET(request) {
       }
     }
 
-    return Response.json(rows);
-  } catch (error) {
-    console.error("Error fetching decks:", error);
-    return Response.json({ error: "Failed to fetch decks" }, { status: 500 });
-  }
-}
+  return Response.json(rows);
+}, 'GET /api/decks');
 
-export async function POST(request) {
-  try {
-    const session = await auth();
+export const POST = withErrorHandler(async (request: Request) => {
+  const session = await requireAuth();
+  const user = await getCurrentUser(sql, session);
+  const userId = user.id;
+  const userIdText = String(userId);
 
-    if (!session?.user?.email) {
-      return Response.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { title, name: incomingName, description, is_public, primary_color_hex } = body;
+  const body = await request.json() as CreateDeckBody & { name?: string };
+  const { title, name: incomingName, description, is_public, primary_color_hex } = body;
 
     const name = title || incomingName;
     if (!name) {
       return Response.json({ error: "Title is required" }, { status: 400 });
     }
 
-    // Ensure schema is compatible before any queries/inserts
-    await ensureDeckColumns();
-
-    // Get current user ID and plan
-    const userRows = await sql`
-      SELECT id, plan FROM users WHERE email = ${session.user.email} LIMIT 1
-    `;
-
-    if (userRows.length === 0) {
-      return Response.json({ error: "User not found" }, { status: 404 });
-    }
-
-  const userId = userRows[0].id; // uuid
-  const userIdText = String(userId); // text for owner_user_id
-    const userPlan = userRows[0].plan;
+  // Ensure schema is compatible before any queries/inserts
+  await ensureDeckColumns();
+  
+  const userPlan = user.plan;
 
     // Check deck limit for free users
     if (userPlan === "free") {
@@ -215,10 +185,5 @@ export async function POST(request) {
       }
     }
 
-    return Response.json(rows[0]);
-  } catch (error) {
-    console.error("Error creating deck:", error);
-    const msg = typeof error?.message === "string" ? error.message : "Failed to create deck";
-    return Response.json({ error: msg }, { status: 500 });
-  }
-}
+  return Response.json(rows[0]);
+}, 'POST /api/decks');

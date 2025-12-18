@@ -5,7 +5,6 @@ function MainComponent() {
   const handleSignOut = async () => {
     await signOut({
       callbackUrl: "/",
-      redirect: true,
     });
   };
   return (

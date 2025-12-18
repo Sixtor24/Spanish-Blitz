@@ -1,15 +1,14 @@
-// @ts-nocheck
 /**
- * WARNING: This file connects this app to Anythings's internal auth system. Do
- * not attempt to edit it. Modifying it will have no effect on your project as it is controlled by our system.
- * Do not import @auth/create or @auth/create anywhere else or it may break. This is an internal package.
+ * Authentication configuration using Auth.js with Hono adapter
+ * Handles user authentication with credentials (email/password)
  */
 import CreateAuth from "@auth/create"
 import Credentials from "@auth/core/providers/credentials"
 import { Pool } from '@neondatabase/serverless'
 import { hash, verify } from 'argon2'
+import type { Adapter as AuthAdapter } from '@auth/core/adapters'
 
-function Adapter(client) {
+function Adapter(client: Pool): AuthAdapter {
   return {
     async createVerificationToken(
       verificationToken

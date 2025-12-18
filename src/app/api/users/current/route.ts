@@ -1,6 +1,7 @@
-// @ts-nocheck
 import sql from "../../utils/sql";
-import { auth } from "@/auth";
+import { requireAuth } from "@/lib/auth/require-auth";
+import { withErrorHandler } from "@/lib/utils/error-handler";
+import type { UpdateUserBody } from "@/lib/types/api.types";
 
 async function ensureUserColumns() {
   // Add preferred_locale and has_seen_welcome if they are missing
@@ -22,13 +23,8 @@ async function ensureUserColumns() {
 }
 
 // Get current user
-export async function GET(request) {
-  try {
-    const session = await auth();
-
-    if (!session?.user?.email) {
-      return Response.json({ error: "Not authenticated" }, { status: 401 });
-    }
+export const GET = withErrorHandler(async (request: Request) => {
+  const session = await requireAuth();
 
     await ensureUserColumns();
 
@@ -43,24 +39,14 @@ export async function GET(request) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
-    return Response.json(rows[0]);
-  } catch (error) {
-    console.error("Error fetching current user:", error);
-    return Response.json({ error: "Failed to fetch user" }, { status: 500 });
-  }
-}
+  return Response.json(rows[0]);
+}, 'GET /api/users/current');
 
 // Update current user
-export async function PATCH(request) {
-  try {
-    const session = await auth();
-
-    if (!session?.user?.email) {
-      return Response.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { display_name, preferred_locale } = body;
+export const PATCH = withErrorHandler(async (request: Request) => {
+  const session = await requireAuth();
+  const body = await request.json() as UpdateUserBody;
+  const { display_name, preferred_locale } = body;
 
   await ensureUserColumns();
 
@@ -78,9 +64,5 @@ export async function PATCH(request) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
-    return Response.json(rows[0]);
-  } catch (error) {
-    console.error("Error updating user:", error);
-    return Response.json({ error: "Failed to update user" }, { status: 500 });
-  }
-}
+  return Response.json(rows[0]);
+}, 'PATCH /api/users/current');

@@ -1,30 +1,17 @@
-// @ts-nocheck
 import sql from "../../../utils/sql";
-import { auth } from "@/auth";
+import { requireAdmin, getCurrentUser } from "@/lib/auth/require-auth";
+import { withErrorHandler } from "@/lib/utils/error-handler";
 import { sendEmail, premiumActivatedTemplate } from "../../../utils/email";
+import type { ApiContext, UpdateUserAdminBody } from "@/lib/types/api.types";
 
 // Update user role and premium status (admin only)
-export async function PATCH(request, { params }) {
-  try {
-    const session = await auth();
-
-    if (!session?.user?.email) {
-      return Response.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
-    // Get current user and check if admin
-    const adminRows = await sql`
-      SELECT id, role FROM users WHERE email = ${session.user.email} LIMIT 1
-    `;
-
-    if (adminRows.length === 0 || adminRows[0].role !== "admin") {
-      return Response.json({ error: "Access denied" }, { status: 403 });
-    }
-
-    const currentAdminId = adminRows[0].id;
-    const { id } = params;
-    const body = await request.json();
-    const { role, is_premium, plan } = body;
+export const PATCH = withErrorHandler(async (request: Request, { params }: ApiContext) => {
+  const session = await requireAdmin(sql);
+  const currentAdmin = await getCurrentUser(sql, session);
+  const currentAdminId = currentAdmin.id;
+  const { id } = params;
+  const body = await request.json() as UpdateUserAdminBody;
+  const { role, is_premium, plan } = body;
 
     const targetRows = await sql`
       SELECT id, email, display_name, role, is_premium, plan
@@ -110,9 +97,5 @@ export async function PATCH(request, { params }) {
       });
     }
 
-    return Response.json(updated);
-  } catch (error) {
-    console.error("Error updating user:", error);
-    return Response.json({ error: "Failed to update user" }, { status: 500 });
-  }
-}
+  return Response.json(updated);
+}, 'PATCH /api/admin/users/[id]');
