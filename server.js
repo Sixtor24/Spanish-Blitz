@@ -1,27 +1,31 @@
-import { serve } from '@hono/node-server';
+import { createHonoServer } from 'react-router-hono-server/node';
 
-import('./build/server/index.js')
-  .then((build) => {
-    const app = build.app || build.default;
-    const PORT = process.env.PORT || 4000;
+const PORT = process.env.PORT || 4000;
 
-    console.log(`🚀 Server starting on port ${PORT}...`);
+console.log(`🚀 Server starting on port ${PORT}...`);
 
+// Import the Hono app with all middleware
+import('./__create/index.ts')
+  .then(async (module) => {
+    const app = module.app || module.default;
+    
     if (!app) {
       console.error('❌ App export not found');
-      console.error('Available exports:', Object.keys(build));
       process.exit(1);
     }
 
-    serve({
-      fetch: app.fetch,
-      port: PORT,
+    // Create the server with react-router-hono-server integration
+    const server = await createHonoServer({
+      app,
+      defaultLogger: false,
     });
 
-    console.log(`✅ Server running at http://localhost:${PORT}`);
+    server.listen(PORT, () => {
+      console.log(`✅ Server running at http://localhost:${PORT}`);
+    });
   })
   .catch((error) => {
-    console.error('❌ Failed to load server:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   });
 
