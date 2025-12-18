@@ -4,6 +4,8 @@
 	"type": "module",
 	"scripts": {
 		"dev": "react-router dev",
+		"build": "react-router build",
+		"vercel-build": "react-router build --platform vercel",
 		"typecheck": "react-router typegen && tsc --noEmit"
 	},
 	"dependencies": {
