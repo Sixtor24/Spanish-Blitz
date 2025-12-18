@@ -4,4 +4,5 @@ export default {
 	appDirectory: './src/app',
 	ssr: true,
 	prerender: false,
+	serverBuildFile: 'index.js',
 } satisfies Config;
