@@ -1,15 +1,14 @@
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
-import reactRouterNode from '@react-router/node';
+import { readFileSync } from 'node:fs';
 
-const { createRequestHandler } = reactRouterNode;
 const PORT = process.env.PORT || 4000;
 
 console.log(`🚀 Server starting on port ${PORT}...`);
 
-// Import ONLY the compiled build (contains everything: Hono app + React Router)
+// Import the compiled Hono app with API routes and middleware
 import('./build/server/index.js')
-  .then(async (build) => {
+  .then((build) => {
     const app = build.app || build.default;
     
     if (!app) {
@@ -18,23 +17,24 @@ import('./build/server/index.js')
       process.exit(1);
     }
 
-    console.log('✅ Build loaded successfully');
+    console.log('✅ Hono app loaded (API routes + middleware)');
 
     // Serve static assets from build/client
     app.use('/assets/*', serveStatic({ root: './build/client' }));
+    app.use('/favicon.ico', serveStatic({ path: './build/client/favicon.ico' }));
 
-    // Add React Router SSR handler as catch-all (handles all non-API routes)
-    app.get('*', async (c) => {
-      try {
-        const handler = createRequestHandler(build, 'production');
-        return await handler(c.req.raw);
-      } catch (error) {
-        console.error('React Router SSR error:', error);
-        return c.html('<h1>500 Internal Server Error</h1><pre>' + error.stack + '</pre>', 500);
+    // Serve index.html for all non-API routes (SPA fallback)
+    const indexHtml = readFileSync('./build/client/index.html', 'utf-8');
+    
+    app.get('*', (c) => {
+      // Only serve HTML for non-API routes
+      if (!c.req.path.startsWith('/api/')) {
+        return c.html(indexHtml);
       }
+      return c.notFound();
     });
 
-    console.log('✅ React Router SSR configured');
+    console.log('✅ Client-side routing configured (SPA mode)');
     console.log('✅ Starting server...');
 
     serve({
