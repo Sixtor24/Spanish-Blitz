@@ -1,10 +1,12 @@
 {
 	"include": [
 		"**/*.{ts,tsx,js,jsx}",
+		"**/*.d.ts",
 		"**/.server/**/*",
 		"**/.client/**/*",
 		".react-router/types/**/*",
-		"./src/global.d.ts"
+		"./src/global.d.ts",
+		"./src/types/**/*.d.ts"
 	],
 	"compilerOptions": {
 		"lib": ["DOM", "DOM.Iterable", "ES2022"],
@@ -22,7 +24,8 @@
 		"skipLibCheck": true,
 		"strict": true,
 		"paths": {
-			"@/*": ["./src/*"]
+			"@/*": ["./src/*"],
+			"@auth/create/react": ["./src/types/auth-create-react.d.ts"]
 		}
 	}
 }

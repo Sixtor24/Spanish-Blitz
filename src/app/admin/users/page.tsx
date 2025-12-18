@@ -1,19 +1,27 @@
-// @ts-nocheck
-
 import { useState, useEffect } from "react";
 import useUser from "@/shared/hooks/useUser";
 import Navigation from "@/shared/components/Navigation";
-import { Search, Shield, Crown, ArrowUpDown } from "lucide-react";
+import { Search, Shield, Crown } from "lucide-react";
+
+type AdminUser = {
+  id: string;
+  email: string;
+  display_name: string | null;
+  role: "user" | "admin" | string;
+  plan: "free" | "premium" | null;
+  is_premium: boolean;
+  created_at: string;
+};
 
 export default function AdminUsersPage() {
   const { data: currentUser, loading: userLoading } = useUser();
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [planFilter, setPlanFilter] = useState("all");
-  const [message, setMessage] = useState(null);
-  const [confirmDialog, setConfirmDialog] = useState(null);
+  const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
   // Check if user is admin
   useEffect(() => {
@@ -53,7 +61,7 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleChangeRole = async (user, newRole) => {
+  const handleChangeRole = async (user: AdminUser, newRole: "admin" | "user" | string) => {
     if (newRole === user.role) return;
     setConfirmDialog({
       title: "Change Role?",
@@ -62,7 +70,7 @@ export default function AdminUsersPage() {
     });
   };
 
-  const handleChangePlan = async (user, newPlan) => {
+  const handleChangePlan = async (user: AdminUser, newPlan: "premium" | "free") => {
     if (newPlan === user.plan) return;
     const action = newPlan === "premium" ? "Grant Premium" : "Set Free";
     setConfirmDialog({
@@ -72,7 +80,17 @@ export default function AdminUsersPage() {
     });
   };
 
-  const updateUser = async (userId, updates) => {
+  const handleTogglePremium = async (user: AdminUser) => {
+    const next = !user.is_premium;
+    const nextPlan = next ? "premium" : "free";
+    setConfirmDialog({
+      title: next ? "Grant Premium?" : "Revoke Premium?",
+      message: `${next ? "Grant" : "Revoke"} premium access for ${user.email}?`,
+      onConfirm: () => updateUser(user.id, { is_premium: next, plan: nextPlan }),
+    });
+  };
+
+  const updateUser = async (userId: string, updates: Partial<Pick<AdminUser, "role" | "plan" | "is_premium">>) => {
     setConfirmDialog(null);
     try {
       const response = await fetch(`/api/admin/users/${userId}`, {
@@ -90,11 +108,12 @@ export default function AdminUsersPage() {
       fetchUsers();
     } catch (error) {
       console.error("Error updating user:", error);
-      showMessage(error.message, "error");
+      const message = error instanceof Error ? error.message : "Failed to update user";
+      showMessage(message, "error");
     }
   };
 
-  const showMessage = (text, type) => {
+  const showMessage = (text: string, type: "success" | "error") => {
     setMessage({ text, type });
     setTimeout(() => setMessage(null), 3000);
   };
@@ -239,7 +258,7 @@ export default function AdminUsersPage() {
                           </span>
                           <select
                             value={user.plan || (user.is_premium ? "premium" : "free")}
-                            onChange={(e) => handleChangePlan(user, e.target.value)}
+                            onChange={(e) => handleChangePlan(user, e.target.value as "free" | "premium")}
                             className="text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
                           >
                             <option value="free">Free</option>

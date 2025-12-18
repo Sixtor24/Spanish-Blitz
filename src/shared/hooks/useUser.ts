@@ -1,49 +1,56 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useSession } from '@auth/create/react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSession, type SessionData, type SessionUser } from '@auth/create/react';
 
-type SessionUser = {
-  id?: string;
-  role?: string;
-  [key: string]: unknown;
-} | null;
-
-type SessionData = {
-  user?: SessionUser;
-} | null;
+type DbUser = {
+  id: string;
+  email: string;
+  display_name?: string | null;
+  role?: string | null;
+  is_premium?: boolean | null;
+  plan?: 'free' | 'premium' | null;
+};
 
 const useUser = () => {
-  const { data: session, status } = useSession();
-  const [user, setUser] = useState<SessionUser>(session?.user ?? null);
+  const sessionResult = useSession() ?? { data: null, status: 'loading' as const };
+  const session = sessionResult.data ?? null;
+  const status = sessionResult.status ?? 'loading';
 
-  const fetchUser = useCallback(async (sessionData: SessionData) => sessionData?.user ?? null, []);
+  const [user, setUser] = useState<SessionUser | DbUser>(session?.user ?? null);
+
+  const fetchUser = useCallback(async (sessionData: SessionData, sessionStatus: typeof status) => {
+    const baseUser = sessionData?.user ?? null;
+
+    if (sessionStatus !== 'authenticated') return baseUser;
+
+    try {
+      const res = await fetch('/api/users/current');
+      if (!res.ok) return baseUser;
+      const data = (await res.json()) as DbUser;
+      return data ?? baseUser;
+    } catch {
+      return baseUser;
+    }
+  }, []);
 
   const refetchUser = useCallback(() => {
-    if (process.env.NEXT_PUBLIC_CREATE_ENV === 'PRODUCTION') {
-      if (session?.user?.id) {
-        fetchUser(session).then(setUser);
-      } else {
-        setUser(null);
-      }
+    if (status === 'authenticated') {
+      fetchUser(session, status).then(setUser);
     } else {
       setUser(session?.user ?? null);
     }
-  }, [fetchUser, session]);
+  }, [fetchUser, session, status]);
+
+  const loading = useMemo(
+    () => status === 'loading' || (status === 'authenticated' && !user),
+    [status, user],
+  );
 
   useEffect(refetchUser, [refetchUser]);
-
-  if (process.env.NEXT_PUBLIC_CREATE_ENV !== 'PRODUCTION') {
-    return {
-      user: session?.user ?? null,
-      data: session?.user ?? null,
-      loading: status === 'loading',
-      refetch: refetchUser,
-    } as const;
-  }
 
   return {
     user,
     data: user,
-    loading: status === 'loading' || (status === 'authenticated' && !user),
+    loading,
     refetch: refetchUser,
   } as const;
 };

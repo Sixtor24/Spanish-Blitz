@@ -44,6 +44,7 @@ const adapter = NeonAdapter(pool);
 const AUTH_SECRET = process.env.AUTH_SECRET;
 const AUTH_BASE_PATH = '/api/auth';
 const isProd = process.env.NODE_ENV === 'production';
+const isVercel = process.env.VERCEL === '1' || process.env.VERCEL === 'true';
 
 if (!AUTH_SECRET) {
   console.error('AUTH_SECRET is not set. Authentication will fail until you define it.');
@@ -267,10 +268,17 @@ app.use('/api/auth/*', async (c, next) => {
 });
 app.route(API_BASENAME, api);
 
-// Start standalone WebSocket server for play-session real-time signals
-startWsServer();
+// Start standalone WebSocket server for play-session real-time signals (skip on Vercel)
+if (!isVercel) {
+  startWsServer();
+}
 
-export default await createHonoServer({
-  app,
-  defaultLogger: false,
-});
+const server = !isVercel
+  ? await createHonoServer({
+      app,
+      defaultLogger: false,
+    })
+  : app;
+
+export { app };
+export default server;

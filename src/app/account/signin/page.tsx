@@ -125,6 +125,11 @@ function MainComponent() {
           >
             {loading ? "Loading..." : "Sign In"}
           </button>
+          <div className="text-center text-sm text-gray-600">
+            <a href="/account/forgot-password" className="text-[#357AFF] hover:text-[#2E69DE] font-medium">
+              Forgot your password?
+            </a>
+          </div>
           <p className="text-center text-sm text-gray-600">
             Don't have an account?{" "}
             <a

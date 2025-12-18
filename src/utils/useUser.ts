@@ -1,36 +1,51 @@
-// @ts-nocheck
-import * as React from 'react';
-import { useSession } from "@auth/create/react";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSession } from '@auth/create/react';
 
+type SessionUser = {
+  id?: string;
+  role?: string;
+  [key: string]: unknown;
+} | null;
+
+type SessionData = {
+  user?: SessionUser;
+} | null;
 
 const useUser = () => {
-  const { data: session, status } = useSession();
-  const id = session?.user?.id
+  const sessionResult = useSession() ?? { data: null, status: 'loading' as const };
+  const session = (sessionResult as { data: SessionData }).data ?? null;
+  const status = (sessionResult as { status: 'loading' | 'authenticated' | 'unauthenticated' }).status ?? 'loading';
 
-  const [user, setUser] = React.useState(session?.user ?? null);
+  const [user, setUser] = useState<SessionUser>(session?.user ?? null);
 
-  const fetchUser = React.useCallback(async (session) => {
-  return session?.user;
-}, [])
+  const fetchUser = useCallback(async (sessionData: SessionData) => sessionData?.user ?? null, []);
 
-  const refetchUser = React.useCallback(() => {
-    if(process.env.NEXT_PUBLIC_CREATE_ENV === "PRODUCTION") {
-      if (id) {
+  const refetchUser = useCallback(() => {
+    if (process.env.NEXT_PUBLIC_CREATE_ENV === 'PRODUCTION') {
+      if (session?.user?.id) {
         fetchUser(session).then(setUser);
       } else {
         setUser(null);
       }
+    } else {
+      setUser(session?.user ?? null);
     }
-  }, [fetchUser, id])
+  }, [fetchUser, session]);
 
-  React.useEffect(refetchUser, [refetchUser]);
+  useEffect(refetchUser, [refetchUser]);
 
-  if (process.env.NEXT_PUBLIC_CREATE_ENV !== "PRODUCTION") {
-    return { user, data: session?.user || null, loading: status === 'loading', refetch: refetchUser };
+  const loading = useMemo(
+    () => status === 'loading' || (status === 'authenticated' && !user),
+    [status, user],
+  );
+
+  if (process.env.NEXT_PUBLIC_CREATE_ENV !== 'PRODUCTION') {
+    return { user: session?.user ?? null, data: session?.user ?? null, loading, refetch: refetchUser } as const;
   }
-  return { user, data: user, loading: status === 'loading' || (status === 'authenticated' && !user), refetch: refetchUser };
+
+  return { user, data: user, loading, refetch: refetchUser } as const;
 };
 
-export { useUser }
+export { useUser };
 
 export default useUser;

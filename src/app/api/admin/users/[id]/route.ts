@@ -1,6 +1,7 @@
 // @ts-nocheck
 import sql from "../../../utils/sql";
 import { auth } from "@/auth";
+import { sendEmail, premiumActivatedTemplate } from "../../../utils/email";
 
 // Update user role and premium status (admin only)
 export async function PATCH(request, { params }) {
@@ -23,7 +24,18 @@ export async function PATCH(request, { params }) {
     const currentAdminId = adminRows[0].id;
     const { id } = params;
     const body = await request.json();
-  const { role, is_premium, plan } = body;
+    const { role, is_premium, plan } = body;
+
+    const targetRows = await sql`
+      SELECT id, email, display_name, role, is_premium, plan
+      FROM users WHERE id = ${id} LIMIT 1
+    `;
+
+    if (targetRows.length === 0) {
+      return Response.json({ error: "User not found" }, { status: 404 });
+    }
+
+    const previous = targetRows[0];
 
     // Prevent admin from removing their own admin role
     if (id === currentAdminId && role && role !== "admin") {
@@ -84,7 +96,21 @@ export async function PATCH(request, { params }) {
       return Response.json({ error: "User not found" }, { status: 404 });
     }
 
-    return Response.json(rows[0]);
+    const updated = rows[0];
+
+    const becamePremium =
+      (previous.plan !== "premium" || previous.is_premium !== true) &&
+      (updated.plan === "premium" || updated.is_premium === true);
+
+    if (becamePremium) {
+      sendEmail({
+        to: updated.email,
+        subject: "¡Tu acceso Premium está activo!",
+        html: premiumActivatedTemplate({ name: updated.display_name, email: updated.email }),
+      });
+    }
+
+    return Response.json(updated);
   } catch (error) {
     console.error("Error updating user:", error);
     return Response.json({ error: "Failed to update user" }, { status: 500 });
