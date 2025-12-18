@@ -1,42 +1,31 @@
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
-import { createRequestHandler } from 'react-router';
 
 const PORT = process.env.PORT || 4000;
 
 console.log(`🚀 Server starting on port ${PORT}...`);
 
-// Import both the Hono app and the React Router server build
-Promise.all([
-  import('./build/server/index.js'),
-  import('./build/server/assets/server-build.js')
-]).then(([honoModule, reactRouterBuild]) => {
-    const app = honoModule.app || honoModule.default;
+// Import the compiled Hono app
+import('./build/server/index.js')
+  .then((module) => {
+    const app = module.app || module.default;
     
     if (!app) {
       console.error('❌ App export not found');
+      console.error('Available exports:', Object.keys(module));
       process.exit(1);
     }
 
     console.log('✅ Hono app loaded');
-    console.log('✅ React Router build loaded');
 
     // Serve static assets from build/client
     app.use('/assets/*', serveStatic({ root: './build/client' }));
     app.use('/favicon.ico', serveStatic({ path: './build/client/favicon.ico' }));
+    
+    // Serve all static files from build/client
+    app.use('*', serveStatic({ root: './build/client' }));
 
-    // Add React Router handler as catch-all (after API routes)
-    app.get('*', async (c) => {
-      try {
-        const requestHandler = createRequestHandler(reactRouterBuild, 'production');
-        return await requestHandler(c.req.raw);
-      } catch (error) {
-        console.error('React Router error:', error);
-        return c.text('Internal Server Error', 500);
-      }
-    });
-
-    console.log('✅ React Router handler registered');
+    console.log('✅ Static file serving configured');
     console.log('✅ Starting HTTP server...');
 
     serve({
