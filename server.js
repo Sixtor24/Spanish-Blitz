@@ -1,7 +1,8 @@
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
-import { createRequestHandler } from '@react-router/node';
+import reactRouterNode from '@react-router/node';
 
+const { createRequestHandler } = reactRouterNode;
 const PORT = process.env.PORT || 4000;
 
 console.log(`🚀 Server starting on port ${PORT}...`);
