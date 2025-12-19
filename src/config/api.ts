@@ -86,6 +86,15 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ email }),
       }),
+    
+    /**
+     * Reset password with token
+     */
+    resetPassword: (email: string, token: string, newPassword: string) =>
+      apiFetch('/api/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ email, token, newPassword }),
+      }),
   },
 
   // ============================================================================
@@ -269,6 +278,14 @@ export const api = {
       apiFetch(`/api/play-sessions/${id}/answer`, {
         method: 'POST',
         body: JSON.stringify({ questionId, isCorrect, answerText }),
+      }),
+    
+    /**
+     * Kick a player from session (host/admin only)
+     */
+    kickPlayer: (sessionId: string, playerId: string) =>
+      apiFetch(`/api/play-sessions/${sessionId}/players/${playerId}`, {
+        method: 'DELETE',
       }),
   },
 

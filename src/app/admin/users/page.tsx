@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import useUser from "@/shared/hooks/useUser";
+import { api } from "@/config/api";
 import Navigation from "@/shared/components/Navigation";
 import { Search, Shield, Crown } from "lucide-react";
 
@@ -42,16 +43,12 @@ export default function AdminUsersPage() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      if (search) params.append("search", search);
-      if (roleFilter !== "all") params.append("role", roleFilter);
-      if (planFilter !== "all") params.append("plan", planFilter);
+      const params: { search?: string; role?: string; plan?: string } = {};
+      if (search) params.search = search;
+      if (roleFilter !== "all") params.role = roleFilter;
+      if (planFilter !== "all") params.plan = planFilter;
 
-      const response = await fetch(`/api/admin/users?${params}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch users");
-      }
-      const data = await response.json();
+      const data = await api.admin.users.list(params);
       setUsers(data);
     } catch (error) {
       console.error("Error fetching users:", error);
@@ -93,17 +90,7 @@ export default function AdminUsersPage() {
   const updateUser = async (userId: string, updates: Partial<Pick<AdminUser, "role" | "plan" | "is_premium">>) => {
     setConfirmDialog(null);
     try {
-      const response = await fetch(`/api/admin/users/${userId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to update user");
-      }
-
+      await api.admin.users.update(userId, updates);
       showMessage("User updated successfully", "success");
       fetchUsers();
     } catch (error) {
