@@ -1,13 +1,14 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
 import Navigation from "@/shared/components/Navigation";
 import { Plus, X, BookOpen } from "lucide-react";
+import { api } from "@/config/api";
+import type { DbDeck, DbCard } from "@/types/api.types";
 
-export default function DeckDetailPage({ params }) {
+export default function DeckDetailPage({ params }: { params: { id: string } }) {
   const deckId = params.id;
 
-  const [deck, setDeck] = useState(null);
-  const [cards, setCards] = useState([]);
+  const [deck, setDeck] = useState<DbDeck | null>(null);
+  const [cards, setCards] = useState<DbCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateSet, setShowCreateSet] = useState(false);
   const [activeTab, setActiveTab] = useState("add-one");
@@ -22,7 +23,7 @@ export default function DeckDetailPage({ params }) {
   });
 
   const [bulkText, setBulkText] = useState("");
-  const [bulkResult, setBulkResult] = useState(null);
+  const [bulkResult, setBulkResult] = useState<{ created: number; skipped: number } | null>(null);
 
   useEffect(() => {
     if (deckId) {
@@ -33,10 +34,8 @@ export default function DeckDetailPage({ params }) {
 
   const fetchDeck = async () => {
     try {
-      const res = await fetch(`/api/decks/${deckId}`);
-      if (res.ok) {
-        setDeck(await res.json());
-      }
+      const deckData = await api.decks.get(deckId);
+      setDeck(deckData);
     } catch (error) {
       console.error("Error fetching deck:", error);
     } finally {
@@ -46,16 +45,14 @@ export default function DeckDetailPage({ params }) {
 
   const fetchCards = async () => {
     try {
-      const res = await fetch(`/api/decks/${deckId}/cards`);
-      if (res.ok) {
-        setCards(await res.json());
-      }
+      const cardsData = await api.cards.list(deckId);
+      setCards(cardsData);
     } catch (error) {
       console.error("Error fetching cards:", error);
     }
   };
 
-  const handleAddOne = async (e, closeAfter = true) => {
+  const handleAddOne = async (e: React.FormEvent, closeAfter = true) => {
     e.preventDefault();
 
     try {
@@ -70,26 +67,18 @@ export default function DeckDetailPage({ params }) {
 
       setFormError("");
 
-      const res = await fetch(`/api/decks/${deckId}/cards`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      try {
+        await api.cards.create(deckId, {
           prompt_es: trimmedPrompt,
-          answer_es: trimmedAnswerEs || undefined,
           translation_en: trimmedTranslation,
-        }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-
-        if (errorData.limit_exceeded) {
-          setUpgradeMessage(errorData.error);
+        });
+      } catch (error: any) {
+        if (error.message?.includes('limit')) {
+          setUpgradeMessage(error.message);
           setShowUpgradeModal(true);
           return;
         }
-
-        throw new Error("Failed to create card");
+        throw error;
       }
 
       await fetchCards();
@@ -106,26 +95,29 @@ export default function DeckDetailPage({ params }) {
 
   const handleBulkAdd = async () => {
     try {
-      const res = await fetch(`/api/decks/${deckId}/cards/bulk`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bulkText }),
-      });
+      // Parse bulk text
+      const lines = bulkText.split('\n').filter(line => line.trim());
+      const parsedCards = lines.map(line => {
+        const [spanish, english] = line.split('=').map(s => s.trim());
+        if (!spanish || !english) return null;
+        return {
+          prompt_es: spanish,
+          translation_en: english,
+        };
+      }).filter((card): card is { prompt_es: string; translation_en: string } => card !== null);
 
-      if (!res.ok) {
-        const errorData = await res.json();
-
-        if (errorData.limit_exceeded) {
-          setUpgradeMessage(errorData.error);
+      try {
+        await api.cards.bulkCreate(deckId, parsedCards);
+        setBulkResult({ created: parsedCards.length, skipped: lines.length - parsedCards.length });
+      } catch (error: any) {
+        if (error.message?.includes('limit')) {
+          setUpgradeMessage(error.message);
           setShowUpgradeModal(true);
           return;
         }
-
-        throw new Error("Failed to create cards");
+        throw error;
       }
 
-      const result = await res.json();
-      setBulkResult(result);
       await fetchCards();
       await fetchDeck();
       setBulkText("");

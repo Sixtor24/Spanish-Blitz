@@ -1,11 +1,12 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
 import Navigation from "@/shared/components/Navigation";
 import { User, Globe, LogOut } from "lucide-react";
 import useAuth from "@/shared/hooks/useAuth";
+import { api } from "@/config/api";
+import type { DbUser } from "@/types/api.types";
 
 export default function ProfilePage() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<DbUser | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [preferredLocale, setPreferredLocale] = useState("es-ES");
   const [stats, setStats] = useState({
@@ -21,20 +22,15 @@ export default function ProfilePage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const [userRes, statsRes] = await Promise.all([
-          fetch("/api/users/current"),
-          fetch("/api/stats"),
+        const [userData, statsData] = await Promise.all([
+          api.users.current(),
+          api.stats.get(),
         ]);
 
-        if (userRes.ok) {
-          const userData = await userRes.json();
-          setUser(userData);
-          setDisplayName(userData.display_name);
-          setPreferredLocale(userData.preferred_locale);
-        }
-        if (statsRes.ok) {
-          setStats(await statsRes.json());
-        }
+        setUser(userData);
+        setDisplayName(userData.display_name || '');
+        setPreferredLocale(userData.preferred_locale || 'es-ES');
+        setStats(statsData);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -44,28 +40,18 @@ export default function ProfilePage() {
     fetchData();
   }, []);
 
-  const handleSave = async (e) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setMessage("");
 
     try {
-      const res = await fetch("/api/users/current", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          display_name: displayName,
-          preferred_locale: preferredLocale,
-        }),
+      const updated = await api.users.patch({
+        display_name: displayName,
+        preferred_locale: preferredLocale,
       });
-
-      if (res.ok) {
-        const updated = await res.json();
-        setUser(updated);
-        setMessage("Profile updated successfully!");
-      } else {
-        setMessage("Failed to update profile");
-      }
+      setUser(updated);
+      setMessage("Profile updated successfully!");
     } catch (error) {
       console.error("Error updating profile:", error);
       setMessage("Error updating profile");
@@ -75,10 +61,8 @@ export default function ProfilePage() {
   };
 
   const handleSignOut = async () => {
-    await signOut({
-      callbackUrl: "/",
-      redirect: true,
-    });
+    await signOut();
+    window.location.href = "/";
   };
 
   if (loading) {

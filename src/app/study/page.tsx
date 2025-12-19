@@ -1,13 +1,16 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
 import { ArrowLeft, RotateCw, RefreshCw } from "lucide-react";
 import Navigation from "@/shared/components/Navigation";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition from "@/shared/components/SpeechRecognition";
+import { api } from "@/config/api";
+import type { DbDeck, DbCard } from "@/types/api.types";
 
 // Variant types
 const VARIANT_A = "spanish_to_english"; // Listening + Meaning
 const VARIANT_B = "english_to_spanish"; // Recall + Pronunciation
+
+type Variant = "spanish_to_english" | "english_to_spanish";
 
 // Completion phrases
 const COMPLETION_PHRASES = [
@@ -17,7 +20,7 @@ const COMPLETION_PHRASES = [
 ];
 
 // Normalize text for comparison
-function normalizeForComparison(text) {
+function normalizeForComparison(text: string): string {
   return text
     .toLowerCase()
     .trim()
@@ -32,7 +35,7 @@ function normalizeForComparison(text) {
 }
 
 // Shuffle array helper
-function shuffleArray(array) {
+function shuffleArray<T>(array: T[]): T[] {
   const shuffled = [...array];
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -42,22 +45,25 @@ function shuffleArray(array) {
 }
 
 export default function StudyPage() {
-  const [deckId, setDeckId] = useState(null);
-  const [deck, setDeck] = useState(null);
-  const [cards, setCards] = useState([]);
+  const [deckId, setDeckId] = useState<string | null>(null);
+  const [deck, setDeck] = useState<DbDeck | null>(null);
+  const [cards, setCards] = useState<DbCard[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [userId, setUserId] = useState(null);
-  const [speechFeedback, setSpeechFeedback] = useState(null);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [speechFeedback, setSpeechFeedback] = useState<{
+    transcript: string;
+    isCorrect: boolean;
+  } | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
 
   // Variant assignment for each card
-  const [cardVariants, setCardVariants] = useState([]);
+  const [cardVariants, setCardVariants] = useState<Variant[]>([]);
 
   // Track hard cards and their repetition count
-  const [hardCardRepetitions, setHardCardRepetitions] = useState({});
+  const [hardCardRepetitions, setHardCardRepetitions] = useState<Record<string, number>>({});
 
   // Track unique hard cards for stats
   const [hardCardsCount, setHardCardsCount] = useState(0);
@@ -86,29 +92,19 @@ export default function StudyPage() {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch("/api/users/current");
-      if (res.ok) {
-        const data = await res.json();
-        setUserId(data.id);
-      }
+      const data = await api.users.current();
+      setUserId(data.id);
     } catch (err) {
       console.error("Error fetching user:", err);
     }
   };
 
-  const fetchDeckAndCards = async (id) => {
+  const fetchDeckAndCards = async (id: string) => {
     try {
-      const [deckRes, cardsRes] = await Promise.all([
-        fetch(`/api/decks/${id}`),
-        fetch(`/api/decks/${id}/cards`),
+      const [deckData, cardsData] = await Promise.all([
+        api.decks.get(id),
+        api.cards.list(id),
       ]);
-
-      if (!deckRes.ok || !cardsRes.ok) {
-        throw new Error("Failed to load deck or cards");
-      }
-
-      const deckData = await deckRes.json();
-      const cardsData = await cardsRes.json();
 
       if (cardsData.length === 0) {
         setError("This set has no cards yet");
@@ -121,15 +117,15 @@ export default function StudyPage() {
       setLoading(false);
     } catch (err) {
       console.error("Error fetching deck:", err);
-      setError(err.message || "Failed to load deck");
+      setError(err instanceof Error ? err.message : "Failed to load deck");
       setLoading(false);
     }
   };
 
-  const initializeStudySession = (cardsData) => {
+  const initializeStudySession = (cardsData: DbCard[]) => {
     // Shuffle cards and assign random variants
     const shuffled = shuffleArray(cardsData);
-    const variants = shuffled.map(() =>
+    const variants: Variant[] = shuffled.map(() =>
       Math.random() < 0.5 ? VARIANT_A : VARIANT_B,
     );
 
@@ -156,21 +152,16 @@ export default function StudyPage() {
     setSpeechFeedback(null);
   };
 
-  const handleMarkCard = async (difficulty) => {
-    if (!userId || !currentCard) return;
+  const handleMarkCard = async (difficulty: 'correct' | 'hard') => {
+    if (!userId || !currentCard || !deckId) return;
 
     try {
-      await fetch("/api/study-events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: userId,
-          deck_id: deckId,
-          card_id: currentCard.id,
-          result: difficulty,
-          mode: "study",
-          response_type: "tap",
-        }),
+      await api.studyEvents.create({
+        deck_id: deckId,
+        card_id: currentCard.id,
+        result: difficulty === 'correct' ? 'correct' : 'incorrect',
+        mode: "study",
+        response_type: "tap",
       });
     } catch (err) {
       console.error("Error recording study event:", err);
@@ -205,11 +196,8 @@ export default function StudyPage() {
           newCards.splice(insertPosition, 0, currentCard);
 
           const newVariants = [...cardVariants];
-          newVariants.splice(
-            insertPosition,
-            0,
-            Math.random() < 0.5 ? VARIANT_A : VARIANT_B,
-          );
+          const newVariant: Variant = Math.random() < 0.5 ? VARIANT_A : VARIANT_B;
+          newVariants.splice(insertPosition, 0, newVariant);
 
           setCards(newCards);
           setCardVariants(newVariants);
@@ -227,10 +215,10 @@ export default function StudyPage() {
     }
   };
 
-  const handleSpeechResult = async (transcript) => {
-    if (!currentCard) return;
+  const handleSpeechResult = async (transcript: string) => {
+    if (!currentCard || !deckId) return;
 
-    const expected = normalizeForComparison(currentCard.prompt_es);
+    const expected = normalizeForComparison(currentCard.prompt_es || currentCard.question);
     const actual = normalizeForComparison(transcript);
 
     const isCorrect = expected === actual;
@@ -243,18 +231,13 @@ export default function StudyPage() {
     // Record study event with speech
     if (userId) {
       try {
-        await fetch("/api/study-events", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: userId,
-            deck_id: deckId,
-            card_id: currentCard.id,
-            result: isCorrect ? "correct" : "incorrect",
-            mode: "study",
-            response_type: "speech",
-            transcript_es: transcript,
-          }),
+        await api.studyEvents.create({
+          deck_id: deckId,
+          card_id: currentCard.id,
+          result: isCorrect ? "correct" : "incorrect",
+          mode: "study",
+          response_type: "speech",
+          transcript_es: transcript,
         });
       } catch (err) {
         console.error("Error recording speech event:", err);
@@ -445,7 +428,7 @@ export default function StudyPage() {
                   </p>
                   <div className="flex justify-center">
                     <TTSButton
-                      text={currentCard.prompt_es}
+                      text={currentCard.prompt_es || currentCard.question}
                       locale="es-ES"
                       size="large"
                     />

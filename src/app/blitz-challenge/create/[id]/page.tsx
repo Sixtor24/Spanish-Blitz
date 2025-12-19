@@ -1,14 +1,15 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
 import Navigation from "@/shared/components/Navigation";
 import useUser from "@/shared/hooks/useUser";
 import { ArrowLeft, Clock, HelpCircle, Users } from "lucide-react";
+import { api } from "@/config/api";
+import type { DbDeck } from "@/types/api.types";
 
-export default function CreateBlitzChallengePage({ params }) {
+export default function CreateBlitzChallengePage({ params }: { params: { id: string } }) {
   const { data: user, loading: userLoading } = useUser();
   const deckId = params.id;
 
-  const [deck, setDeck] = useState(null);
+  const [deck, setDeck] = useState<DbDeck | null>(null);
   const [loading, setLoading] = useState(true);
   const [numQuestions, setNumQuestions] = useState("10");
   const [timeLimit, setTimeLimit] = useState("5");
@@ -32,10 +33,8 @@ export default function CreateBlitzChallengePage({ params }) {
 
   const fetchDeck = async () => {
     try {
-      const res = await fetch(`/api/decks/${deckId}`);
-      if (res.ok) {
-        setDeck(await res.json());
-      }
+      const deckData = await api.decks.get(deckId);
+      setDeck(deckData);
     } catch (error) {
       console.error("Error fetching deck:", error);
     } finally {
@@ -43,32 +42,23 @@ export default function CreateBlitzChallengePage({ params }) {
     }
   };
 
-  const handleCreateChallenge = async (e) => {
+  const handleCreateChallenge = async (e: React.FormEvent) => {
     e.preventDefault();
     if (creating) return;
     setError(null);
     setChallengeCode(null);
     try {
       setCreating(true);
-      const res = await fetch("/api/play-sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deckId,
-          questionCount: Number(numQuestions),
-          timeLimitMinutes: Number(timeLimit),
-          isTeacher: isHost,
-        }),
+      const result = await api.playSessions.create({
+        deckId,
+        questionCount: Number(numQuestions),
+        timeLimitMinutes: Number(timeLimit),
+        isTeacher: isHost,
       });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(body.error || "Failed to create challenge");
-        return;
-      }
-      setChallengeCode(body.code);
+      setChallengeCode(result.code);
     } catch (err) {
       console.error("Error creating challenge", err);
-      setError("Could not create challenge");
+      setError(err instanceof Error ? err.message : "Could not create challenge");
     } finally {
       setCreating(false);
     }

@@ -2,8 +2,6 @@
  * Shared TypeScript types for API routes
  */
 
-import type { Session } from '@auth/core/types';
-
 // ============================================================================
 // Request/Response Types
 // ============================================================================
@@ -33,7 +31,7 @@ export interface DbUser {
   role?: 'user' | 'admin' | null;
   preferred_locale?: string | null;
   is_premium?: boolean | null;
-  plan?: 'free' | 'premium' | null;
+  plan?: 'free' | 'premium' | 'gold' | null;
   has_seen_welcome?: boolean | null;
   created_at?: Date;
   updated_at?: Date;
@@ -57,13 +55,15 @@ export interface DbDeck {
 export interface DbCard {
   id: string;
   deck_id: string;
-  question: string; // Spanish text
-  answer: string; // English text
-  type: 'text' | 'audio' | 'image';
-  audio_url: string | null;
-  image_url: string | null;
-  created_at: Date;
-  updated_at: Date;
+  question: string; // Spanish text (also referred as prompt_es)
+  answer: string; // English text (also referred as translation_en)
+  prompt_es?: string; // Alias for question
+  translation_en?: string; // Alias for answer
+  type?: 'text' | 'audio' | 'image';
+  audio_url?: string | null;
+  image_url?: string | null;
+  created_at?: Date;
+  updated_at?: Date;
 }
 
 export interface DbStudyEvent {
@@ -103,14 +103,15 @@ export interface DbPlaySessionPlayer {
 // Auth Types
 // ============================================================================
 
-export interface AuthSession extends Session {
+export interface AuthSession {
   user: {
-    id?: string;
-    email?: string;
+    id: string;
+    email: string;
     name?: string;
     image?: string;
     role?: string;
   };
+  expires?: string;
 }
 
 // ============================================================================

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import Navigation from '../../../shared/components/Navigation';
+import { api } from '@/config/api';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -13,12 +14,7 @@ export default function ForgotPasswordPage() {
     setError(null);
     setMessage(null);
     try {
-      const res = await fetch('/api/auth/forgot-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      if (!res.ok) throw new Error('No se pudo enviar el correo');
+      await api.auth.forgotPassword(email);
       setMessage('Si el correo existe, hemos enviado instrucciones para restablecer tu contraseña.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al enviar');

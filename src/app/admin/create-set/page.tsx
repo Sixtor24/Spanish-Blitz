@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import Navigation from "@/shared/components/Navigation";
 import ColorPicker from "@/shared/components/ColorPicker";
 import { BookOpen, Plus, Upload, X, ArrowLeft, Trash2 } from "lucide-react";
+import { api } from "@/config/api";
 
 export default function CreateSetPage() {
   const [setId, setSetId] = useState(null);
@@ -40,30 +41,24 @@ export default function CreateSetPage() {
 
   const fetchSet = async (id) => {
     try {
-      const [setRes, cardsRes] = await Promise.all([
-        fetch(`/api/decks/${id}`),
-        fetch(`/api/decks/${id}/cards`),
+      const [setData, cardsData] = await Promise.all([
+        api.decks.get(id),
+        api.cards.list(id),
       ]);
 
-      if (setRes.ok) {
-        const setData = await setRes.json();
-        setSetTitle(setData.title);
-        setSetDescription(setData.description || "");
-        setSetColor(setData.primary_color_hex || "#0EA5E9");
-      }
+      setSetTitle(setData.title);
+      setSetDescription(setData.description || "");
+      setSetColor(setData.primary_color_hex || "#0EA5E9");
 
-      if (cardsRes.ok) {
-        const cardsData = await cardsRes.json();
-        setCards(
-          cardsData.length > 0
-            ? cardsData.map((c) => ({
-                id: c.id,
-                spanish: c.prompt_es || c.question || "",
-                english: c.translation_en || c.answer || "",
-              }))
-            : [{ id: null, spanish: "", english: "" }],
-        );
-      }
+      setCards(
+        cardsData.length > 0
+          ? cardsData.map((c) => ({
+              id: c.id,
+              spanish: c.prompt_es || c.question || "",
+              english: c.translation_en || c.answer || "",
+            }))
+          : [{ id: null, spanish: "", english: "" }],
+      );
     } catch (error) {
       console.error("Error fetching set:", error);
       setError("Failed to load set");
@@ -148,52 +143,35 @@ export default function CreateSetPage() {
       let deckId = setId;
 
       if (isEditMode) {
-        const setRes = await fetch(`/api/decks/${setId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: setTitle,
-            description: setDescription,
-            primary_color_hex: setColor,
-          }),
+        await api.decks.patch(setId, {
+          title: setTitle,
+          description: setDescription,
+          primary_color_hex: setColor,
         });
-
-        if (!setRes.ok) {
-          throw new Error("Failed to update set");
-        }
 
         const existingCards = cards.filter((c) => c.id);
         for (const card of existingCards) {
-          await fetch(`/api/cards/${card.id}`, { method: "DELETE" });
+          await api.cards.delete(card.id);
         }
       } else {
-        const setRes = await fetch("/api/decks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        try {
+          const deck = await api.decks.create({
             title: setTitle,
             description: setDescription,
             is_public: false,
             primary_color_hex: setColor,
-          }),
-        });
-
-        if (!setRes.ok) {
-          const errorData = await setRes.json();
-
-          // Check if this is a limit error
-          if (errorData.limit_exceeded) {
-            setUpgradeMessage(errorData.error);
+          });
+          deckId = deck.id;
+        } catch (error) {
+          // Check if this is a limit error (backend returns limit_exceeded)
+          if (error instanceof Error && error.message.includes("limit")) {
+            setUpgradeMessage(error.message);
             setShowUpgradeModal(true);
             setSaving(false);
             return;
           }
-
-          throw new Error("Failed to create set");
+          throw error;
         }
-
-        const deck = await setRes.json();
-        deckId = deck.id;
       }
 
       const cardsData = validCards.map((card) => ({
@@ -202,24 +180,17 @@ export default function CreateSetPage() {
         translation_en: card.english.trim(),
       }));
 
-      const cardsRes = await fetch(`/api/decks/${deckId}/cards/bulk`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cards: cardsData }),
-      });
-
-      if (!cardsRes.ok) {
-        const errorData = await cardsRes.json();
-
+      try {
+        await api.cards.bulkCreate(deckId, cardsData);
+      } catch (error) {
         // Check if this is a limit error
-        if (errorData.limit_exceeded) {
-          setUpgradeMessage(errorData.error);
+        if (error instanceof Error && error.message.includes("limit")) {
+          setUpgradeMessage(error.message);
           setShowUpgradeModal(true);
           setSaving(false);
           return;
         }
-
-        throw new Error("Failed to save cards");
+        throw error;
       }
 
       window.location.href = "/dashboard";
@@ -240,15 +211,11 @@ export default function CreateSetPage() {
     }
 
     try {
-      const res = await fetch(`/api/decks/${setId}`, { method: "DELETE" });
-      if (res.ok) {
-        window.location.href = "/dashboard";
-      } else {
-        throw new Error("Failed to delete set");
-      }
+      await api.decks.delete(setId);
+      window.location.href = "/dashboard";
     } catch (err) {
       console.error("Error deleting set:", err);
-      setError(err.message || "Failed to delete set");
+      setError(err instanceof Error ? err.message : "Failed to delete set");
     }
   };
 

@@ -5,7 +5,8 @@ import AdPlaceholder from "@/shared/components/AdPlaceholder";
 import WelcomeModal from "@/shared/components/WelcomeModal";
 import { BookOpen, Zap, Search, Plus } from "lucide-react";
 import useUser from "@/shared/hooks/useUser";
-import type { DbDeck } from "@/lib/types/api.types";
+import type { DbDeck } from "@/types/api.types";
+import { api } from "@/config/api";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -44,9 +45,7 @@ export default function DashboardPage() {
 
     // Mark welcome as seen in the database
     try {
-      await fetch("/api/users/mark-welcome-seen", {
-        method: "POST",
-      });
+      await api.users.markWelcomeSeen();
     } catch (error) {
       console.error("Error marking welcome as seen:", error);
     }
@@ -63,17 +62,13 @@ export default function DashboardPage() {
       if (searchQuery) params.append("search", searchQuery);
       if (filterMode !== "all") params.append("filter", filterMode);
 
-      const [decksRes, statsRes] = await Promise.all([
-        fetch(`/api/decks?${params.toString()}`),
-        fetch("/api/stats"),
+      const [decksData, statsData] = await Promise.all([
+        api.decks.list(params),
+        api.stats.get(),
       ]);
 
-      if (decksRes.ok) {
-        setDecks(await decksRes.json());
-      }
-      if (statsRes.ok) {
-        setStats(await statsRes.json());
-      }
+      setDecks(decksData);
+      setStats(statsData);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {

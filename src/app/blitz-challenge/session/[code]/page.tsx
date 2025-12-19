@@ -5,6 +5,7 @@ import useUser from "@/shared/hooks/useUser";
 import { ArrowLeft, Users, Timer, Trophy, Play } from "lucide-react";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition from "@/shared/components/SpeechRecognition";
+import { api } from "@/config/api";
 import {
   QUESTION_TYPES,
   getSpanishPrompt,
@@ -252,19 +253,10 @@ export default function BlitzSessionPage({ params }) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/play-sessions/join", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || "Failed to join session");
-      }
-      const data = await res.json();
+      const data = await api.playSessions.join(code, user?.display_name || user?.email || "Guest");
       setState(data);
     } catch (e) {
-      setError(e.message);
+      setError(e instanceof Error ? e.message : "Failed to join session");
     } finally {
       setLoading(false);
     }
@@ -273,11 +265,8 @@ export default function BlitzSessionPage({ params }) {
   async function fetchState() {
     if (!sessionId) return;
     try {
-      const res = await fetch(`/api/play-sessions/${sessionId}/state`);
-      if (res.ok) {
-        const data = await res.json();
-        setState(data);
-      }
+      const data = await api.playSessions.getState(sessionId);
+      setState(data);
     } catch (e) {
       /* ignore polling error */
     }
@@ -354,16 +343,10 @@ export default function BlitzSessionPage({ params }) {
   const handleAnswer = async (isCorrect: boolean, answerText: string | null = null) => {
     if (!sessionId || !currentQuestion) return;
     try {
-      const res = await fetch(`/api/play-sessions/${sessionId}/answer`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questionId: currentQuestion.id, isCorrect, answerText }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || "Failed to answer");
+      await api.playSessions.answer(sessionId, currentQuestion.id, isCorrect, answerText);
       fetchState();
     } catch (e) {
-      setError(e.message);
+      setError(e instanceof Error ? e.message : "Failed to answer");
     }
   };
 
@@ -379,12 +362,10 @@ export default function BlitzSessionPage({ params }) {
   const startSession = async () => {
     if (!sessionId) return;
     try {
-      const res = await fetch(`/api/play-sessions/${sessionId}/start`, { method: 'POST' });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(body.error || 'No se pudo iniciar la sesión');
+      await api.playSessions.start(sessionId);
       fetchState();
     } catch (e) {
-      setError(e.message);
+      setError(e instanceof Error ? e.message : 'No se pudo iniciar la sesión');
     }
   };
 

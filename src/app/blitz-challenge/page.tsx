@@ -1,13 +1,15 @@
-// @ts-nocheck
+
 import { useState, useEffect } from "react";
 import Navigation from "@/shared/components/Navigation";
 import useUser from "@/shared/hooks/useUser";
 import { ArrowLeft, Users, Play, Search } from "lucide-react";
+import { api } from "@/config/api";
+import type { DbDeck } from "@/types/api.types";
 
 export default function BlitzChallengePage() {
   const { data: user, loading: userLoading } = useUser();
   const [challengeCode, setChallengeCode] = useState("");
-  const [decks, setDecks] = useState([]);
+  const [decks, setDecks] = useState<DbDeck[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [message, setMessage] = useState<string | null>(null);
@@ -27,13 +29,11 @@ export default function BlitzChallengePage() {
 
   const fetchDecks = async () => {
     try {
-      const params = new URLSearchParams();
-      if (searchQuery) params.append("search", searchQuery);
+      const params: { search?: string } = {};
+      if (searchQuery) params.search = searchQuery;
 
-      const res = await fetch(`/api/decks?${params.toString()}`);
-      if (res.ok) {
-        setDecks(await res.json());
-      }
+      const decksData = await api.decks.list(params);
+      setDecks(decksData);
     } catch (error) {
       console.error("Error fetching decks:", error);
     } finally {
@@ -41,7 +41,7 @@ export default function BlitzChallengePage() {
     }
   };
 
-  const handleJoinChallenge = async (e) => {
+  const handleJoinChallenge = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
     try {
@@ -50,19 +50,10 @@ export default function BlitzChallengePage() {
         setMessage("Enter a challenge code");
         return;
       }
-      const res = await fetch("/api/play-sessions/join", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code }),
-      });
-      const body = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMessage(body.error || "Could not join challenge");
-        return;
-      }
+      await api.playSessions.join(code, user?.display_name || user?.email || 'Guest');
       window.location.href = `/blitz-challenge/session/${code}`;
     } catch (err) {
-      setMessage("Error joining challenge");
+      setMessage(err instanceof Error ? err.message : "Error joining challenge");
       console.error(err);
     }
   };

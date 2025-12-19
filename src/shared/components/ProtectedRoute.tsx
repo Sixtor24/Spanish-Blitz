@@ -1,13 +1,12 @@
-import { useEffect } from 'react';
-import type { ReactNode } from 'react';
-import useUser from '../hooks/useUser';
+import React, { useEffect, type ReactNode } from 'react';
+import { useAuth } from '@/lib/auth-context';
 
 type ProtectedRouteProps = {
   children: ReactNode;
 };
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { data: user, loading } = useUser();
+  const { user, loading } = useAuth();
 
   useEffect(() => {
     if (!loading && !user) {

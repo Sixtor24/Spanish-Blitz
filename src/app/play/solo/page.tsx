@@ -1,10 +1,12 @@
-// @ts-nocheck
+
 import { useState, useEffect } from "react";
 import Navigation from "@/shared/components/Navigation";
 import AdPlaceholder from "@/shared/components/AdPlaceholder";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition from "@/shared/components/SpeechRecognition";
 import { Trophy, Target, Clock, BookOpen, ArrowRight } from "lucide-react";
+import { api } from "@/config/api";
+import type { DbDeck, DbCard } from "@/types/api.types";
 
 import {
   QUESTION_TYPES,
@@ -18,25 +20,31 @@ import {
   getQuestionTypeLabel,
   isSpeechQuestion,
   isAudioQuestion,
+  type QuestionType,
 } from "../lib/quizUtils";
 
 
+interface CardQuestion {
+  card: DbCard;
+  questionType: QuestionType;
+}
+
 export default function PlaySoloPage() {
   const [showSetSelection, setShowSetSelection] = useState(true);
-  const [availableSets, setAvailableSets] = useState([]);
-  const [deck, setDeck] = useState(null);
-  const [cards, setCards] = useState([]);
-  const [cardQuestions, setCardQuestions] = useState([]); // Each card gets a question type assigned
+  const [availableSets, setAvailableSets] = useState<DbDeck[]>([]);
+  const [deck, setDeck] = useState<DbDeck | null>(null);
+  const [cards, setCards] = useState<DbCard[]>([]);
+  const [cardQuestions, setCardQuestions] = useState<CardQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [answeredCards, setAnsweredCards] = useState(0);
-  const [selectedOption, setSelectedOption] = useState(null);
-  const [feedback, setFeedback] = useState(null);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<"correct" | "incorrect" | null>(null);
   const [loading, setLoading] = useState(true);
   const [gameEnded, setGameEnded] = useState(false);
-  const [startTime, setStartTime] = useState(null);
+  const [startTime, setStartTime] = useState<number | null>(null);
   const [userLocale, setUserLocale] = useState("es-ES");
-  const [currentOptions, setCurrentOptions] = useState([]); // Store options for current card
+  const [currentOptions, setCurrentOptions] = useState<string[]>([]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -56,10 +64,8 @@ export default function PlaySoloPage() {
 
   const fetchAvailableSets = async () => {
     try {
-      const res = await fetch("/api/decks");
-      if (res.ok) {
-        setAvailableSets(await res.json());
-      }
+      const decksData = await api.decks.list();
+      setAvailableSets(decksData);
     } catch (error) {
       console.error("Error fetching sets:", error);
     }
@@ -67,46 +73,38 @@ export default function PlaySoloPage() {
 
   const fetchUserLocale = async () => {
     try {
-      const res = await fetch("/api/users/current");
-      if (res.ok) {
-        const user = await res.json();
-        setUserLocale(user.preferred_locale || "es-ES");
-      }
+      const user = await api.users.current();
+      setUserLocale(user.preferred_locale || "es-ES");
     } catch (error) {
       console.error("Error fetching user locale:", error);
     }
   };
 
-  const fetchDeck = async (deckId) => {
+  const fetchDeck = async (deckId: string) => {
     try {
-      const res = await fetch(`/api/decks/${deckId}`);
-      if (res.ok) {
-        setDeck(await res.json());
-      }
+      const deckData = await api.decks.get(deckId);
+      setDeck(deckData);
     } catch (error) {
       console.error("Error fetching deck:", error);
     }
   };
 
-  const fetchCards = async (deckId) => {
+  const fetchCards = async (deckId: string) => {
     try {
-      const res = await fetch(`/api/decks/${deckId}/cards`);
-      if (res.ok) {
-        const cardsData = await res.json();
-        // Shuffle cards
-        const shuffled = cardsData.sort(() => Math.random() - 0.5);
-        setCards(shuffled);
+      const cardsData = await api.cards.list(deckId);
+      // Shuffle cards
+      const shuffled = cardsData.sort(() => Math.random() - 0.5);
+      setCards(shuffled);
 
-        // Assign random question type to each card
-        const questions = shuffled.map((card) => ({
-          card,
-          questionType:
-            QUESTION_TYPE_LIST[
-              Math.floor(Math.random() * QUESTION_TYPE_LIST.length)
-            ],
-        }));
-        setCardQuestions(questions);
-      }
+      // Assign random question type to each card
+      const questions = shuffled.map((card: DbCard) => ({
+        card,
+        questionType:
+          QUESTION_TYPE_LIST[
+            Math.floor(Math.random() * QUESTION_TYPE_LIST.length)
+          ],
+      }));
+      setCardQuestions(questions);
     } catch (error) {
       console.error("Error fetching cards:", error);
     } finally {
@@ -134,12 +132,12 @@ export default function PlaySoloPage() {
 
   // Options now generated via shared helper above
 
-  const handleSelectOption = async (option) => {
-    if (selectedOption) return; // Already answered
+  const handleSelectOption = async (option: string) => {
+    if (selectedOption || !currentCard) return; // Already answered
 
     setSelectedOption(option);
 
-    let correctAnswer;
+    let correctAnswer: string = '';
     switch (questionType) {
       case QUESTION_TYPES.SPANISH_TEXT_TO_ENGLISH_TEXT:
       case QUESTION_TYPES.SPANISH_AUDIO_TO_ENGLISH_TEXT:
@@ -169,7 +167,9 @@ export default function PlaySoloPage() {
     }, 1500);
   };
 
-  const handleSpeechAnswer = async (transcript) => {
+  const handleSpeechAnswer = async (transcript: string) => {
+    if (!currentCard) return;
+    
     const normalized = normalizeSpanish(transcript);
     const correctAnswer = normalizeSpanish(getSpanishAnswer(currentCard));
     const isCorrect = normalized === correctAnswer;
@@ -206,19 +206,17 @@ export default function PlaySoloPage() {
     }
   };
 
-  const saveStudyEvent = async (result, responseType, transcript) => {
+  const saveStudyEvent = async (result: 'correct' | 'incorrect', responseType: string, transcript: string | null) => {
+    if (!deck || !currentCard) return;
+    
     try {
-      await fetch("/api/study-events", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          deck_id: deck.id,
-          card_id: currentCard.id,
-          result,
-          mode: "play_solo",
-          response_type: responseType,
-          transcript_es: transcript,
-        }),
+      await api.studyEvents.create({
+        deck_id: deck.id,
+        card_id: currentCard.id,
+        result,
+        mode: "play_solo",
+        response_type: responseType,
+        transcript_es: transcript || undefined,
       });
     } catch (error) {
       console.error("Error saving study event:", error);
@@ -228,7 +226,7 @@ export default function PlaySoloPage() {
   const endGame = async () => {
     setGameEnded(true);
     const endTime = Date.now();
-    const duration = Math.round((endTime - startTime) / 1000);
+    const duration = startTime ? Math.round((endTime - startTime) / 1000) : 0;
     const accuracy = Math.round((score / cards.length) * 100);
   };
 
@@ -244,7 +242,7 @@ export default function PlaySoloPage() {
     // Re-shuffle and re-assign question types
     const shuffled = cards.sort(() => Math.random() - 0.5);
     setCards(shuffled);
-    const questions = shuffled.map((card) => ({
+    const questions = shuffled.map((card: DbCard) => ({
       card,
       questionType:
         QUESTION_TYPE_LIST[

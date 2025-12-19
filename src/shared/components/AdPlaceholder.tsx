@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { api } from '@/config/api';
 
 type CurrentUser = {
   plan?: string;
@@ -10,15 +11,17 @@ export default function AdPlaceholder() {
   useEffect(() => {
     async function checkUserPlan() {
       try {
-        const res = await fetch('/api/users/current');
-        if (res.ok) {
-          const user = (await res.json()) as CurrentUser;
-          if (user.plan === 'premium' || user.plan === 'gold') {
-            setShowAd(false);
-          }
+        const user = await api.users.current() as CurrentUser;
+        if (user.plan === 'premium' || user.plan === 'gold') {
+          setShowAd(false);
         }
-      } catch (err) {
-        console.error('Error checking user plan:', err);
+      } catch (err: any) {
+        // 401 is expected when user is not logged in
+        if (!err?.message?.includes('401') && !err?.message?.includes('Unauthorized')) {
+          console.error('Error checking user plan:', err);
+        }
+        // Show ads if not premium/gold or not logged in
+        setShowAd(true);
       }
     }
 
