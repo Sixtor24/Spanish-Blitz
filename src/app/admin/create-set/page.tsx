@@ -22,6 +22,7 @@ export default function CreateSetPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState("");
 
@@ -120,6 +121,7 @@ export default function CreateSetPage() {
 
   const handleSaveSet = async () => {
     setError(null);
+    setSuccessMessage(null);
 
     if (!setTitle.trim()) {
       setError("Set title is required");
@@ -193,7 +195,18 @@ export default function CreateSetPage() {
         throw error;
       }
 
-      window.location.href = "/dashboard";
+      // Show success message instead of redirecting
+      setSuccessMessage(isEditMode ? "Set updated successfully!" : "Set created successfully!");
+      setSaving(false);
+      
+      // Clear success message after 5 seconds
+      setTimeout(() => setSuccessMessage(null), 5000);
+      
+      // If creating new set, update to edit mode with the new ID
+      if (!isEditMode) {
+        setSetId(deckId);
+        setIsEditMode(true);
+      }
     } catch (err) {
       console.error("Error saving set:", err);
       setError(err.message || "Failed to save set");
@@ -269,6 +282,15 @@ export default function CreateSetPage() {
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mb-6">
             {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="bg-green-50 border border-green-200 text-green-800 rounded-lg p-4 mb-6 flex items-center gap-2">
+            <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+            </svg>
+            <span className="font-medium">{successMessage}</span>
           </div>
         )}
 

@@ -158,6 +158,15 @@ export const api = {
       }),
     
     /**
+     * Update a deck (alias for update)
+     */
+    patch: (id: string, data: { title?: string; description?: string; is_public?: boolean; primary_color_hex?: string }) =>
+      apiFetch(`/api/decks/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    
+    /**
      * Delete a deck
      */
     delete: (id: string) =>
