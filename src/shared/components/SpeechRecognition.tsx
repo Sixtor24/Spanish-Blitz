@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Mic, MicOff } from 'lucide-react';
 
 type SpeechRecognitionProps = {
@@ -11,7 +11,8 @@ type RecognitionInstance = {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
-  onresult: ((event: { results: Array<{ 0: { transcript: string } }> }) => void) | null;
+  maxAlternatives: number;
+  onresult: ((event: any) => void) | null;
   onerror: ((event: { error: string }) => void) | null;
   onend: (() => void) | null;
   start: () => void;
@@ -39,6 +40,10 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
   const [isSupported, setIsSupported] = useState(true);
   const [recognition, setRecognition] = useState<RecognitionInstance | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [currentTranscript, setCurrentTranscript] = useState<string>('');
+  
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const finalTranscriptRef = useRef<string>('');
 
   useEffect(() => {
     const SpeechRecognitionCtor = getSpeechRecognition();
@@ -49,18 +54,64 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
     }
 
     const recognitionInstance = new SpeechRecognitionCtor();
-  recognitionInstance.lang = locale;
-  recognitionInstance.continuous = true; // keep session open until user stops
-  recognitionInstance.interimResults = true; // allow longer utterances
+    recognitionInstance.lang = locale;
+    recognitionInstance.continuous = true; // Keep listening
+    recognitionInstance.interimResults = true; // Get interim results
+    recognitionInstance.maxAlternatives = 3; // Get multiple alternatives for better accuracy
 
     recognitionInstance.onresult = (event) => {
-      const transcript = event.results[0][0].transcript;
-      onTranscript(transcript);
-      // keep listening until user stops manually
+      let interimTranscript = '';
+      let finalTranscript = '';
+
+      // Process all results
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        
+        if (event.results[i].isFinal) {
+          // This is a final result
+          finalTranscript += transcript + ' ';
+          finalTranscriptRef.current += transcript + ' ';
+        } else {
+          // This is an interim result
+          interimTranscript += transcript;
+        }
+      }
+
+      // Update the current transcript for display
+      const currentText = (finalTranscriptRef.current + interimTranscript).trim();
+      setCurrentTranscript(currentText);
+
+      console.log('🎤 Speech interim:', currentText);
+
+      // Clear existing timer
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+      }
+
+      // Set a new timer for 5 seconds of silence
+      silenceTimerRef.current = setTimeout(() => {
+        const finalText = finalTranscriptRef.current.trim();
+        if (finalText) {
+          console.log('✅ Speech final (after 5s silence):', finalText);
+          onTranscript(finalText);
+          
+          // Reset and stop
+          finalTranscriptRef.current = '';
+          setCurrentTranscript('');
+          recognitionInstance.stop();
+          setIsListening(false);
+        }
+      }, 5000); // 5 seconds of silence
     };
 
     recognitionInstance.onerror = (event) => {
       console.error('Speech recognition error:', event.error);
+      
+      // Clear timer on error
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+      }
+      
       setErrorMessage(
         event.error === 'network'
           ? 'Browser blocked speech recognition. Check mic permissions, disable Shields/Adblock in Brave, or enable voice services.'
@@ -68,42 +119,74 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
       );
       if (onError) onError(event.error);
       setIsListening(false);
+      finalTranscriptRef.current = '';
+      setCurrentTranscript('');
     };
 
     recognitionInstance.onend = () => {
-      // If we are supposed to be listening, restart to avoid premature stops
-      setIsListening((prev) => {
-        if (prev) {
-          try {
-            recognitionInstance.start();
-            return true;
-          } catch (err) {
-            console.error('Failed to restart speech recognition:', err);
-            return false;
-          }
-        }
-        return false;
-      });
+      console.log('🛑 Speech recognition ended');
+      
+      // Clear timer
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+      }
+      
+      // Process any remaining transcript
+      const finalText = finalTranscriptRef.current.trim();
+      if (finalText && isListening) {
+        console.log('✅ Speech final (on end):', finalText);
+        onTranscript(finalText);
+      }
+      
+      // Reset state
+      finalTranscriptRef.current = '';
+      setCurrentTranscript('');
+      setIsListening(false);
     };
 
     setRecognition(recognitionInstance);
 
     return () => {
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+      }
       recognitionInstance.abort();
     };
-  }, [locale, onTranscript, onError]);
+  }, [locale, onTranscript, onError, isListening]);
 
   const toggleListening = () => {
     if (!recognition) return;
 
     if (isListening) {
+      // Stop manually - process whatever we have
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+      }
+      
+      const finalText = finalTranscriptRef.current.trim();
+      if (finalText) {
+        console.log('✅ Speech final (manual stop):', finalText);
+        onTranscript(finalText);
+      }
+      
       recognition.stop();
       setIsListening(false);
       setErrorMessage(null);
+      finalTranscriptRef.current = '';
+      setCurrentTranscript('');
     } else {
+      // Start listening
       setErrorMessage(null);
-      recognition.start();
-      setIsListening(true);
+      finalTranscriptRef.current = '';
+      setCurrentTranscript('');
+      
+      try {
+        recognition.start();
+        setIsListening(true);
+      } catch (err) {
+        console.error('Failed to start speech recognition:', err);
+        setErrorMessage('Failed to start. Make sure another app is not using the microphone.');
+      }
     }
   };
 
@@ -130,6 +213,15 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
         {isListening ? <MicOff size={24} /> : <Mic size={24} />}
         {isListening ? 'Stop Recording' : 'Speak Answer'}
       </button>
+      
+      {isListening && currentTranscript && (
+        <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg max-w-md">
+          <p className="text-xs text-blue-600 mb-1">Listening...</p>
+          <p className="text-sm text-gray-800">{currentTranscript}</p>
+          <p className="text-xs text-gray-500 mt-1">Will submit after 5s of silence</p>
+        </div>
+      )}
+      
       {errorMessage && (
         <p className="text-sm text-red-600 text-center max-w-md leading-snug">{errorMessage}</p>
       )}
