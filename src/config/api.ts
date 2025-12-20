@@ -358,6 +358,25 @@ export const api = {
         apiFetch(`/api/admin/users/${id}`, { method: 'DELETE' }),
     },
   },
+
+  // ============================================================================
+  // Text-to-Speech (TTS)
+  // ============================================================================
+  tts: {
+    /**
+     * Synthesize speech from text using edge-tts
+     */
+    synthesize: (text: string, locale: string = 'es-ES') =>
+      apiFetch('/api/tts/synthesize', {
+        method: 'POST',
+        body: JSON.stringify({ text, locale }),
+      }),
+    
+    /**
+     * Get available voices
+     */
+    voices: () => apiFetch('/api/tts/voices'),
+  },
 };
 
 // ============================================================================

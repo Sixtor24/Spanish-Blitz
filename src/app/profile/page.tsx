@@ -76,7 +76,8 @@ export default function ProfilePage() {
     );
   }
 
-  const isDialectSelectionEnabled = user?.plan === "gold";
+  // Habilitar selección de dialecto para usuarios Premium y Gold
+  const isDialectSelectionEnabled = user?.plan === "premium" || user?.plan === "gold" || user?.is_premium;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -128,8 +129,8 @@ export default function ProfilePage() {
                 </div>
                 {!isDialectSelectionEnabled && (
                   <p className="text-sm text-gray-600 mt-2">
-                    Spanish dialect selection is coming soon with Gold
-                    (recommended for Spanish teachers).
+                    🔒 Spanish dialect selection is available for Premium users.
+                    Upgrade to customize your learning experience with regional accents!
                   </p>
                 )}
               </div>
