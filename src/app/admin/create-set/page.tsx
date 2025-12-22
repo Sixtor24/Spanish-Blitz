@@ -72,9 +72,30 @@ export default function CreateSetPage() {
     setCards([...cards, { id: null, spanish: "", english: "" }]);
   };
 
-  const removeRow = (index) => {
-    if (cards.length > 1) {
-      setCards(cards.filter((_, i) => i !== index));
+  const removeRow = async (index) => {
+    const cardToRemove = cards[index];
+    
+    // If it's an existing card (has an ID), delete it from the backend
+    if (cardToRemove.id && isEditMode) {
+      try {
+        await api.cards.delete(cardToRemove.id);
+        // Show success feedback
+        setSuccessMessage("Card deleted successfully");
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } catch (error) {
+        console.error("Error deleting card:", error);
+        setError("Failed to delete card. Please try again.");
+        return;
+      }
+    }
+    
+    // Remove from local state (always allow removal, even if it's the last one)
+    const newCards = cards.filter((_, i) => i !== index);
+    if (newCards.length === 0) {
+      // If all cards are removed, add one empty card
+      setCards([{ id: null, spanish: "", english: "" }]);
+    } else {
+      setCards(newCards);
     }
   };
 
@@ -151,10 +172,44 @@ export default function CreateSetPage() {
           primary_color_hex: setColor,
         });
 
-        const existingCards = cards.filter((c) => c.id);
-        for (const card of existingCards) {
-          await api.cards.delete(card.id);
+        // Only delete cards that were removed (exist in backend but not in current cards)
+        // First, get all existing cards from backend
+        const existingBackendCards = await api.cards.list(setId);
+        const currentCardIds = cards.filter((c) => c.id).map((c) => c.id);
+        
+        // Delete cards that exist in backend but not in current cards
+        for (const backendCard of existingBackendCards) {
+          if (!currentCardIds.includes(backendCard.id)) {
+            await api.cards.delete(backendCard.id);
+          }
         }
+        
+        // Update existing cards that have IDs and are valid
+        const existingValidCards = cards.filter((c) => c.id && c.spanish.trim() && c.english.trim());
+        for (const card of existingValidCards) {
+          await api.cards.update(card.id, {
+            prompt_es: card.spanish.trim(),
+            answer_es: card.spanish.trim(),
+            translation_en: card.english.trim(),
+          });
+        }
+        
+        // Only create new cards (those without IDs) that are valid
+        const newCards = validCards.filter((c) => !c.id);
+        if (newCards.length > 0) {
+          const newCardsData = newCards.map((card) => ({
+            prompt_es: card.spanish.trim(),
+            answer_es: card.spanish.trim(),
+            translation_en: card.english.trim(),
+          }));
+          await api.cards.bulkCreate(deckId, newCardsData);
+        }
+        
+        // Show success message
+        setSuccessMessage("Set updated successfully!");
+        setSaving(false);
+        setTimeout(() => setSuccessMessage(null), 5000);
+        return;
       } else {
         try {
           const deck = await api.decks.create({
@@ -422,12 +477,8 @@ export default function CreateSetPage() {
                         />
                         <button
                           onClick={() => removeRow(index)}
-                          disabled={cards.length === 1}
-                          className={`p-2 rounded ${
-                            cards.length === 1
-                              ? "text-gray-300 cursor-not-allowed"
-                              : "text-red-600 hover:bg-red-50"
-                          }`}
+                          className="p-2 rounded text-red-600 hover:bg-red-50 transition-colors"
+                          title={card.id ? "Delete card permanently" : "Remove card"}
                         >
                           <X size={20} />
                         </button>

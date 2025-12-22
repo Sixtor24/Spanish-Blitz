@@ -58,10 +58,12 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
     }
 
     const recognitionInstance = new SpeechRecognitionCtor();
-    recognitionInstance.lang = locale;
+    // Force Spanish only - normalize locale to Spanish variants
+    const normalizedLocale = locale.startsWith('es-') ? locale : 'es-ES';
+    recognitionInstance.lang = normalizedLocale;
     recognitionInstance.continuous = true; // Keep listening
     recognitionInstance.interimResults = true; // Get interim results
-    recognitionInstance.maxAlternatives = 3; // Get multiple alternatives for better accuracy
+    recognitionInstance.maxAlternatives = 1; // Only Spanish alternatives
 
     recognitionInstance.onresult = (event) => {
       let interimTranscript = '';
@@ -87,8 +89,6 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
       const currentText = (finalTranscriptRef.current + interimTranscript).trim();
       setCurrentTranscript(currentText);
 
-      console.log('🎤 Speech interim:', currentText);
-
       // Clear existing timer
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
@@ -104,7 +104,6 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
           // OR if minimum 5 seconds have passed (even without speech)
           if (hasSpokenRef.current && finalText) {
             // User spoke and stopped - close immediately after 0.6s silence
-            console.log('✅ Speech final (after 0.6s silence):', finalText);
             onTranscript(finalText);
             
             // Reset and stop
@@ -117,7 +116,6 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
             hasSpokenRef.current = false;
           } else if (elapsed >= 5000 && finalText) {
             // Minimum 5 seconds passed, close even if no speech detected
-            console.log('✅ Speech final (after 5s minimum duration):', finalText);
             onTranscript(finalText);
             
             // Reset and stop
@@ -161,14 +159,11 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
     };
 
     recognitionInstance.onend = () => {
-      console.log('🛑 Speech recognition ended');
-      
       // If we're still supposed to be listening and minimum duration hasn't passed, restart
       if (isListeningRef.current && startTimeRef.current) {
         const elapsed = Date.now() - startTimeRef.current;
         if (elapsed < 5000) {
           // Minimum 5 seconds hasn't passed yet, restart recognition
-          console.log('🔄 Restarting recognition (min duration not met)');
           try {
             recognitionInstance.start();
             return; // Don't reset state, keep listening
@@ -194,7 +189,6 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
         // Process any remaining transcript
         const finalText = finalTranscriptRef.current.trim();
         if (finalText) {
-          console.log('✅ Speech final (on end):', finalText);
           onTranscript(finalText);
         }
         
@@ -242,7 +236,6 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
       
       const finalText = finalTranscriptRef.current.trim();
       if (finalText) {
-        console.log('✅ Speech final (manual stop):', finalText);
         onTranscript(finalText);
       }
       
@@ -267,13 +260,11 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
       }
       minDurationTimerRef.current = setTimeout(() => {
         // After 5 seconds, allow normal silence detection to work
-        console.log('⏱️ Minimum duration (5s) passed, silence detection active');
       }, 5000);
       
       try {
         recognitionRef.current.start();
         setIsListening(true);
-        console.log('🎤 Speech recognition started (closes after 0.6s silence if user speaks)');
       } catch (err) {
         console.error('Failed to start speech recognition:', err);
         setErrorMessage('Failed to start. Make sure another app is not using the microphone.');
