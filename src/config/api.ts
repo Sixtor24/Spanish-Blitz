@@ -375,10 +375,10 @@ export const api = {
     /**
      * Synthesize speech from text using edge-tts
      */
-    synthesize: (text: string, locale: string = 'es-ES') =>
+    synthesize: (text: string, locale: string = 'es-ES', voice: 'male' | 'female' = 'male') =>
       apiFetch('/api/tts/synthesize', {
         method: 'POST',
-        body: JSON.stringify({ text, locale }),
+        body: JSON.stringify({ text, locale, voice }),
       }),
     
     /**

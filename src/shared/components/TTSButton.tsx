@@ -33,32 +33,30 @@ export default function TTSButton({
     setSpeaking(true);
     
     // Alternar aleatoriamente entre voz masculina y femenina
-    const randomVoice = Math.random() < 0.5 ? 'male' : 'female';
+    const randomVoice: 'male' | 'female' = Math.random() < 0.5 ? 'male' : 'female';
     
     try {
-      
-      // Ajustar locale según el género de la voz y el dialecto del usuario
-      const voiceLocale = randomVoice === 'male' ? `${userLocale}-male` : userLocale;
-      
-      // Generar clave de caché
-      const cacheKey = `${text}-${voiceLocale}`;
+      // Generar clave de caché usando locale y voice por separado
+      const cacheKey = `${text}-${userLocale}-${randomVoice}`;
       
       let audioBase64: string;
       
       // Verificar si está en caché
       if (audioCache.has(cacheKey)) {
-        console.log(`💾 [TTS] Using cached audio for: "${text.substring(0, 50)}" (${randomVoice === 'male' ? '👨' : '👩'} ${voiceLocale})`);
+        console.log(`💾 [TTS] Using cached audio for: "${text.substring(0, 50)}" (${randomVoice === 'male' ? '👨' : '👩'} ${userLocale})`);
         audioBase64 = audioCache.get(cacheKey)!;
       } else {
-        console.log(`🎤 [TTS] Requesting Edge TTS audio for: "${text.substring(0, 50)}" (${randomVoice === 'male' ? '👨' : '👩'} ${voiceLocale})`);
+        console.log(`🎤 [TTS] Requesting Edge TTS audio for: "${text.substring(0, 50)}" (${randomVoice === 'male' ? '👨' : '👩'} ${userLocale})`);
         
-        // Intentar usar edge-tts desde el backend
-        const response = await api.tts.synthesize(text, voiceLocale);
+        // Intentar usar edge-tts desde el backend con locale y voice separados
+        const response = await api.tts.synthesize(text, userLocale, randomVoice);
         
         console.log('✅ [TTS] Received audio from Edge TTS:', {
           audioLength: response.audio?.length || 0,
           voice: response.voice,
           provider: response.provider,
+          locale: userLocale,
+          gender: randomVoice,
         });
         
         if (!response.audio) {
@@ -86,20 +84,20 @@ export default function TTSButton({
         setSpeaking(false);
         // Fallback a Web Speech API
         console.warn('⚠️ [TTS] Falling back to Web Speech API');
-        fallbackToWebSpeech(randomVoice);
+        fallbackToWebSpeech(userLocale);
       };
 
       await audio.play();
-      console.log(`▶️ [TTS] Playing Edge TTS audio... (${randomVoice === 'male' ? '👨' : '👩'})`);
+      console.log(`▶️ [TTS] Playing Edge TTS audio... (${randomVoice === 'male' ? '👨' : '👩'} ${userLocale})`);
     } catch (error) {
       console.error('❌ [TTS] Backend request error:', error);
       // Fallback a Web Speech API nativo
       console.warn('⚠️ [TTS] Falling back to Web Speech API');
-      fallbackToWebSpeech(randomVoice);
+      fallbackToWebSpeech(userLocale);
     }
   };
 
-  const fallbackToWebSpeech = (voiceGender: 'male' | 'female') => {
+  const fallbackToWebSpeech = (locale: string) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       setSpeaking(false);
       return;
@@ -108,19 +106,15 @@ export default function TTSButton({
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = userLocale;
+    utterance.lang = locale || 'es-ES';
     utterance.rate = slow ? 0.7 : 1.0;
     
-    // Intentar seleccionar una voz del género correcto
+    // Intentar seleccionar una voz en español
     const voices = window.speechSynthesis.getVoices();
     const spanishVoices = voices.filter(v => v.lang.startsWith('es'));
     if (spanishVoices.length > 0) {
-      // Intentar encontrar una voz que coincida con el género (heurística simple)
-      const preferredVoice = spanishVoices.find(v => 
-        voiceGender === 'male' 
-          ? v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('jorge') || v.name.toLowerCase().includes('alvaro')
-          : v.name.toLowerCase().includes('female') || v.name.toLowerCase().includes('elvira')
-      ) || spanishVoices[0];
+      // Intentar encontrar una voz que coincida con el locale
+      const preferredVoice = spanishVoices.find(v => v.lang === locale) || spanishVoices[0];
       utterance.voice = preferredVoice;
     }
 
