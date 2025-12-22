@@ -5,7 +5,7 @@ import useUser from "@/shared/hooks/useUser";
 import { ArrowLeft, Users, Timer, Trophy, Play } from "lucide-react";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition from "@/shared/components/SpeechRecognition";
-import { api } from "@/config/api";
+import { api, API_BASE_URL } from "@/config/api";
 import {
   QUESTION_TYPES,
   getSpanishPrompt,
@@ -298,10 +298,8 @@ export default function BlitzSessionPage({ params }) {
       fetchState();
 
       // setup websocket for real-time refresh signals
-      const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws';
-      const defaultPort = window.location.port || (protocol === 'wss' ? '443' : '4001');
-      const wsUrl =
-        import.meta.env.VITE_WS_URL || `${protocol}://${window.location.hostname}:${import.meta.env.VITE_WS_PORT || defaultPort}`;
+      // Use API_BASE_URL to connect to the backend WebSocket server
+      const wsUrl = import.meta.env.VITE_WS_URL || API_BASE_URL.replace(/^https?/, (match) => match === 'https' ? 'wss' : 'ws');
 
       const connect = () => {
         const ws = new WebSocket(wsUrl);
