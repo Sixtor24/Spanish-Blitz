@@ -29,7 +29,7 @@ export default function BlitzChallengePage() {
 
   const fetchDecks = async () => {
     try {
-      const params: { search?: string } = {};
+      const params: { search?: string; filter?: string } = { filter: 'owned' };
       if (searchQuery) params.search = searchQuery;
 
       const decksData = await api.decks.list(params);

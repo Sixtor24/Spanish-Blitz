@@ -19,7 +19,7 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterMode, setFilterMode] = useState("all");
+  const [filterMode, setFilterMode] = useState("owned");
   const [showWelcome, setShowWelcome] = useState(false);
 
   // Check authentication
@@ -60,7 +60,8 @@ export default function DashboardPage() {
     try {
       const params = new URLSearchParams();
       if (searchQuery) params.append("search", searchQuery);
-      if (filterMode !== "all") params.append("filter", filterMode);
+      // Always send filter parameter - "owned" is the default
+      params.append("filter", filterMode);
 
       const [decksData, statsData] = await Promise.all([
         api.decks.list(params),
@@ -206,16 +207,6 @@ export default function DashboardPage() {
 
             <div className="flex gap-2">
               <button
-                onClick={() => setFilterMode("all")}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  filterMode === "all"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                }`}
-              >
-                All
-              </button>
-              <button
                 onClick={() => setFilterMode("owned")}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   filterMode === "owned"
@@ -223,7 +214,7 @@ export default function DashboardPage() {
                     : "bg-gray-100 text-gray-700 hover:bg-gray-200"
                 }`}
               >
-                Owned
+                My Sets
               </button>
               <button
                 onClick={() => setFilterMode("assigned")}

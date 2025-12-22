@@ -64,7 +64,8 @@ export default function PlaySoloPage() {
 
   const fetchAvailableSets = async () => {
     try {
-      const decksData = await api.decks.list();
+      // Only show user's own decks
+      const decksData = await api.decks.list({ filter: 'owned' });
       setAvailableSets(decksData);
     } catch (error) {
       console.error("Error fetching sets:", error);

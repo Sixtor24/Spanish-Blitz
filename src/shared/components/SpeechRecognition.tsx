@@ -38,12 +38,16 @@ const getSpeechRecognition = (): RecognitionConstructor | null => {
 export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onError }: SpeechRecognitionProps) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
-  const [recognition, setRecognition] = useState<RecognitionInstance | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [currentTranscript, setCurrentTranscript] = useState<string>('');
   
+  const recognitionRef = useRef<RecognitionInstance | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const finalTranscriptRef = useRef<string>('');
+  const isListeningRef = useRef(false);
+  const startTimeRef = useRef<number | null>(null);
+  const minDurationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasSpokenRef = useRef(false); // Track if user has spoken anything
 
   useEffect(() => {
     const SpeechRecognitionCtor = getSpeechRecognition();
@@ -71,9 +75,11 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
           // This is a final result
           finalTranscript += transcript + ' ';
           finalTranscriptRef.current += transcript + ' ';
+          hasSpokenRef.current = true; // User has spoken
         } else {
           // This is an interim result
           interimTranscript += transcript;
+          hasSpokenRef.current = true; // User is speaking
         }
       }
 
@@ -88,28 +94,56 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
         clearTimeout(silenceTimerRef.current);
       }
 
-      // Set a new timer for 5 seconds of silence
+      // Set a new timer for 0.6 seconds of silence
       silenceTimerRef.current = setTimeout(() => {
-        const finalText = finalTranscriptRef.current.trim();
-        if (finalText) {
-          console.log('✅ Speech final (after 5s silence):', finalText);
-          onTranscript(finalText);
+        if (isListeningRef.current && startTimeRef.current) {
+          const elapsed = Date.now() - startTimeRef.current;
+          const finalText = finalTranscriptRef.current.trim();
           
-          // Reset and stop
-          finalTranscriptRef.current = '';
-          setCurrentTranscript('');
-          recognitionInstance.stop();
-          setIsListening(false);
+          // If user has spoken and there's text, close after 0.6s of silence
+          // OR if minimum 5 seconds have passed (even without speech)
+          if (hasSpokenRef.current && finalText) {
+            // User spoke and stopped - close immediately after 0.6s silence
+            console.log('✅ Speech final (after 0.6s silence):', finalText);
+            onTranscript(finalText);
+            
+            // Reset and stop
+            finalTranscriptRef.current = '';
+            setCurrentTranscript('');
+            recognitionInstance.stop();
+            isListeningRef.current = false;
+            setIsListening(false);
+            startTimeRef.current = null;
+            hasSpokenRef.current = false;
+          } else if (elapsed >= 5000 && finalText) {
+            // Minimum 5 seconds passed, close even if no speech detected
+            console.log('✅ Speech final (after 5s minimum duration):', finalText);
+            onTranscript(finalText);
+            
+            // Reset and stop
+            finalTranscriptRef.current = '';
+            setCurrentTranscript('');
+            recognitionInstance.stop();
+            isListeningRef.current = false;
+            setIsListening(false);
+            startTimeRef.current = null;
+            hasSpokenRef.current = false;
+          }
         }
-      }, 5000); // 5 seconds of silence
+      }, 600); // 0.6 seconds of silence
     };
 
     recognitionInstance.onerror = (event) => {
       console.error('Speech recognition error:', event.error);
       
-      // Clear timer on error
+      // Clear timers on error
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+      if (minDurationTimerRef.current) {
+        clearTimeout(minDurationTimerRef.current);
+        minDurationTimerRef.current = null;
       }
       
       setErrorMessage(
@@ -118,49 +152,92 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
           : 'Speech recognition error. Try again or switch to Chrome/Edge.'
       );
       if (onError) onError(event.error);
+      isListeningRef.current = false;
       setIsListening(false);
       finalTranscriptRef.current = '';
       setCurrentTranscript('');
+      startTimeRef.current = null;
+      hasSpokenRef.current = false;
     };
 
     recognitionInstance.onend = () => {
       console.log('🛑 Speech recognition ended');
       
-      // Clear timer
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current);
+      // If we're still supposed to be listening and minimum duration hasn't passed, restart
+      if (isListeningRef.current && startTimeRef.current) {
+        const elapsed = Date.now() - startTimeRef.current;
+        if (elapsed < 5000) {
+          // Minimum 5 seconds hasn't passed yet, restart recognition
+          console.log('🔄 Restarting recognition (min duration not met)');
+          try {
+            recognitionInstance.start();
+            return; // Don't reset state, keep listening
+          } catch (err) {
+            console.error('Failed to restart recognition:', err);
+            // If restart fails, proceed with normal end handling
+          }
+        }
       }
       
-      // Process any remaining transcript
-      const finalText = finalTranscriptRef.current.trim();
-      if (finalText && isListening) {
-        console.log('✅ Speech final (on end):', finalText);
-        onTranscript(finalText);
+      // Only process if we were actually listening (not manually stopped)
+      if (isListeningRef.current) {
+        // Clear timers
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
+        if (minDurationTimerRef.current) {
+          clearTimeout(minDurationTimerRef.current);
+          minDurationTimerRef.current = null;
+        }
+        
+        // Process any remaining transcript
+        const finalText = finalTranscriptRef.current.trim();
+        if (finalText) {
+          console.log('✅ Speech final (on end):', finalText);
+          onTranscript(finalText);
+        }
+        
+        // Reset state
+        finalTranscriptRef.current = '';
+        setCurrentTranscript('');
+        isListeningRef.current = false;
+        setIsListening(false);
+        startTimeRef.current = null;
+        hasSpokenRef.current = false;
       }
-      
-      // Reset state
-      finalTranscriptRef.current = '';
-      setCurrentTranscript('');
-      setIsListening(false);
     };
 
-    setRecognition(recognitionInstance);
+    recognitionRef.current = recognitionInstance;
 
     return () => {
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
       }
-      recognitionInstance.abort();
+      if (minDurationTimerRef.current) {
+        clearTimeout(minDurationTimerRef.current);
+      }
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
     };
-  }, [locale, onTranscript, onError, isListening]);
+  }, [locale, onTranscript, onError]);
 
   const toggleListening = () => {
-    if (!recognition) return;
+    if (!recognitionRef.current) return;
 
-    if (isListening) {
+    if (isListeningRef.current) {
       // Stop manually - process whatever we have
+      isListeningRef.current = false;
+      startTimeRef.current = null;
+      
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+      if (minDurationTimerRef.current) {
+        clearTimeout(minDurationTimerRef.current);
+        minDurationTimerRef.current = null;
       }
       
       const finalText = finalTranscriptRef.current.trim();
@@ -169,23 +246,45 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
         onTranscript(finalText);
       }
       
-      recognition.stop();
+      recognitionRef.current.stop();
       setIsListening(false);
       setErrorMessage(null);
       finalTranscriptRef.current = '';
       setCurrentTranscript('');
+      hasSpokenRef.current = false;
     } else {
       // Start listening
       setErrorMessage(null);
       finalTranscriptRef.current = '';
       setCurrentTranscript('');
+      startTimeRef.current = Date.now();
+      isListeningRef.current = true;
+      hasSpokenRef.current = false; // Reset speech detection
+      
+      // Set minimum duration timer - ensure recognition stays active for at least 5 seconds
+      if (minDurationTimerRef.current) {
+        clearTimeout(minDurationTimerRef.current);
+      }
+      minDurationTimerRef.current = setTimeout(() => {
+        // After 5 seconds, allow normal silence detection to work
+        console.log('⏱️ Minimum duration (5s) passed, silence detection active');
+      }, 5000);
       
       try {
-        recognition.start();
+        recognitionRef.current.start();
         setIsListening(true);
+        console.log('🎤 Speech recognition started (closes after 0.6s silence if user speaks)');
       } catch (err) {
         console.error('Failed to start speech recognition:', err);
         setErrorMessage('Failed to start. Make sure another app is not using the microphone.');
+        isListeningRef.current = false;
+        startTimeRef.current = null;
+        setIsListening(false);
+        hasSpokenRef.current = false;
+        if (minDurationTimerRef.current) {
+          clearTimeout(minDurationTimerRef.current);
+          minDurationTimerRef.current = null;
+        }
       }
     }
   };
@@ -214,13 +313,7 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
         {isListening ? 'Stop Recording' : 'Speak Answer'}
       </button>
       
-      {isListening && currentTranscript && (
-        <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg max-w-md">
-          <p className="text-xs text-blue-600 mb-1">Listening...</p>
-          <p className="text-sm text-gray-800">{currentTranscript}</p>
-          <p className="text-xs text-gray-500 mt-1">Will submit after 5s of silence</p>
-        </div>
-      )}
+      
       
       {errorMessage && (
         <p className="text-sm text-red-600 text-center max-w-md leading-snug">{errorMessage}</p>
