@@ -3,6 +3,7 @@ import { ArrowLeft, RotateCw, RefreshCw } from "lucide-react";
 import Navigation from "@/shared/components/Navigation";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition from "@/shared/components/SpeechRecognition";
+import useUser from "@/shared/hooks/useUser";
 import { api } from "@/config/api";
 import type { DbDeck, DbCard } from "@/types/api.types";
 
@@ -45,6 +46,9 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 export default function StudyPage() {
+  const { user } = useUser();
+  const userLocale = user?.preferred_locale || 'es-ES';
+  
   const [deckId, setDeckId] = useState<string | null>(null);
   const [deck, setDeck] = useState<DbDeck | null>(null);
   const [cards, setCards] = useState<DbCard[]>([]);
@@ -429,7 +433,7 @@ export default function StudyPage() {
                   <div className="flex justify-center">
                     <TTSButton
                       text={currentCard.prompt_es || currentCard.question}
-                      locale="es-ES"
+                      locale={userLocale}
                       size="large"
                     />
                   </div>
@@ -473,7 +477,7 @@ export default function StudyPage() {
                   <div className="flex justify-center mt-6">
                     <SpeechRecognition
                       onTranscript={handleSpeechResult}
-                      locale="es-ES"
+                      locale={userLocale}
                     />
                   </div>
 

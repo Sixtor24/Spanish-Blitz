@@ -98,24 +98,24 @@ function GameView({
 
   return (
     <div className="space-y-4">
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between">
-        <div>
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center justify-between flex-wrap sm:flex-nowrap gap-2">
+        <div className="text-center sm:text-left">
           <p className="text-xs text-gray-500">Your score</p>
           <p className="text-xl font-semibold">{score}</p>
         </div>
-        <div className="text-right text-sm text-gray-600">
+        <div className="text-center sm:text-right text-sm text-gray-600">
             Progress {answeredCount}/{totalQuestions}
         </div>
       </div>
 
-      <p className="text-sm text-gray-500 mb-2">Question {question.position} of {totalQuestions}</p>
+      <p className="text-sm text-gray-500 mb-2 text-center sm:text-left">Question {question.position} of {totalQuestions}</p>
       <div className="bg-white border rounded-lg p-4 mb-4 shadow-sm">
-        <div className="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium mb-3">
+        <div className="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium mb-3 mx-auto sm:mx-0 block sm:inline-block text-center">
           {getQuestionTypeLabelText()}
         </div>
 
         {getQuestionPromptText() && (
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">{getQuestionPromptText()}</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4 text-center sm:text-left">{getQuestionPromptText()}</h2>
         )}
 
         {isAudioQuestion(questionType) && (
@@ -159,7 +159,7 @@ function GameView({
                   key={index}
                   onClick={() => handleSelectOption(option)}
                   disabled={!!selectedOption || isTeacher}
-                  className={`w-full px-5 py-4 border-2 rounded-lg text-left font-medium ${bgColor} ${hoverEffect} ${
+                  className={`w-full px-4 py-3 sm:px-5 sm:py-4 border-2 rounded-lg text-left sm:text-left text-center font-medium text-sm sm:text-base ${bgColor} ${hoverEffect} ${
                     selectedOption === null ? "cursor-pointer" : "cursor-not-allowed"
                   }`}
                 >
@@ -356,11 +356,18 @@ export default function BlitzSessionPage({ params }) {
   const allAnswered = !currentQuestion && currentAnswers.length > 0;
   const status = state?.session?.status;
 
-  const playerProgress = (state?.players ?? []).map((p) => {
+  const playerProgress = (state?.players ?? [])
+    .filter((p) => {
+      // Filter out teacher in spectator mode from rankings
+      const isThisPlayerTeacherHost = state?.session?.is_teacher && p.is_host;
+      return !isThisPlayerTeacherHost;
+    })
+    .map((p) => {
     const answered = p.answered_count ?? 0;
     const progress = totalQuestions ? Math.min(100, Math.round((answered / totalQuestions) * 100)) : 0;
     return { ...p, answered, progress };
-  }).sort((a, b) => b.score - a.score);
+    })
+    .sort((a, b) => b.score - a.score);
 
   const startSession = async () => {
     if (!sessionId) return;
@@ -401,9 +408,9 @@ export default function BlitzSessionPage({ params }) {
             </div>
             <div className="flex flex-wrap gap-4 items-center">
               {canSeeRanking && (
-                <div className="flex items-center gap-2 text-gray-700">
+              <div className="flex items-center gap-2 text-gray-700">
                   <Users size={18} /> {state?.players?.length ?? 0} jugadores
-                </div>
+              </div>
               )}
               <div className="flex items-center gap-2 text-gray-700">
                 <Timer size={18} /> {state?.session?.time_limit_seconds ? formatSeconds(timeLeftSeconds ?? state.session.time_limit_seconds) : 'Sin límite'}
@@ -415,18 +422,18 @@ export default function BlitzSessionPage({ params }) {
           </div>
 
           {canSeeRanking && (
-            <div className="mt-4 grid sm:grid-cols-3 gap-3 text-sm">
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <div className="mt-4 grid sm:grid-cols-3 gap-3 text-sm">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                 <p className="font-semibold text-gray-800">Tu rol</p>
                 <p className="text-gray-600 mt-1">
                   {isTeacherHost ? 'Profesor - Solo observas el progreso' : 'Organizador - Puedes ver el ranking en vivo'}
                 </p>
-              </div>
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                 <p className="font-semibold text-gray-800">Puntuación</p>
                 <p className="text-gray-600 mt-1">Correcta +2 · Incorrecta -1. Preguntas tipo Solo Blitz.</p>
-              </div>
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                 <p className="font-semibold text-gray-800">Final del juego</p>
                 <p className="text-gray-600 mt-1">Termina cuando todos acaben o se agote el tiempo.</p>
               </div>
@@ -670,16 +677,16 @@ export default function BlitzSessionPage({ params }) {
                                   </span>
                                   
                                   {canKick && (
-                                    <button
+                      <button
                                       onClick={() => kickPlayer(p.id, p.display_name || p.email)}
                                       className="bg-red-100 text-red-700 hover:bg-red-200 px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors"
                                       title="Expulsar jugador"
                                     >
                                       <span className="hidden sm:inline">Expulsar</span>
                                       <span className="sm:hidden">✕</span>
-                                    </button>
-                                  )}
-                                </div>
+                      </button>
+                    )}
+                  </div>
                               </div>
                             );
                           })}
@@ -705,7 +712,7 @@ export default function BlitzSessionPage({ params }) {
                             <Play size={24} /> Iniciar Actividad
                           </button>
                           
-                          {(state?.players?.length ?? 0) < 2 && (
+                  {(state?.players?.length ?? 0) < 2 && (
                             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center max-w-md mx-auto mt-4">
                               <p className="text-yellow-800 font-medium">
                                 Se necesitan al menos 2 jugadores para comenzar
@@ -734,21 +741,21 @@ export default function BlitzSessionPage({ params }) {
                         <p className="text-gray-600 text-xl">
                           Esperando que el organizador inicie la actividad...
                         </p>
-                      </div>
                     </div>
+                  </div>
 
                     {/* Session Info */}
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-6">
                         <p className="text-xs text-blue-600 font-semibold mb-2">CONJUNTO</p>
                         <p className="font-bold text-gray-800 text-xl">{state?.session?.deck_title ?? '—'}</p>
-                      </div>
+                          </div>
                       <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-6">
                         <p className="text-xs text-purple-600 font-semibold mb-2">PREGUNTAS · TIEMPO</p>
                         <p className="font-bold text-gray-800 text-xl">
                           {totalQuestions} preguntas · {state?.session?.time_limit_seconds ? formatSeconds(state.session.time_limit_seconds) : 'Sin límite'}
                         </p>
-                      </div>
+                        </div>
                     </div>
                   </div>
                 )
@@ -797,7 +804,7 @@ export default function BlitzSessionPage({ params }) {
 
             {/* Right sidebar: Ranking (only for host/admin during active game) */}
             {canSeeRanking && status === 'active' && (
-              <div className="bg-white rounded-xl shadow p-6">
+            <div className="bg-white rounded-xl shadow p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">
                     📊 Ranking en Vivo
@@ -855,9 +862,9 @@ export default function BlitzSessionPage({ params }) {
                               {p.score}
                             </div>
                             <div className="text-xs text-gray-500">pts</div>
-                          </div>
-                        </div>
-                      </div>
+                    </div>
+                    </div>
+                  </div>
                     );
                   })}
                 </div>
