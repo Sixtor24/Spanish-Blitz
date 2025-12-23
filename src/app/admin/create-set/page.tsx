@@ -1,11 +1,13 @@
 // @ts-nocheck
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router";
 import Navigation from "@/shared/components/Navigation";
 import ColorPicker from "@/shared/components/ColorPicker";
-import { BookOpen, Plus, Upload, X, ArrowLeft, Trash2 } from "lucide-react";
+import { BookOpen, Plus, Upload, X, ArrowLeft, Trash2, AlertCircle } from "lucide-react";
 import { api } from "@/config/api";
 
 export default function CreateSetPage() {
+  const navigate = useNavigate();
   const [setId, setSetId] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [setTitle, setSetTitle] = useState("");
@@ -25,6 +27,28 @@ export default function CreateSetPage() {
   const [successMessage, setSuccessMessage] = useState(null);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeMessage, setUpgradeMessage] = useState("");
+
+  // Detect duplicate cards based on Spanish word (case-insensitive)
+  const duplicateIndices = useMemo(() => {
+    const seen = new Map();
+    const duplicates = new Set();
+    
+    cards.forEach((card, index) => {
+      const spanishKey = card.spanish.trim().toLowerCase();
+      if (spanishKey && card.spanish.trim()) {
+        if (seen.has(spanishKey)) {
+          duplicates.add(seen.get(spanishKey));
+          duplicates.add(index);
+        } else {
+          seen.set(spanishKey, index);
+        }
+      }
+    });
+    
+    return duplicates;
+  }, [cards]);
+
+  const hasDuplicates = duplicateIndices.size > 0;
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -131,13 +155,45 @@ export default function CreateSetPage() {
       imported.push({ id: null, spanish, english });
     });
 
+    // Append imported cards to existing cards instead of replacing
+    // Filter out empty cards first
+    const existingCards = cards.filter(c => c.spanish.trim() || c.english.trim() || c.id);
+    const newCards = [...existingCards, ...imported];
+    
+    // If no existing cards and no imported cards, keep one empty card
     setCards(
-      imported.length > 0 ? imported : [{ id: null, spanish: "", english: "" }],
+      newCards.length > 0 ? newCards : [{ id: null, spanish: "", english: "" }],
     );
+    
+    // Switch to line-by-line view after import
+    setMode("line-by-line");
+    
+    // Clear bulk text
+    setBulkText("");
+    
     setImportSummary({
       imported: imported.length,
       skipped,
     });
+  };
+
+  const handleRemoveDuplicates = () => {
+    const seen = new Map();
+    const uniqueCards = [];
+    
+    cards.forEach((card) => {
+      const spanishKey = card.spanish.trim().toLowerCase();
+      if (!spanishKey || !seen.has(spanishKey)) {
+        seen.set(spanishKey, true);
+        uniqueCards.push(card);
+      }
+    });
+    
+    if (uniqueCards.length === 0) {
+      setCards([{ id: null, spanish: "", english: "" }]);
+    } else {
+      setCards(uniqueCards);
+    }
   };
 
   const handleSaveSet = async () => {
@@ -205,10 +261,9 @@ export default function CreateSetPage() {
           await api.cards.bulkCreate(deckId, newCardsData);
         }
         
-        // Show success message
-        setSuccessMessage("Set updated successfully!");
+        // Redirect to dashboard after successful save
         setSaving(false);
-        setTimeout(() => setSuccessMessage(null), 5000);
+        navigate("/dashboard");
         return;
       } else {
         try {
@@ -250,18 +305,9 @@ export default function CreateSetPage() {
         throw error;
       }
 
-      // Show success message instead of redirecting
-      setSuccessMessage(isEditMode ? "Set updated successfully!" : "Set created successfully!");
+      // Redirect to dashboard after successful save
       setSaving(false);
-      
-      // Clear success message after 5 seconds
-      setTimeout(() => setSuccessMessage(null), 5000);
-      
-      // If creating new set, update to edit mode with the new ID
-      if (!isEditMode) {
-        setSetId(deckId);
-        setIsEditMode(true);
-      }
+      navigate("/dashboard");
     } catch (err) {
       console.error("Error saving set:", err);
       setError(err.message || "Failed to save set");
@@ -280,7 +326,7 @@ export default function CreateSetPage() {
 
     try {
       await api.decks.delete(setId);
-      window.location.href = "/dashboard";
+      navigate("/dashboard");
     } catch (err) {
       console.error("Error deleting set:", err);
       setError(err instanceof Error ? err.message : "Failed to delete set");
@@ -304,13 +350,13 @@ export default function CreateSetPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
-          <a
-            href="/dashboard"
+          <button
+            onClick={() => navigate("/dashboard")}
             className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4"
           >
             <ArrowLeft size={20} />
             Back to Dashboard
-          </a>
+          </button>
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
@@ -450,40 +496,65 @@ export default function CreateSetPage() {
 
             {mode === "line-by-line" && (
               <div className="space-y-4">
+                {hasDuplicates && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+                    <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+                    <div className="flex-1">
+                      <p className="text-sm text-red-800 font-medium mb-1">
+                        Duplicate words detected
+                      </p>
+                      <button
+                        onClick={handleRemoveDuplicates}
+                        className="text-sm text-red-600 hover:text-red-700 underline font-medium"
+                      >
+                        Delete duplicates
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="overflow-y-auto max-h-96">
                   <div className="space-y-2">
-                    {cards.map((card, index) => (
-                      <div
-                        key={index}
-                        className="grid grid-cols-[1fr_1fr_auto] gap-2 items-start"
-                      >
-                        <input
-                          type="text"
-                          value={card.spanish}
-                          onChange={(e) =>
-                            updateCard(index, "spanish", e.target.value)
-                          }
-                          placeholder="Spanish"
-                          className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <input
-                          type="text"
-                          value={card.english}
-                          onChange={(e) =>
-                            updateCard(index, "english", e.target.value)
-                          }
-                          placeholder="English"
-                          className="px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <button
-                          onClick={() => removeRow(index)}
-                          className="p-2 rounded text-red-600 hover:bg-red-50 transition-colors"
-                          title={card.id ? "Delete card permanently" : "Remove card"}
+                    {cards.map((card, index) => {
+                      const isDuplicate = duplicateIndices.has(index);
+                      return (
+                        <div
+                          key={index}
+                          className={`grid grid-cols-[1fr_1fr_auto] gap-2 items-start ${
+                            isDuplicate ? "bg-red-50 p-2 rounded border border-red-200" : ""
+                          }`}
                         >
-                          <X size={20} />
-                        </button>
-                      </div>
-                    ))}
+                          <input
+                            type="text"
+                            value={card.spanish}
+                            onChange={(e) =>
+                              updateCard(index, "spanish", e.target.value)
+                            }
+                            placeholder="Spanish"
+                            className={`px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                              isDuplicate ? "border-red-300 bg-white" : "border-gray-300"
+                            }`}
+                          />
+                          <input
+                            type="text"
+                            value={card.english}
+                            onChange={(e) =>
+                              updateCard(index, "english", e.target.value)
+                            }
+                            placeholder="English"
+                            className={`px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                              isDuplicate ? "border-red-300 bg-white" : "border-gray-300"
+                            }`}
+                          />
+                          <button
+                            onClick={() => removeRow(index)}
+                            className="p-2 rounded text-red-600 hover:bg-red-50 transition-colors"
+                            title={card.id ? "Delete card permanently" : "Remove card"}
+                          >
+                            <X size={20} />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -554,46 +625,26 @@ export default function CreateSetPage() {
                       <strong>✓ Imported {importSummary.imported} cards</strong>
                       {importSummary.skipped > 0 &&
                         `, skipped ${importSummary.skipped} invalid lines`}
+                      <br />
+                      <span className="text-xs text-green-700 mt-1 block">
+                        Cards have been added to your existing list. Switch to "Add line by line" to view them.
+                      </span>
                     </p>
                   </div>
                 )}
 
-                {cards.length > 0 && cards[0].spanish && (
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                    <p className="text-sm font-medium text-gray-700 mb-2">
-                      Preview ({cards.length} cards):
-                    </p>
-                    <div className="max-h-40 overflow-y-auto space-y-1">
-                      {cards.slice(0, 10).map((card, index) => (
-                        <p key={index} className="text-sm text-gray-600">
-                          {card.spanish}{" "}
-                          {card.english && (
-                            <span className="text-blue-600">
-                              → {card.english}
-                            </span>
-                          )}
-                        </p>
-                      ))}
-                      {cards.length > 10 && (
-                        <p className="text-sm text-gray-500 italic">
-                          ... and {cards.length - 10} more
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>
         </div>
 
         <div className="flex gap-4 justify-end mt-8">
-          <a
-            href="/dashboard"
+          <button
+            onClick={() => navigate("/dashboard")}
             className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
           >
             Cancel
-          </a>
+          </button>
           <button
             onClick={handleSaveSet}
             disabled={saving}
