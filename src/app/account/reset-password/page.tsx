@@ -1,6 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import Navigation from '../../../shared/components/Navigation';
+import { useSearchParams, Link } from 'react-router-dom';
 import { api } from '@/config/api';
 
 export default function ResetPasswordPage() {
@@ -59,36 +58,29 @@ export default function ResetPasswordPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <Navigation />
-        <div className="flex items-center justify-center px-4 py-12">
-          <div className="w-full max-w-md bg-white shadow-sm rounded-2xl p-8 border border-slate-100">
-            <div className="text-center">
-              <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-              <h1 className="text-2xl font-semibold text-slate-900 mb-2">¡Contraseña restablecida!</h1>
-              <p className="text-sm text-slate-600">
-                Tu contraseña ha sido actualizada correctamente. Redirigiendo al inicio de sesión...
-              </p>
-            </div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white shadow-xl rounded-2xl p-6 sm:p-8 border border-slate-100 text-center">
+          <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
           </div>
+          <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 mb-2">¡Contraseña restablecida!</h1>
+          <p className="text-sm text-slate-600">
+            Tu contraseña ha sido actualizada correctamente. Redirigiendo al inicio de sesión...
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Navigation />
-      <div className="flex items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md bg-white shadow-sm rounded-2xl p-8 border border-slate-100">
-          <h1 className="text-2xl font-semibold text-slate-900 mb-2">Restablecer contraseña</h1>
-          <p className="text-sm text-slate-600 mb-6">
-            Ingresa tu nueva contraseña.
-          </p>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-white shadow-xl rounded-2xl p-6 sm:p-8 border border-slate-100">
+        <h1 className="text-2xl sm:text-3xl font-semibold text-slate-900 mb-2 text-center">Restablecer contraseña</h1>
+        <p className="text-sm text-slate-600 mb-6 text-center">
+          Ingresa tu nueva contraseña.
+        </p>
 
           {!token || !email ? (
             <div className="text-center py-8">
@@ -98,12 +90,12 @@ export default function ResetPasswordPage() {
                 </svg>
               </div>
               <p className="text-red-600 mb-4">{error}</p>
-              <a 
-                href="/account/forgot-password" 
+              <Link 
+                to="/account/forgot-password" 
                 className="text-blue-600 hover:text-blue-700 font-medium"
               >
                 Solicitar nuevo enlace
-              </a>
+              </Link>
             </div>
           ) : (
             <form onSubmit={onSubmit} className="space-y-4">
@@ -191,14 +183,13 @@ export default function ResetPasswordPage() {
             <p className="mt-4 text-sm text-red-600">{error}</p>
           )}
 
-          <div className="mt-6 text-sm text-slate-600">
-            <a href="/account/signin" className="text-blue-600 hover:text-blue-700 font-medium">
+          <div className="mt-6 text-sm text-slate-600 text-center">
+            <Link to="/account/signin" className="text-blue-600 hover:text-blue-700 font-medium">
               Volver a iniciar sesión
-            </a>
+            </Link>
           </div>
         </div>
       </div>
-    </div>
   );
 }
 
