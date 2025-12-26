@@ -1,11 +1,76 @@
-
-import Navigation from "@/shared/components/Navigation";
-import { Check, X } from "lucide-react";
+import { Link } from 'react-router';
+import { Check, X } from 'lucide-react';
+import useUser from '@/shared/hooks/useUser';
 
 export default function PricingPage() {
+  const { data: user, loading } = useUser();
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navigation />
+      {/* Navigation Bar */}
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <Link to="/" className="flex items-center">
+              <img
+                src="https://ucarecdn.com/df05b2e5-6ee7-4c41-b12b-d556708883a3/-/format/auto/"
+                alt="The Spanish Blitz"
+                className="h-10 w-auto"
+              />
+            </Link>
+            
+            <div className="flex items-center gap-3">
+              {!loading && (
+                <>
+                  {user ? (
+                    <>
+                      <Link
+                        to="/dashboard"
+                        className="hidden sm:inline-block px-4 py-2 text-sm font-medium text-gray-700 hover:text-orange-600 transition-colors"
+                      >
+                        Dashboard
+                      </Link>
+                      <Link
+                        to="/profile"
+                        className="hidden sm:inline-block px-4 py-2 text-sm font-medium text-gray-700 hover:text-orange-600 transition-colors"
+                      >
+                        Profile
+                      </Link>
+                      <Link
+                        to="/dashboard"
+                        className="inline-block bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2 rounded-full transition-colors"
+                      >
+                        Go to App
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        to="/"
+                        className="hidden sm:inline-block px-4 py-2 text-sm font-medium text-gray-700 hover:text-orange-600 transition-colors"
+                      >
+                        Home
+                      </Link>
+                      <Link
+                        to="/account/signin"
+                        className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-orange-600 transition-colors"
+                      >
+                        Sign In
+                      </Link>
+                      <Link
+                        to="/account/signup"
+                        className="bg-orange-500 hover:bg-orange-600 text-white font-semibold px-6 py-2 rounded-full transition-colors"
+                      >
+                        Sign Up
+                      </Link>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </nav>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="text-center mb-12">
