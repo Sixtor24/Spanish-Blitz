@@ -243,7 +243,7 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
             );
           } else {
             setErrorMessage(
-              'Network error. Brave is blocking the speech recognition service. Please: 1) Click the Brave icon in the address bar, 2) Set "Trackers & ads blocking" to "Disabled", 3) Set "Upgrade connections to HTTPS" to "Disabled", 4) Refresh the page and try again.'
+              'Brave is blocking Google Speech API even with Shields disabled. This is a Brave browser limitation for privacy protection. Please use Chrome, Edge, or Safari for voice features.'
             );
           }
         } else {
@@ -560,7 +560,7 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
           <div className="text-sm text-red-800 text-center leading-relaxed font-medium mb-2">
             {browserRef.current === 'brave' && (errorMessage.includes('Network') || errorMessage.includes('network')) ? (
               <>
-                <span className="block mb-2 font-bold">⚠️ Brave Limitation on Localhost</span>
+                <span className="block mb-3 font-bold text-lg">⚠️ Brave Browser Incompatibility</span>
                 {isLocalhostRef.current ? (
                   <>
                     <p className="text-xs font-normal text-red-700 mb-3">
@@ -578,18 +578,22 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
                   </>
                 ) : (
                   <>
-                    <span className="block text-xs font-normal text-red-700 mt-2 mb-1">
-                      Steps to fix:
-                    </span>
-                    <ol className="text-xs font-normal text-red-700 mt-1 list-decimal list-inside space-y-1 text-left bg-red-100 p-3 rounded">
-                      <li>Click the Brave lion icon in the address bar</li>
-                      <li>Set "Trackers & ads blocking" to "Disabled"</li>
-                      <li>Set "Upgrade connections to HTTPS" to "Disabled"</li>
-                      <li>Refresh the page (F5 or Cmd+R)</li>
-                    </ol>
-                    <p className="text-xs text-red-600 mt-2 italic">
-                      Note: These settings only affect this site. You can re-enable them later.
+                    <p className="text-sm font-normal text-red-800 mb-3 leading-relaxed">
+                      Brave blocks Google's speech recognition service for privacy protection, even with Shields disabled. This is a <strong>browser-level limitation</strong> that cannot be bypassed.
                     </p>
+                    <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 mb-3">
+                      <p className="text-sm font-bold text-blue-900 mb-2">✅ Recommended Browsers:</p>
+                      <div className="space-y-1 text-xs text-blue-800">
+                        <p>• <strong>Google Chrome</strong> - Best compatibility</p>
+                        <p>• <strong>Microsoft Edge</strong> - Excellent support</p>
+                        <p>• <strong>Safari</strong> - Works on Mac/iOS</p>
+                      </div>
+                    </div>
+                    <div className="bg-yellow-50 border border-yellow-300 rounded p-3">
+                      <p className="text-xs text-yellow-900">
+                        <strong>Why this happens:</strong> Brave prioritizes privacy by blocking Google services. Voice recognition requires Google's speech API, which Brave considers a privacy risk.
+                      </p>
+                    </div>
                   </>
                 )}
               </>
