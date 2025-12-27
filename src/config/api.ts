@@ -386,6 +386,20 @@ export const api = {
      */
     voices: () => apiFetch('/api/tts/voices'),
   },
+
+  // ============================================================================
+  // Speech Recognition (for Brave compatibility)
+  // ============================================================================
+  speech: {
+    /**
+     * Transcribe audio using backend service (works in Brave)
+     */
+    transcribe: (audioBase64: string, locale: string = 'es-ES') =>
+      apiFetch('/api/speech/transcribe', {
+        method: 'POST',
+        body: JSON.stringify({ audio: audioBase64, locale }),
+      }),
+  },
 };
 
 // ============================================================================

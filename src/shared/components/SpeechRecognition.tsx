@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Mic, MicOff } from 'lucide-react';
+import { api } from '@/config/api';
 
 type SpeechRecognitionProps = {
   onTranscript: (transcript: string) => void;
@@ -86,14 +87,23 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
   const retryCountRef = useRef(0);
   const browserRef = useRef<'brave' | 'chrome' | 'edge' | 'firefox' | 'safari' | 'other'>('other');
   const isLocalhostRef = useRef(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     browserRef.current = detectBrowser();
     isLocalhostRef.current = isLocalhost();
     const SpeechRecognitionCtor = getSpeechRecognition();
 
+    // Safari and Brave don't support Web Speech API, but they can use backend transcription
+    // So we only mark as unsupported if it's not Safari/Brave and Web Speech API is not available
     if (!SpeechRecognitionCtor) {
-      setIsSupported(false);
+      if (browserRef.current !== 'safari' && browserRef.current !== 'brave') {
+        setIsSupported(false);
+        return;
+      }
+      // For Safari/Brave, we'll use backend transcription, so we don't need Web Speech API
       return;
     }
 
@@ -367,13 +377,214 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
     }
   };
 
+  // Use backend transcription for Brave (works around browser limitations)
+  const useBackendTranscription = async (stream: MediaStream) => {
+    try {
+      setCurrentTranscript('Listening...');
+      
+      // Create MediaRecorder with timeslice for better control
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      // Audio context for silence detection
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      const microphone = audioContext.createMediaStreamSource(stream);
+      microphone.connect(analyser);
+      analyser.fftSize = 256;
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      let lastSoundTime = Date.now();
+      let minDurationPassed = false;
+      let audioContextClosed = false;
+      const MIN_DURATION = 3000; // 3 seconds minimum
+      const SILENCE_THRESHOLD = 30; // Volume threshold for silence
+      const SILENCE_DURATION = 600; // 0.6 seconds of silence to stop (matching original)
+      const MAX_DURATION = 15000; // 15 seconds maximum
+
+      // Start minimum duration timer
+      const minDurationTimer = setTimeout(() => {
+        minDurationPassed = true;
+        console.log('🎤 [Backend Speech] Minimum duration passed, silence detection active');
+      }, MIN_DURATION);
+
+      // Silence detection loop
+      const checkSilence = () => {
+        if (!isListeningRef.current || !mediaRecorderRef.current || mediaRecorderRef.current.state !== 'recording') {
+          return;
+        }
+
+        analyser.getByteFrequencyData(dataArray);
+        const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+        const hasSound = average > SILENCE_THRESHOLD;
+
+        if (hasSound) {
+          lastSoundTime = Date.now();
+        }
+
+        const silenceDuration = Date.now() - lastSoundTime;
+        const totalDuration = Date.now() - (startTimeRef.current || Date.now());
+
+        // Stop conditions:
+        // 1. Minimum duration passed AND silence detected for threshold
+        // 2. Maximum duration reached
+        if (minDurationPassed && silenceDuration >= SILENCE_DURATION) {
+          console.log('🎤 [Backend Speech] Silence detected, stopping recording');
+          isListeningRef.current = false;
+          setIsListening(false);
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            mediaRecorderRef.current.stop();
+          }
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+          }
+          if (!audioContextClosed && audioContext.state !== 'closed') {
+            audioContext.close().catch(() => {}); // Ignore errors if already closing
+            audioContextClosed = true;
+          }
+          clearTimeout(minDurationTimer);
+          return;
+        }
+
+        if (totalDuration >= MAX_DURATION) {
+          console.log('🎤 [Backend Speech] Maximum duration reached, stopping recording');
+          isListeningRef.current = false;
+          setIsListening(false);
+          if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            mediaRecorderRef.current.stop();
+          }
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+          }
+          if (!audioContextClosed && audioContext.state !== 'closed') {
+            audioContext.close().catch(() => {}); // Ignore errors if already closing
+            audioContextClosed = true;
+          }
+          clearTimeout(minDurationTimer);
+          return;
+        }
+
+        // Continue checking
+        requestAnimationFrame(checkSilence);
+      };
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        try {
+          clearTimeout(minDurationTimer);
+          
+          // Close audio context if not already closed
+          if (!audioContextClosed && audioContext.state !== 'closed') {
+            audioContext.close().catch(() => {}); // Ignore errors if already closing
+            audioContextClosed = true;
+          }
+          
+          // Update state immediately
+          isListeningRef.current = false;
+          setIsListening(false);
+          startTimeRef.current = null;
+          
+          // Combine all audio chunks
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          
+          // Only process if we have audio data
+          if (audioBlob.size === 0) {
+            setErrorMessage('No audio recorded. Please try again.');
+            setCurrentTranscript('');
+            return;
+          }
+          
+          // Convert to base64
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            const base64Audio = (reader.result as string).split(',')[1]; // Remove data:audio/webm;base64, prefix
+            
+            try {
+              setCurrentTranscript('Processing...');
+              
+              // Send to backend for transcription
+              const result = await api.speech.transcribe(base64Audio, locale);
+              
+              if (result.transcript && result.transcript.trim()) {
+                onTranscript(result.transcript.trim());
+                setCurrentTranscript('');
+                setErrorMessage(null);
+              } else {
+                setErrorMessage('No speech detected. Please try again.');
+                setCurrentTranscript('');
+              }
+            } catch (error: any) {
+              console.error('Backend transcription error:', error);
+              setErrorMessage(error.message || 'Transcription failed. Please try again.');
+              setCurrentTranscript('');
+              if (onError) onError('transcription-failed');
+            }
+          };
+          reader.readAsDataURL(audioBlob);
+        } catch (error: any) {
+          console.error('Error processing audio:', error);
+          setErrorMessage('Error processing audio. Please try again.');
+          setCurrentTranscript('');
+          isListeningRef.current = false;
+          setIsListening(false);
+        }
+      };
+
+      // Start recording with timeslice for continuous data
+      mediaRecorder.start(100); // Collect data every 100ms
+      const browserName = browserRef.current === 'brave' ? 'Brave' : browserRef.current === 'safari' ? 'Safari' : 'browser';
+      console.log(`🎤 [Backend Speech] Recording started for ${browserName} browser`);
+      
+      // Start silence detection
+      requestAnimationFrame(checkSilence);
+    } catch (error: any) {
+      console.error('Error setting up backend transcription:', error);
+      setErrorMessage('Failed to start recording. Please try again.');
+      if (onError) onError('recording-failed');
+    }
+  };
+
   const toggleListening = async () => {
-    if (!recognitionRef.current) return;
+    const isBrave = browserRef.current === 'brave';
+    const isSafari = browserRef.current === 'safari';
+    const needsBackend = isBrave || isSafari;
+    
+    // For Brave and Safari, use backend transcription
+    if (needsBackend && !recognitionRef.current) {
+      // This is expected - Safari doesn't support Web Speech API, Brave blocks it
+      // Both will use backend transcription
+    }
 
     if (isListeningRef.current) {
-      // Stop manually - process whatever we have
+      // Stop listening
       isListeningRef.current = false;
       startTimeRef.current = null;
+      
+      if (needsBackend && mediaRecorderRef.current) {
+        // Stop MediaRecorder for Brave/Safari
+        if (mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.stop();
+        }
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
+        mediaRecorderRef.current = null;
+        audioChunksRef.current = [];
+      } else if (recognitionRef.current) {
+        // Stop Web Speech API for Chrome/Edge/Firefox
+        recognitionRef.current.stop();
+      }
       
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
@@ -384,43 +595,29 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
         minDurationTimerRef.current = null;
       }
       
-      const finalText = finalTranscriptRef.current.trim();
-      if (finalText) {
-        onTranscript(finalText);
-      }
-      
-      recognitionRef.current.stop();
       setIsListening(false);
       setErrorMessage(null);
-      finalTranscriptRef.current = '';
       setCurrentTranscript('');
+      finalTranscriptRef.current = '';
       hasSpokenRef.current = false;
       retryCountRef.current = 0;
     } else {
-      // Start listening - first request microphone permission
+      // Start listening
       setErrorMessage(null);
       finalTranscriptRef.current = '';
       setCurrentTranscript('');
       retryCountRef.current = 0;
       
-      // For Brave, check network connectivity first
-      if (browserRef.current === 'brave') {
-        const hasNetwork = await checkNetworkConnectivity();
-        if (!hasNetwork) {
-          setErrorMessage(
-            'Network connectivity issue detected. Please check your internet connection and ensure Brave Shields is not blocking network requests. Click the Brave icon in the address bar and disable "Trackers & ads blocking" and "Upgrade connections to HTTPS".'
-          );
-          return;
-        }
-      }
-      
-      // Request microphone permission first (especially important for Brave)
-      const hasPermission = await requestMicrophonePermission();
-      if (!hasPermission) {
+      // Request microphone permission
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        streamRef.current = stream;
+      } catch (err: any) {
         const browser = browserRef.current;
         if (browser === 'brave') {
           setErrorMessage(
-            'Microphone permission required. Click the lock icon in the address bar and allow microphone access, or disable Brave Shields for this site.'
+            'Microphone permission required. Click the lock icon in the address bar and allow microphone access.'
           );
         } else {
           setErrorMessage(
@@ -433,6 +630,23 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
       startTimeRef.current = Date.now();
       isListeningRef.current = true;
       hasSpokenRef.current = false;
+      setIsListening(true);
+      
+      // For Brave and Safari, use backend transcription (Safari doesn't support Web Speech API)
+      const needsBackend = isBrave || browserRef.current === 'safari';
+      if (needsBackend) {
+        await useBackendTranscription(stream);
+        return;
+      }
+      
+      // For other browsers (Chrome, Edge, Firefox), use Web Speech API
+      if (!recognitionRef.current) {
+        setErrorMessage('Speech recognition not available. Please use Chrome or Edge.');
+        stream.getTracks().forEach(track => track.stop());
+        isListeningRef.current = false;
+        setIsListening(false);
+        return;
+      }
       
       // Set minimum duration timer
       if (minDurationTimerRef.current) {
@@ -442,90 +656,45 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
         // After 5 seconds, allow normal silence detection to work
       }, 5000);
       
-      // Add a small delay for Brave compatibility
-      const delay = browserRef.current === 'brave' ? 100 : 0;
-      setTimeout(() => {
-        if (!isListeningRef.current || !recognitionRef.current) return;
+      // Start Web Speech API
+      try {
+        console.log('Attempting to start speech recognition...', {
+          browser: browserRef.current,
+          isLocalhost: isLocalhostRef.current,
+          hasRecognition: !!recognitionRef.current
+        });
+        recognitionRef.current.start();
+        console.log('Speech recognition started successfully');
+      } catch (err: any) {
+        console.error('Failed to start speech recognition:', err);
+        stream.getTracks().forEach(track => track.stop());
+        const browser = browserRef.current;
         
-        try {
-          console.log('Attempting to start speech recognition...', {
-            browser: browserRef.current,
-            isLocalhost: isLocalhostRef.current,
-            hasRecognition: !!recognitionRef.current
-          });
-          recognitionRef.current.start();
-          setIsListening(true);
-          console.log('Speech recognition started successfully');
-        } catch (err: any) {
-          console.error('Failed to start speech recognition:', {
-            error: err,
-            name: err?.name,
-            message: err?.message,
-            stack: err?.stack,
-            browser: browserRef.current,
-            isLocalhost: isLocalhostRef.current
-          });
-          const browser = browserRef.current;
-          
-          if (err.name === 'NotAllowedError' || err.message?.includes('not allowed')) {
-            if (browser === 'brave') {
-              setErrorMessage(
-                'Microphone access denied. Click the lock icon in the address bar and allow microphone access, or disable Brave Shields for this site.'
-              );
-            } else {
-              setErrorMessage(
-                'Microphone access denied. Please allow microphone access in your browser settings.'
-              );
-            }
-          } else if (err.name === 'AbortError' || err.message?.includes('abort')) {
-            if (browser === 'brave') {
-              setErrorMessage(
-                'Speech recognition aborted by Brave. Click the Brave icon in the address bar, disable "Trackers & ads blocking" and "Upgrade connections to HTTPS", then refresh the page.'
-              );
-            } else {
-              setErrorMessage(
-                'Speech recognition was interrupted. Make sure your microphone is connected and try again.'
-              );
-            }
-          } else if (err.name === 'NetworkError' || err.message?.includes('network')) {
-            if (browser === 'brave') {
-              setErrorMessage(
-                'Network error. Brave is blocking the speech service. Click the Brave icon, set "Trackers & ads blocking" and "Upgrade connections to HTTPS" to "Disabled", then refresh.'
-              );
-            } else {
-              setErrorMessage(
-                'Network error. Check your internet connection and try again.'
-              );
-            }
-        } else {
-          const errorDetails = err?.name || err?.message || 'Unknown error';
+        if (err.name === 'NotAllowedError' || err.message?.includes('not allowed')) {
           if (browser === 'brave') {
-            if (isLocalhostRef.current) {
-              setErrorMessage(
-                `Failed to start (${errorDetails}). Brave is blocking speech recognition. Go to brave://settings/shields and disable "Trackers & ads blocking", "Upgrade connections to HTTPS", "Block scripts", and "Block fingerprinting" in Global defaults. Or use Chrome/Edge for development.`
-              );
-            } else {
-              setErrorMessage(
-                `Failed to start (${errorDetails}). Click the Brave icon and disable "Trackers & ads blocking" and "Upgrade connections to HTTPS", then refresh.`
-              );
-            }
+            setErrorMessage(
+              'Microphone access denied. Click the lock icon in the address bar and allow microphone access.'
+            );
           } else {
             setErrorMessage(
-              `Failed to start (${errorDetails}). Make sure another app is not using the microphone.`
+              'Microphone access denied. Please allow microphone access in your browser settings.'
             );
           }
+        } else {
+          setErrorMessage(
+            browser === 'brave'
+              ? 'Failed to start. Please try refreshing the page or use Chrome/Edge.'
+              : 'Failed to start. Make sure another app is not using the microphone.'
+          );
         }
-          
-          isListeningRef.current = false;
-          startTimeRef.current = null;
-          setIsListening(false);
-          hasSpokenRef.current = false;
-          if (minDurationTimerRef.current) {
-            clearTimeout(minDurationTimerRef.current);
-            minDurationTimerRef.current = null;
-          }
+        
+        isListeningRef.current = false;
+        setIsListening(false);
+        if (minDurationTimerRef.current) {
+          clearTimeout(minDurationTimerRef.current);
+          minDurationTimerRef.current = null;
         }
-      }, delay);
+      }
     }
   };
 
@@ -558,50 +727,14 @@ export default function SpeechRecognition({ onTranscript, locale = 'es-ES', onEr
       {errorMessage && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-md">
           <div className="text-sm text-red-800 text-center leading-relaxed font-medium mb-2">
-            {browserRef.current === 'brave' && (errorMessage.includes('Network') || errorMessage.includes('network')) ? (
+            {browserRef.current === 'brave' ? (
               <>
-                <span className="block mb-3 font-bold text-lg">⚠️ Brave Browser Incompatibility</span>
-                {isLocalhostRef.current ? (
-                  <>
-                    <p className="text-xs font-normal text-red-700 mb-3">
-                      Brave blocks Google Speech API connections on localhost. This is a known limitation that cannot be bypassed by changing settings.
-                    </p>
-                    <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-2">
-                      <p className="text-xs font-semibold text-blue-900 mb-1">✅ Solution for Development:</p>
-                      <p className="text-xs text-blue-800">
-                        Use <strong>Chrome</strong> or <strong>Edge</strong> for localhost development. They work perfectly with Web Speech API.
-                      </p>
-                    </div>
-                    <p className="text-xs text-red-600 mt-2 italic">
-                      Note: Brave will work fine in production (HTTPS) - this only affects localhost development.
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm font-normal text-red-800 mb-3 leading-relaxed">
-                      Brave blocks Google's speech recognition service for privacy protection, even with Shields disabled. This is a <strong>browser-level limitation</strong> that cannot be bypassed.
-                    </p>
-                    <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 mb-3">
-                      <p className="text-sm font-bold text-blue-900 mb-2">✅ Recommended Browsers:</p>
-                      <div className="space-y-1 text-xs text-blue-800">
-                        <p>• <strong>Google Chrome</strong> - Best compatibility</p>
-                        <p>• <strong>Microsoft Edge</strong> - Excellent support</p>
-                        <p>• <strong>Safari</strong> - Works on Mac/iOS</p>
-                      </div>
-                    </div>
-                    <div className="bg-yellow-50 border border-yellow-300 rounded p-3">
-                      <p className="text-xs text-yellow-900">
-                        <strong>Why this happens:</strong> Brave prioritizes privacy by blocking Google services. Voice recognition requires Google's speech API, which Brave considers a privacy risk.
-                      </p>
-                    </div>
-                  </>
-                )}
-              </>
-            ) : browserRef.current === 'brave' ? (
-              <>
-                <span className="block mb-2 font-bold">⚠️ Brave Configuration Issue</span>
+                <span className="block mb-2 font-bold">⚠️ Error en Brave</span>
                 <p className="text-xs font-normal text-red-700">
                   {errorMessage}
+                </p>
+                <p className="text-xs text-blue-600 mt-2">
+                  💡 <strong>Nota:</strong> Brave ahora usa transcripción por backend. Si el error persiste, verifica que el backend tenga configurado DEEPGRAM_API_KEY.
                 </p>
               </>
             ) : (
