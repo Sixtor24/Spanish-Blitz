@@ -1,6 +1,8 @@
 // @ts-nocheck
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import useAuth from "@/shared/hooks/useAuth";
+import useUser from "@/shared/hooks/useUser";
 
 function MainComponent() {
   const [error, setError] = useState(null);
@@ -8,8 +10,16 @@ function MainComponent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
+  const navigate = useNavigate();
   const { signUp } = useAuth();
+  const { data: user, loading: userLoading } = useUser();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (!userLoading && user) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [user, userLoading, navigate]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -24,7 +34,25 @@ function MainComponent() {
 
     try {
       await signUp(email, password);
-      window.location.href = "/dashboard";
+      
+      // Wait for cookies to be set and verify authentication (especially important for Safari)
+      let attempts = 0;
+      const maxAttempts = 10;
+      
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Check if user is now authenticated
+        if (user) {
+          navigate("/dashboard", { replace: true });
+          return;
+        }
+        
+        attempts++;
+      }
+      
+      // If we get here, try navigating anyway (user might be authenticated but state not updated)
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign up failed. Email may already be registered.");
       setLoading(false);
@@ -108,9 +136,7 @@ function MainComponent() {
           <p className="text-center text-sm text-gray-600">
             Already have an account?{" "}
             <a
-              href={`/account/signin${
-                typeof window !== "undefined" ? window.location.search : ""
-              }`}
+              href="/account/signin"
               className="text-[#357AFF] hover:text-[#2E69DE]"
             >
               Sign in

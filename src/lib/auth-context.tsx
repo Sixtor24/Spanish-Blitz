@@ -17,10 +17,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<DbUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUser = async () => {
+  const fetchUser = async (): Promise<boolean> => {
     try {
       const userData = await api.users.current();
       setUser(userData);
+      return true;
     } catch (error: any) {
       // 401/Not authenticated is expected when user is not logged in
       // Silently set user to null without logging error
@@ -34,6 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       setUser(null);
+      return false;
     } finally {
       setLoading(false);
     }
@@ -46,7 +48,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       await api.auth.signIn(email, password);
-      await fetchUser();
+      // Wait for cookies to be set (especially important for Safari)
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Retry fetching user up to 5 times for Safari compatibility
+      let attempts = 0;
+      const maxAttempts = 5;
+      let success = false;
+      
+      while (attempts < maxAttempts && !success) {
+        success = await fetchUser();
+        if (success) {
+          break;
+        }
+        attempts++;
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
     } catch (error) {
       throw error;
     }
@@ -55,7 +74,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signUp = async (email: string, password: string, name?: string) => {
     try {
       await api.auth.signUp(email, password, name);
-      await fetchUser();
+      // Wait for cookies to be set (especially important for Safari)
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Retry fetching user up to 5 times for Safari compatibility
+      let attempts = 0;
+      const maxAttempts = 5;
+      let success = false;
+      
+      while (attempts < maxAttempts && !success) {
+        success = await fetchUser();
+        if (success) {
+          break;
+        }
+        attempts++;
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
     } catch (error) {
       throw error;
     }
