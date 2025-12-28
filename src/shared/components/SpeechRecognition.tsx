@@ -23,6 +23,7 @@ type SpeechRecognitionProps = {
 // Constants
 const MAX_DURATION = 15000; // 15 seconds maximum (safety timeout only)
 const AUDIO_CHUNK_INTERVAL = 100; // Send audio chunks every 100ms for faster recognition from start
+const WARMUP_DELAY = 500; // 500ms warmup delay to ensure system is ready before capturing
 
 /**
  * Detect if device is mobile
@@ -59,6 +60,8 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
   const [isListening, setIsListening] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [currentTranscript, setCurrentTranscript] = useState<string>('');
+  const [finalTranscript, setFinalTranscript] = useState<string>(''); // Final transcript to show below button
+  const [isConnecting, setIsConnecting] = useState(false); // Track if we're in connecting/warmup phase
   
   // Refs
   const isListeningRef = useRef(false);
@@ -165,8 +168,10 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       // Update state
       isListeningRef.current = true;
       setIsListening(true);
+      setIsConnecting(true); // Disable button during connection
       startTimeRef.current = Date.now();
-      setCurrentTranscript('Connecting...');
+      setCurrentTranscript(''); // Don't show "Connecting..." - go directly to warmup
+      setFinalTranscript(''); // Clear previous final transcript
       setErrorMessage(null);
       
       // Create WebSocket connection
@@ -183,7 +188,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
           sessionId,
           locale,
         }));
-        setCurrentTranscript('Listening...');
+        // Don't show "Listening..." - go directly to warmup
       };
       
       ws.onmessage = (event) => {
@@ -191,29 +196,41 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
           const data = JSON.parse(event.data);
           
           if (data.type === 'stream:started') {
-            console.log('✅ [Speech] Stream started, beginning audio capture immediately');
-            // Start MediaRecorder immediately when stream is ready
-            // This ensures recognition works from the very beginning
-            startMediaRecorder(stream, ws, sessionId);
+            console.log('✅ [Speech] Stream started, warming up...');
+            // Don't show "Get ready..." - go directly to warmup delay
+            // Add a warmup delay to ensure the entire pipeline is ready
+            // This prevents missing audio when user speaks immediately
+            setTimeout(() => {
+              if (isListeningRef.current) {
+                console.log('🎤 [Speech] Warmup complete, now capturing audio');
+                setCurrentTranscript('Speak Now');
+                setIsConnecting(false); // Enable button interaction now
+                startMediaRecorder(stream, ws, sessionId);
+                
+                // Play a subtle "ready" beep
+                playReadyBeep();
+              }
+            }, WARMUP_DELAY);
           }
           
           else if (data.type === 'transcript') {
             const { transcript, isFinal } = data;
             if (transcript && transcript.trim()) {
               if (!isFinal) {
-                // Show interim results
+                // Show interim results - clear status message when we have actual words
                 setCurrentTranscript(transcript);
               } else {
                 // Final result
                 console.log(`📝 [Speech] Final transcript: "${transcript}"`);
-                setCurrentTranscript('');
+                setFinalTranscript(transcript); // Store final transcript to show below
+                setCurrentTranscript(''); // Clear status message
                 onTranscript(transcript);
                 
-                // Auto-stop if enabled (default behavior for quiz/play mode)
-                if (autoStopRef.current) {
-                  console.log('🛑 [Speech] Auto-stopping after final transcript');
+                // Always stop after final transcript (both correct and incorrect)
+                console.log('🛑 [Speech] Stopping after final transcript');
+                setTimeout(() => {
                   stopListening();
-                }
+                }, 100); // Small delay to ensure transcript is processed
               }
             }
           }
@@ -328,13 +345,47 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
   };
 
   /**
+   * Play a subtle ready beep to indicate system is ready
+   * This provides audio feedback that the mic is truly listening
+   */
+  const playReadyBeep = () => {
+    try {
+      // Create a very short, subtle beep using Web Audio API
+      const audioContext = new AudioContext();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.frequency.value = 800; // 800 Hz tone
+      oscillator.type = 'sine';
+      
+      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime); // Low volume
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+      
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.1); // 100ms beep
+      
+      // Clean up
+      setTimeout(() => {
+        audioContext.close();
+      }, 200);
+    } catch (error) {
+      console.warn('[Speech] Could not play ready beep:', error);
+    }
+  };
+
+  /**
    * Stop listening
    */
   const stopListening = () => {
     console.log('🛑 [Speech] Stopping speech recognition');
     cleanup();
     setIsListening(false);
+    setIsConnecting(false);
     setCurrentTranscript('');
+    // Keep finalTranscript visible until next recording starts
   };
 
   /**
@@ -361,37 +412,65 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     };
   }, []);
 
+  // Determine button color and text based on state
+  const getButtonState = () => {
+    if (errorMessage) {
+      return {
+        color: 'bg-red-500 hover:bg-red-600',
+        text: 'Error - Try Again',
+        icon: <MicOff className="w-5 h-5" />
+      };
+    }
+    
+    if (isListening) {
+      // Always show "Speak Now" in orange while listening (no red "Stop Recording")
+      return {
+        color: 'bg-orange-500 hover:bg-orange-600',
+        text: 'Speak Now',
+        icon: <Mic className="w-5 h-5" />
+      };
+    }
+    
+    // Not listening - default state
+    return {
+      color: 'bg-green-500 hover:bg-green-600',
+      text: 'Speak Answer',
+      icon: <Mic className="w-5 h-5" />
+    };
+  };
+
+  const buttonState = getButtonState();
+
   return (
     <div className="flex flex-col items-center gap-4">
-      {/* Microphone Button */}
+      {/* Microphone Button with Dynamic State */}
       <button
         onClick={toggleListening}
         className={`
           flex items-center gap-2 px-6 py-3 rounded-lg font-medium
-          transition-all duration-200 transform hover:scale-105
-          ${isListening 
-            ? 'bg-red-500 hover:bg-red-600 text-white' 
-            : 'bg-green-500 hover:bg-green-600 text-white'
-          }
+          transition-all duration-300 transform hover:scale-105
+          ${buttonState.color} text-white shadow-lg
+          ${isConnecting ? 'opacity-75 cursor-wait' : ''}
         `}
         aria-label={isListening ? 'Stop Recording' : 'Start Recording'}
+        disabled={isConnecting || (!!errorMessage && !isListening)}
       >
-        {isListening ? (
-          <>
-            <MicOff className="w-5 h-5" />
-            Stop Recording
-          </>
-        ) : (
-          <>
-            <Mic className="w-5 h-5" />
-            Speak Answer
-          </>
-        )}
+        {buttonState.icon}
+        {buttonState.text}
       </button>
 
-      {/* Current Transcript (Interim Results) */}
-      {currentTranscript && (
-        <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm">
+      {/* Final Transcript - Show the final answer below the button */}
+      {finalTranscript && !isListening && (
+        <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm max-w-md text-center font-medium">
+          {finalTranscript}
+        </div>
+      )}
+
+      {/* Current Transcript (Interim Results) - Only show when actively listening and transcribing */}
+      {currentTranscript && 
+       isListening &&
+       currentTranscript !== 'Speak Now' && (
+        <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm max-w-md text-center">
           {currentTranscript}
         </div>
       )}
