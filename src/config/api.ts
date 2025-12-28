@@ -393,12 +393,36 @@ export const api = {
   speech: {
     /**
      * Transcribe audio using backend service (works in Brave)
+     * Fallback method for non-streaming transcription
      */
     transcribe: (audioBase64: string, locale: string = 'es-ES') =>
       apiFetch('/api/speech/transcribe', {
         method: 'POST',
         body: JSON.stringify({ audio: audioBase64, locale }),
       }),
+    
+    /**
+     * Create a WebSocket connection for real-time speech streaming
+     * Returns WebSocket instance with event handlers
+     * Only works in browser (client-side)
+     */
+    createStream: (locale: string = 'es-ES') => {
+      if (typeof window === 'undefined') {
+        throw new Error('WebSocket streaming is only available in the browser');
+      }
+      const ws = createWebSocket();
+      const sessionId = `speech-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      ws.onopen = () => {
+        ws.send(JSON.stringify({
+          type: 'speech:start',
+          sessionId,
+          locale,
+        }));
+      };
+      
+      return { ws, sessionId };
+    },
   },
 };
 
@@ -409,9 +433,14 @@ export const api = {
 /**
  * Create a WebSocket connection to the backend
  * @param path - WebSocket path (optional, defaults to root)
+ * Only works in browser (client-side)
  */
 export function createWebSocket(path: string = '') {
+  if (typeof window === 'undefined') {
+    throw new Error('WebSocket can only be created in the browser');
+  }
   const wsUrl = API_BASE_URL.replace('http', 'ws') + path;
+  console.log(`🔌 [WebSocket] Creating connection to: ${wsUrl}`);
   return new WebSocket(wsUrl);
 }
 

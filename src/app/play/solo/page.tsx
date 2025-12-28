@@ -547,6 +547,7 @@ export default function PlaySoloPage() {
                   onTranscript={handleSpeechAnswer}
                   locale={userLocale}
                   onError={(error) => console.error("Speech error:", error)}
+                  autoStop={true} // Close mic automatically after answer
                 />
               </div>
 

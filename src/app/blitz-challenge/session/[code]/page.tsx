@@ -177,6 +177,7 @@ function GameView({
                 onTranscript={handleSpeechAnswer}
                 locale={userLocale}
                 onError={(err) => console.error("Speech error:", err)}
+                autoStop={true} // Close mic automatically after answer
               />
             </div>
             <p className="text-center text-xs text-gray-500">Click the mic and say the Spanish translation</p>

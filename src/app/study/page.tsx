@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ArrowLeft, RotateCw, RefreshCw } from "lucide-react";
 import Navigation from "@/shared/components/Navigation";
 import TTSButton from "@/shared/components/TTSButton";
-import SpeechRecognition from "@/shared/components/SpeechRecognition";
+import SpeechRecognition, { type SpeechRecognitionHandle } from "@/shared/components/SpeechRecognition";
 import useUser from "@/shared/hooks/useUser";
 import { api } from "@/config/api";
 import type { DbDeck, DbCard } from "@/types/api.types";
@@ -141,6 +141,10 @@ export default function StudyPage() {
     setSpeechFeedback(null);
     setHardCardRepetitions({});
     setHardCardsCount(0); // Reset hard cards count
+    // Stop microphone when resetting study
+    if (speechRecognitionRef.current?.isListening()) {
+      speechRecognitionRef.current.stop();
+    }
   };
 
   const handleStudyAgain = () => {
@@ -154,6 +158,10 @@ export default function StudyPage() {
   const handleFlip = () => {
     setIsFlipped(!isFlipped);
     setSpeechFeedback(null);
+    // Stop microphone when flipping card
+    if (speechRecognitionRef.current?.isListening()) {
+      speechRecognitionRef.current.stop();
+    }
   };
 
   const handleMarkCard = async (difficulty: 'correct' | 'hard') => {
@@ -216,8 +224,14 @@ export default function StudyPage() {
       setCurrentCardIndex(currentCardIndex + 1);
       setIsFlipped(false);
       setSpeechFeedback(null);
+      // Stop microphone when moving to next card
+      if (speechRecognitionRef.current?.isListening()) {
+        speechRecognitionRef.current.stop();
+      }
     }
   };
+
+  const speechRecognitionRef = useRef<SpeechRecognitionHandle>(null);
 
   const handleSpeechResult = async (transcript: string) => {
     if (!currentCard || !deckId) return;
@@ -231,6 +245,12 @@ export default function StudyPage() {
       transcript,
       isCorrect,
     });
+
+    // Stop microphone if answer is correct
+    if (isCorrect && speechRecognitionRef.current) {
+      console.log('✅ [Study] Correct answer detected, stopping microphone');
+      speechRecognitionRef.current.stop();
+    }
 
     // Record study event with speech
     if (userId) {
@@ -476,8 +496,10 @@ export default function StudyPage() {
 
                   <div className="flex justify-center mt-6">
                     <SpeechRecognition
+                      ref={speechRecognitionRef}
                       onTranscript={handleSpeechResult}
                       locale={userLocale}
+                      autoStop={false} // Keep mic open for practice, but will stop on correct answer
                     />
                   </div>
 
