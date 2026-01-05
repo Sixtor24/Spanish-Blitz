@@ -22,35 +22,15 @@ type SpeechRecognitionProps = {
 
 // Constants
 const MAX_DURATION = 15000; // 15 seconds maximum (safety timeout only)
-const AUDIO_CHUNK_INTERVAL = 100; // Send audio chunks every 100ms for faster recognition from start
+const AUDIO_CHUNK_INTERVAL = 50; // 50ms for aggressive capture - faster on mobile
 
 /**
- * Detect if device is mobile
+ * Get optimal audio format - no complex detection, just use what works fastest
  */
-const isMobileDevice = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-         (typeof window.orientation !== 'undefined') ||
-         (navigator.maxTouchPoints ? navigator.maxTouchPoints > 2 : false);
-};
-
-/**
- * Get best audio MIME type for the device
- */
-const getBestAudioMimeType = (): string => {
-  if (typeof window === 'undefined') return 'audio/webm;codecs=opus';
-  
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  
-  if (isIOS) {
-    if (MediaRecorder.isTypeSupported('audio/mp4')) return 'audio/mp4';
-    if (MediaRecorder.isTypeSupported('audio/aac')) return 'audio/aac';
-  }
-  
-  if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return 'audio/webm;codecs=opus';
-  if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm';
-  
-  return ''; // Let browser choose
+const getAudioMimeType = (): string | undefined => {
+  if (typeof window === 'undefined') return undefined;
+  // Use browser default - fastest option, no detection overhead
+  return undefined;
 };
 
 const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionProps>(
@@ -185,9 +165,6 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       // User can start speaking right away, audio will be buffered
       startMediaRecorder(stream);
       
-      // Play ready beep immediately to signal user can speak
-      playReadyBeep();
-      
       // Create WebSocket connection IN PARALLEL while capturing audio
       const ws = createWebSocket();
       const sessionId = `speech-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -289,11 +266,10 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
    */
   const startMediaRecorder = (stream: MediaStream) => {
     try {
-      // Determine best MIME type
-      const mimeType = getBestAudioMimeType();
-      console.log(`🎙️ [Speech] Using MIME type: ${mimeType || 'default'}`);
+      // Use browser default MIME type - fastest, no detection
+      const mimeType = getAudioMimeType();
       
-      // Create MediaRecorder with optimal settings for immediate capture
+      // Create MediaRecorder - let browser use optimal format
       const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mediaRecorder;
       
@@ -330,8 +306,8 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       
       // Start recording immediately - user can speak right away!
       mediaRecorder.start(AUDIO_CHUNK_INTERVAL);
-      console.log(`🔴 [Speech] Recording started IMMEDIATELY (${isMobileDevice() ? 'Mobile' : 'Desktop'}), capturing every ${AUDIO_CHUNK_INTERVAL}ms`);
-      console.log('✅ [Speech] User can speak NOW - audio will be buffered until backend is ready');
+      console.log(`🔴 [Speech] Recording started IMMEDIATELY, capturing every ${AUDIO_CHUNK_INTERVAL}ms`);
+      console.log('✅ [Speech] User can speak NOW - audio buffered until backend ready');
       
       // Setup maximum duration timeout (safety only)
       setupSilenceDetection(stream);
@@ -345,61 +321,21 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
 
   /**
    * Setup maximum duration timeout (safety only)
-   * No silence detection - mic closes only on final transcript or max duration
    */
   const setupSilenceDetection = (stream: MediaStream) => {
-    try {
-      // Only set up maximum duration timeout as a safety measure
-      // The mic will close automatically when Deepgram sends a final transcript
-      const maxDurationTimeout = setTimeout(() => {
-        if (isListeningRef.current) {
-          console.log('⏱️ [Speech] Maximum duration reached, stopping');
-          stopListening();
-        }
-      }, MAX_DURATION);
-      
-      // Store timeout ID for cleanup
-      if (maxDurationTimeoutRef.current) {
-        clearTimeout(maxDurationTimeoutRef.current);
+    const maxDurationTimeout = setTimeout(() => {
+      if (isListeningRef.current) {
+        console.log('⏱️ [Speech] Max duration reached');
+        stopListening();
       }
-      maxDurationTimeoutRef.current = maxDurationTimeout;
-      
-    } catch (error: any) {
-      console.error('❌ [Speech] Duration timeout setup error:', error);
+    }, MAX_DURATION);
+    
+    if (maxDurationTimeoutRef.current) {
+      clearTimeout(maxDurationTimeoutRef.current);
     }
+    maxDurationTimeoutRef.current = maxDurationTimeout;
   };
 
-  /**
-   * Play a subtle ready beep to indicate system is ready
-   * This provides audio feedback that the mic is truly listening
-   */
-  const playReadyBeep = () => {
-    try {
-      // Create a very short, subtle beep using Web Audio API
-      const audioContext = new AudioContext();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-      
-      oscillator.frequency.value = 800; // 800 Hz tone
-      oscillator.type = 'sine';
-      
-      gainNode.gain.setValueAtTime(0.1, audioContext.currentTime); // Low volume
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-      
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.1); // 100ms beep
-      
-      // Clean up
-      setTimeout(() => {
-        audioContext.close();
-      }, 200);
-    } catch (error) {
-      console.warn('[Speech] Could not play ready beep:', error);
-    }
-  };
 
   /**
    * Stop listening
