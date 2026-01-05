@@ -23,7 +23,6 @@ type SpeechRecognitionProps = {
 // Constants
 const MAX_DURATION = 15000; // 15 seconds maximum (safety timeout only)
 const AUDIO_CHUNK_INTERVAL = 100; // Send audio chunks every 100ms for faster recognition from start
-const WARMUP_DELAY = 500; // 500ms warmup delay to ensure system is ready before capturing
 
 /**
  * Detect if device is mobile
@@ -72,6 +71,8 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
   const sessionIdRef = useRef<string | null>(null);
   const maxDurationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const autoStopRef = useRef(autoStop);
+  const audioBufferRef = useRef<string[]>([]); // Buffer for audio chunks before WebSocket is ready
+  const isWebSocketReadyRef = useRef(false); // Track if WebSocket is ready to receive audio
 
   /**
    * Expose methods to parent component
@@ -123,6 +124,10 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     wsRef.current = null;
     sessionIdRef.current = null;
     
+    // Clear audio buffer
+    audioBufferRef.current = [];
+    isWebSocketReadyRef.current = false;
+    
     // Clear max duration timeout
     if (maxDurationTimeoutRef.current) {
       clearTimeout(maxDurationTimeoutRef.current);
@@ -168,13 +173,22 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       // Update state
       isListeningRef.current = true;
       setIsListening(true);
-      setIsConnecting(true); // Disable button during connection
+      setIsConnecting(false); // Button is interactive immediately - no connection delay
       startTimeRef.current = Date.now();
-      setCurrentTranscript(''); // Don't show "Connecting..." - go directly to warmup
+      setCurrentTranscript('Speak Now'); // Show "Speak Now" immediately
       setFinalTranscript(''); // Clear previous final transcript
       setErrorMessage(null);
+      audioBufferRef.current = []; // Clear buffer
+      isWebSocketReadyRef.current = false; // WebSocket not ready yet
       
-      // Create WebSocket connection
+      // START MEDIARECORDER IMMEDIATELY - this is the key to eliminating latency
+      // User can start speaking right away, audio will be buffered
+      startMediaRecorder(stream);
+      
+      // Play ready beep immediately to signal user can speak
+      playReadyBeep();
+      
+      // Create WebSocket connection IN PARALLEL while capturing audio
       const ws = createWebSocket();
       const sessionId = `speech-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       wsRef.current = ws;
@@ -188,7 +202,6 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
           sessionId,
           locale,
         }));
-        // Don't show "Listening..." - go directly to warmup
       };
       
       ws.onmessage = (event) => {
@@ -196,21 +209,26 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
           const data = JSON.parse(event.data);
           
           if (data.type === 'stream:started') {
-            console.log('✅ [Speech] Stream started, warming up...');
-            // Don't show "Get ready..." - go directly to warmup delay
-            // Add a warmup delay to ensure the entire pipeline is ready
-            // This prevents missing audio when user speaks immediately
-            setTimeout(() => {
-              if (isListeningRef.current) {
-                console.log('🎤 [Speech] Warmup complete, now capturing audio');
-                setCurrentTranscript('Speak Now');
-                setIsConnecting(false); // Enable button interaction now
-                startMediaRecorder(stream, ws, sessionId);
-                
-                // Play a subtle "ready" beep
-                playReadyBeep();
-              }
-            }, WARMUP_DELAY);
+            console.log('✅ [Speech] Backend ready, flushing buffered audio...');
+            isWebSocketReadyRef.current = true;
+            
+            // Send all buffered audio chunks to backend
+            const bufferedChunks = audioBufferRef.current;
+            if (bufferedChunks.length > 0) {
+              console.log(`📤 [Speech] Sending ${bufferedChunks.length} buffered chunks`);
+              bufferedChunks.forEach((base64Audio) => {
+                if (ws.readyState === WebSocket.OPEN && sessionIdRef.current) {
+                  ws.send(JSON.stringify({
+                    type: 'speech:audio',
+                    sessionId: sessionIdRef.current,
+                    audio: base64Audio,
+                  }));
+                }
+              });
+              // Clear buffer after sending
+              audioBufferRef.current = [];
+              console.log('✅ [Speech] Buffer flushed, now sending real-time');
+            }
           }
           
           else if (data.type === 'transcript') {
@@ -267,9 +285,9 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
   };
 
   /**
-   * Start MediaRecorder and silence detection
+   * Start MediaRecorder immediately and buffer audio until WebSocket is ready
    */
-  const startMediaRecorder = (stream: MediaStream, ws: WebSocket, sessionId: string) => {
+  const startMediaRecorder = (stream: MediaStream) => {
     try {
       // Determine best MIME type
       const mimeType = getBestAudioMimeType();
@@ -279,21 +297,28 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mediaRecorder;
       
-      // Handle audio data - capture immediately for better recognition from start
+      // Handle audio data - buffer or send depending on WebSocket status
       let chunkCount = 0;
       mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0 && ws.readyState === WebSocket.OPEN) {
+        if (event.data.size > 0) {
           chunkCount++;
-          // Convert to base64 and send immediately
+          // Convert to base64
           const reader = new FileReader();
           reader.onloadend = () => {
             const base64Audio = (reader.result as string).split(',')[1];
-            if (base64Audio && sessionIdRef.current) {
-              ws.send(JSON.stringify({
-                type: 'speech:audio',
-                sessionId: sessionIdRef.current,
-                audio: base64Audio,
-              }));
+            if (base64Audio && isListeningRef.current) {
+              // If WebSocket is ready, send immediately
+              if (isWebSocketReadyRef.current && wsRef.current?.readyState === WebSocket.OPEN && sessionIdRef.current) {
+                wsRef.current.send(JSON.stringify({
+                  type: 'speech:audio',
+                  sessionId: sessionIdRef.current,
+                  audio: base64Audio,
+                }));
+              } else {
+                // Otherwise, buffer for later
+                console.log(`📦 [Speech] Buffering chunk ${audioBufferRef.current.length + 1}`);
+                audioBufferRef.current.push(base64Audio);
+              }
             }
           };
           reader.onerror = (error) => {
@@ -303,10 +328,10 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
         }
       };
       
-      // Start recording with optimal interval for immediate recognition
-      // Smaller interval = faster recognition from the very beginning
+      // Start recording immediately - user can speak right away!
       mediaRecorder.start(AUDIO_CHUNK_INTERVAL);
-      console.log(`🔴 [Speech] Recording started (${isMobileDevice() ? 'Mobile' : 'Desktop'}), capturing every ${AUDIO_CHUNK_INTERVAL}ms for immediate recognition`);
+      console.log(`🔴 [Speech] Recording started IMMEDIATELY (${isMobileDevice() ? 'Mobile' : 'Desktop'}), capturing every ${AUDIO_CHUNK_INTERVAL}ms`);
+      console.log('✅ [Speech] User can speak NOW - audio will be buffered until backend is ready');
       
       // Setup maximum duration timeout (safety only)
       setupSilenceDetection(stream);
