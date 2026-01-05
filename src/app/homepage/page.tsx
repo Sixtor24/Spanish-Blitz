@@ -27,7 +27,7 @@ export default function HomePage() {
           <div className="flex justify-between items-center h-16">
             <Link to="/" className="flex items-center">
               <img
-                src="https://ucarecdn.com/df05b2e5-6ee7-4c41-b12b-d556708883a3/-/format/auto/"
+                src="/logo.png"
                 alt="The Spanish Blitz"
                 className="h-10 w-auto"
               />
