@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Menu, X, Shield } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Menu, X, Shield, GraduationCap, Users } from 'lucide-react';
 import useUser from '@/shared/hooks/useUser';
 
 type NavLink = {
@@ -22,34 +23,52 @@ export default function Navigation() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
           <div className="flex items-center">
-            <a href="/" className="flex items-center">
+            <Link to="/" className="flex items-center">
               <img
                 src="https://ucarecdn.com/df05b2e5-6ee7-4c41-b12b-d556708883a3/-/format/auto/"
                 alt="The Spanish Blitz"
                 className="h-10 w-auto"
               />
-            </a>
+            </Link>
           </div>
 
           {/* Desktop menu */}
           <div className="hidden md:flex items-center space-x-4">
             {links.map((link) => (
-              <a
+              <Link
                 key={link.href}
-                href={link.href}
+                to={link.href}
                 className="px-3 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
+            {user && user.role !== 'teacher' && user.role !== 'admin' && (
+              <Link
+                to="/classrooms"
+                className="px-3 py-2 rounded-md text-sm font-medium text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-1"
+              >
+                <Users size={16} />
+                Assignments
+              </Link>
+            )}
+            {(user?.role === 'teacher' || user?.role === 'admin') && (
+              <Link
+                to="/teacher"
+                className="px-3 py-2 rounded-md text-sm font-medium text-purple-600 hover:bg-purple-50 transition-colors flex items-center gap-1"
+              >
+                <GraduationCap size={16} />
+                Teacher Panel
+              </Link>
+            )}
             {user?.role === 'admin' && (
-              <a
-                href="/admin/users"
+              <Link
+                to="/admin/users"
                 className="px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 transition-colors flex items-center gap-1"
               >
                 <Shield size={16} />
                 Admin
-              </a>
+              </Link>
             )}
           </div>
 
@@ -72,24 +91,44 @@ export default function Navigation() {
         <div className="md:hidden bg-white border-t border-gray-200">
           <div className="px-2 pt-2 pb-3 space-y-1">
             {links.map((link) => (
-              <a
+              <Link
                 key={link.href}
-                href={link.href}
+                to={link.href}
                 onClick={() => setMobileMenuOpen(false)}
                 className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100"
               >
                 {link.label}
-              </a>
+              </Link>
             ))}
+            {user && user.role !== 'teacher' && user.role !== 'admin' && (
+              <Link
+                to="/classrooms"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex px-3 py-2 rounded-md text-base font-medium text-blue-600 hover:bg-blue-50 items-center gap-1"
+              >
+                <Users size={16} />
+                Assignments
+              </Link>
+            )}
+            {(user?.role === 'teacher' || user?.role === 'admin') && (
+              <Link
+                to="/teacher"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex px-3 py-2 rounded-md text-base font-medium text-purple-600 hover:bg-purple-50 items-center gap-1"
+              >
+                <GraduationCap size={16} />
+                Teacher Panel
+              </Link>
+            )}
             {user?.role === 'admin' && (
-              <a
-                href="/admin/users"
+              <Link
+                to="/admin/users"
                 onClick={() => setMobileMenuOpen(false)}
                 className="flex px-3 py-2 rounded-md text-base font-medium text-red-600 hover:bg-red-50 items-center gap-1"
               >
                 <Shield size={16} />
                 Admin
-              </a>
+              </Link>
             )}
           </div>
         </div>

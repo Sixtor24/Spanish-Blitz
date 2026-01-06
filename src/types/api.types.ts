@@ -28,7 +28,7 @@ export interface DbUser {
   id: string;
   email: string;
   display_name?: string | null;
-  role?: 'user' | 'admin' | null;
+  role?: 'user' | 'teacher' | 'admin' | null;
   preferred_locale?: string | null;
   is_premium?: boolean | null;
   plan?: 'free' | 'premium' | 'gold' | null;
@@ -196,5 +196,90 @@ export interface PlaySessionStateResponse {
   players: DbPlaySessionPlayer[];
   current_card?: DbCard;
   deck: DbDeck;
+}
+
+// ============================================================================
+// Classroom Types
+// ============================================================================
+
+export interface DbClassroom {
+  id: string;
+  teacher_id: string;
+  name: string;
+  description: string | null;
+  code: string;
+  color?: string;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+  teacher_name?: string | null;
+  student_count?: number;
+  assignment_count?: number;
+}
+
+export interface DbClassroomMembership {
+  id: string;
+  classroom_id: string;
+  student_id: string;
+  joined_at: Date;
+  is_active: boolean;
+}
+
+export interface DbAssignment {
+  id: string;
+  classroom_id: string;
+  deck_id: string;
+  title: string;
+  description: string | null;
+  due_date: Date | null;
+  created_at: Date;
+  completed_count?: number;
+  total_students?: number;
+}
+
+export interface DbAssignmentSubmission {
+  id: string;
+  assignment_id: string;
+  student_id: string;
+  score: number | null;
+  completed_at: Date | null;
+  created_at: Date;
+}
+
+export interface CreateClassroomBody {
+  name: string;
+  description?: string;
+}
+
+export interface UpdateClassroomBody {
+  name?: string;
+  description?: string;
+  is_active?: boolean;
+}
+
+export interface JoinClassroomBody {
+  code: string;
+}
+
+export interface CreateAssignmentBody {
+  deck_id: string;
+  title: string;
+  description?: string;
+  due_date?: string;
+}
+
+export interface ClassroomWithDetails extends DbClassroom {
+  teacher: {
+    id: string;
+    display_name: string | null;
+    email: string;
+  };
+  students?: Array<{
+    id: string;
+    display_name: string | null;
+    email: string;
+    joined_at: Date;
+  }>;
+  assignments?: DbAssignment[];
 }
 

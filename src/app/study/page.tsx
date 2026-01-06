@@ -50,6 +50,8 @@ export default function StudyPage() {
   const userLocale = user?.preferred_locale || 'es-ES';
   
   const [deckId, setDeckId] = useState<string | null>(null);
+  const [classroomId, setClassroomId] = useState<string | null>(null);
+  const [assignmentId, setAssignmentId] = useState<string | null>(null);
   const [deck, setDeck] = useState<DbDeck | null>(null);
   const [cards, setCards] = useState<DbCard[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -84,11 +86,16 @@ export default function StudyPage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const id = params.get("deck");
+      const classroom = params.get("classroom");
+      const assignment = params.get("assignment");
+      
       if (!id) {
         window.location.href = "/dashboard";
         return;
       }
       setDeckId(id);
+      setClassroomId(classroom);
+      setAssignmentId(assignment);
       fetchDeckAndCards(id);
       fetchUser();
     }
@@ -149,6 +156,17 @@ export default function StudyPage() {
 
   const handleStudyAgain = () => {
     initializeStudySession(cards);
+  };
+
+  const markAssignmentComplete = async () => {
+    if (!classroomId || !assignmentId) return;
+    
+    try {
+      await api.classrooms.completeAssignment(classroomId, assignmentId);
+      console.log('Assignment marked as complete');
+    } catch (err) {
+      console.error('Error marking assignment complete:', err);
+    }
   };
 
   const currentCard = cards[currentCardIndex];
@@ -220,6 +238,10 @@ export default function StudyPage() {
     // Move to next card or show completion
     if (currentCardIndex >= cards.length - 1) {
       setIsCompleted(true);
+      // Mark assignment as completed if this is from a classroom
+      if (classroomId && assignmentId) {
+        markAssignmentComplete();
+      }
     } else {
       setCurrentCardIndex(currentCardIndex + 1);
       setIsFlipped(false);

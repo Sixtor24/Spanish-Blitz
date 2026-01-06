@@ -216,6 +216,22 @@ export default function CreateSetPage() {
       return;
     }
 
+    // Check card limit for free users BEFORE creating the deck
+    if (!isEditMode) {
+      try {
+        const currentUser = await api.users.current();
+        if (currentUser.plan === "free" && validCards.length > 20) {
+          setUpgradeMessage(
+            `Free accounts are limited to 20 cards per set. You have ${validCards.length} cards. Upgrade to Premium for unlimited cards.`
+          );
+          setShowUpgradeModal(true);
+          return;
+        }
+      } catch (err) {
+        console.error("Error checking user plan:", err);
+      }
+    }
+
     setSaving(true);
 
     try {
@@ -294,20 +310,27 @@ export default function CreateSetPage() {
 
       try {
         await api.cards.bulkCreate(deckId, cardsData);
+        
+        // Redirect to dashboard after successful save
+        setSaving(false);
+        navigate("/dashboard");
       } catch (error) {
         // Check if this is a limit error
         if (error instanceof Error && error.message.includes("limit")) {
           setUpgradeMessage(error.message);
           setShowUpgradeModal(true);
           setSaving(false);
+          
+          // If the deck was deleted by backend (first batch exceeded limit), 
+          // reset the form state
+          if (error.message.includes("deck") || !isEditMode) {
+            setSetId(null);
+            setIsEditMode(false);
+          }
           return;
         }
         throw error;
       }
-
-      // Redirect to dashboard after successful save
-      setSaving(false);
-      navigate("/dashboard");
     } catch (err) {
       console.error("Error saving set:", err);
       setError(err.message || "Failed to save set");

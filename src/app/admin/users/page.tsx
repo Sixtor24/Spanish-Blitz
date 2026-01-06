@@ -8,7 +8,7 @@ type AdminUser = {
   id: string;
   email: string;
   display_name: string | null;
-  role: "user" | "admin" | string;
+  role: "user" | "teacher" | "admin" | string;
   plan: "free" | "premium" | null;
   is_premium: boolean;
   created_at: string;
@@ -155,6 +155,7 @@ export default function AdminUsersPage() {
             >
               <option value="all">All Roles</option>
               <option value="user">User</option>
+              <option value="teacher">Teacher</option>
               <option value="admin">Admin</option>
             </select>
 
@@ -215,7 +216,7 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <select
-                          value={user.role === "admin" ? "admin" : "user"}
+                          value={user.role}
                           onChange={(e) =>
                             handleChangeRole(user, e.target.value)
                           }
@@ -223,6 +224,7 @@ export default function AdminUsersPage() {
                           disabled={user.id === currentUser?.id}
                         >
                           <option value="user">User</option>
+                          <option value="teacher">Teacher</option>
                           <option value="admin">Admin</option>
                         </select>
                       </td>

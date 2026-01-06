@@ -369,6 +369,107 @@ export const api = {
   },
 
   // ============================================================================
+  // Classrooms
+  // ============================================================================
+  classrooms: {
+    /**
+     * List all classrooms (teacher's own or student's joined)
+     */
+    list: () => apiFetch('/api/classrooms'),
+    
+    /**
+     * Get a specific classroom with details
+     */
+    get: (id: string) => apiFetch(`/api/classrooms/${id}`),
+    
+    /**
+     * Create a new classroom (teacher only)
+     */
+    create: (data: { name: string; description?: string; color?: string }) =>
+      apiFetch('/api/classrooms', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    
+    /**
+     * Update a classroom (teacher only)
+     */
+    update: (id: string, data: { name?: string; description?: string; is_active?: boolean }) =>
+      apiFetch(`/api/classrooms/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    
+    /**
+     * Delete a classroom (teacher only)
+     */
+    delete: (id: string) =>
+      apiFetch(`/api/classrooms/${id}`, {
+        method: 'DELETE',
+      }),
+    
+    /**
+     * Join a classroom using a code (student)
+     */
+    join: (code: string) =>
+      apiFetch('/api/classrooms/join', {
+        method: 'POST',
+        body: JSON.stringify({ code }),
+      }),
+    
+    /**
+     * Get students in a classroom
+     */
+    students: (classroomId: string) =>
+      apiFetch(`/api/classrooms/${classroomId}/students`),
+    
+    /**
+     * Remove a student from classroom (teacher only)
+     */
+    removeStudent: (classroomId: string, studentId: string) =>
+      apiFetch(`/api/classrooms/${classroomId}/students/${studentId}`, {
+        method: 'DELETE',
+      }),
+    
+    /**
+     * Create an assignment in a classroom
+     */
+    createAssignment: (classroomId: string, data: {
+      deck_id: string;
+      title: string;
+      description?: string;
+      due_date?: string;
+    }) =>
+      apiFetch(`/api/classrooms/${classroomId}/assignments`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    
+    /**
+     * Get assignments for a classroom
+     */
+    assignments: (classroomId: string) =>
+      apiFetch(`/api/classrooms/${classroomId}/assignments`),
+    
+    /**
+     * Delete an assignment
+     */
+    deleteAssignment: (classroomId: string, assignmentId: string) =>
+      apiFetch(`/api/classrooms/${classroomId}/assignments/${assignmentId}`, {
+        method: 'DELETE',
+      }),
+    
+    /**
+     * Mark an assignment as completed (student)
+     */
+    completeAssignment: (classroomId: string, assignmentId: string, score?: number) =>
+      apiFetch(`/api/classrooms/${classroomId}/assignments/${assignmentId}/complete`, {
+        method: 'POST',
+        body: JSON.stringify({ score }),
+      }),
+  },
+
+  // ============================================================================
   // Text-to-Speech (TTS)
   // ============================================================================
   tts: {
