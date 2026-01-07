@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import useUser from "@/shared/hooks/useUser";
 import { api } from "@/config/api";
 import Navigation from "@/shared/components/Navigation";
-import { Search, Shield, Crown } from "lucide-react";
+import { Search, Shield, Crown, Trash2 } from "lucide-react";
 
 type AdminUser = {
   id: string;
@@ -85,6 +85,27 @@ export default function AdminUsersPage() {
       message: `${next ? "Grant" : "Revoke"} premium access for ${user.email}?`,
       onConfirm: () => updateUser(user.id, { is_premium: next, plan: nextPlan }),
     });
+  };
+
+  const handleDeleteUser = async (user: AdminUser) => {
+    setConfirmDialog({
+      title: "Delete User?",
+      message: `Are you sure you want to permanently delete ${user.email}? This action cannot be undone.`,
+      onConfirm: () => deleteUser(user.id),
+    });
+  };
+
+  const deleteUser = async (userId: string) => {
+    setConfirmDialog(null);
+    try {
+      await api.admin.users.delete(userId);
+      showMessage("User deleted successfully", "success");
+      fetchUsers();
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      const message = error instanceof Error ? error.message : "Failed to delete user";
+      showMessage(message, "error");
+    }
   };
 
   const updateUser = async (userId: string, updates: Partial<Pick<AdminUser, "role" | "plan" | "is_premium">>) => {
@@ -229,46 +250,46 @@ export default function AdminUsersPage() {
                         </select>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              user.plan === "premium"
-                                ? "bg-yellow-100 text-yellow-800"
-                                : "bg-gray-100 text-gray-800"
-                            }`}
-                          >
-                            {user.plan === "premium" ? (
-                              <>
-                                <Crown size={12} /> Premium
-                              </>
-                            ) : (
-                              "Free"
-                            )}
-                          </span>
-                          <select
-                            value={user.plan || (user.is_premium ? "premium" : "free")}
-                            onChange={(e) => handleChangePlan(user, e.target.value as "free" | "premium")}
-                            className="text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          >
-                            <option value="free">Free</option>
-                            <option value="premium">Premium</option>
-                          </select>
-                        </div>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            user.plan === "premium"
+                              ? "bg-yellow-100 text-yellow-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {user.plan === "premium" ? (
+                            <>
+                              <Crown size={12} /> Premium
+                            </>
+                          ) : (
+                            "Free"
+                          )}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {new Date(user.created_at).toLocaleDateString()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <button
-                          onClick={() => handleTogglePremium(user)}
-                          className={`px-3 py-1 rounded-lg font-medium transition-colors ${
-                            user.is_premium
-                              ? "bg-red-100 text-red-700 hover:bg-red-200"
-                              : "bg-green-100 text-green-700 hover:bg-green-200"
-                          }`}
-                        >
-                          {user.is_premium ? "Revoke Premium" : "Grant Premium"}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleTogglePremium(user)}
+                            className={`px-3 py-1 rounded-lg font-medium transition-colors ${
+                              user.is_premium
+                                ? "bg-red-100 text-red-700 hover:bg-red-200"
+                                : "bg-green-100 text-green-700 hover:bg-green-200"
+                            }`}
+                          >
+                            {user.is_premium ? "Revoke Premium" : "Grant Premium"}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(user)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete User"
+                            disabled={user.id === currentUser?.id}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

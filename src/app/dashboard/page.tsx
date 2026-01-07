@@ -205,7 +205,8 @@ export default function DashboardPage() {
               />
             </div>
 
-            <div className="flex gap-2">
+            {/* Botones My Sets y Assigned ocultos temporalmente */}
+            <div className="hidden flex gap-2">
               <button
                 onClick={() => setFilterMode("owned")}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${

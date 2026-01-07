@@ -443,13 +443,22 @@ export default function CreateSetPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Short Description
+                  <span className="text-xs text-gray-500 ml-2">
+                    ({setDescription.length}/150)
+                  </span>
                 </label>
                 <textarea
                   value={setDescription}
-                  onChange={(e) => setSetDescription(e.target.value)}
+                  onChange={(e) => {
+                    if (e.target.value.length <= 150) {
+                      setSetDescription(e.target.value);
+                    }
+                  }}
                   placeholder="Optional description for this set"
                   rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  maxLength={150}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent break-words"
+                  style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                 />
               </div>
 
@@ -479,7 +488,7 @@ export default function CreateSetPage() {
                   <h3 className="font-bold text-gray-900 mb-2">
                     {setTitle || "Your Set Title"}
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                     {setDescription || "Your set description will appear here"}
                   </p>
                 </div>

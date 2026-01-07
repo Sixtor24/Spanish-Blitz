@@ -20,20 +20,23 @@ export default function ProfilePage() {
   const [joinCode, setJoinCode] = useState("");
   const [joiningClassroom, setJoiningClassroom] = useState(false);
   const [joinMessage, setJoinMessage] = useState("");
+  const [classrooms, setClassrooms] = useState<any[]>([]);
   const { signOut } = useAuth();
 
   useEffect(() => {
     async function fetchData() {
       try {
-        const [userData, statsData] = await Promise.all([
+        const [userData, statsData, classroomsData] = await Promise.all([
           api.users.current(),
           api.stats.get(),
+          api.classrooms.list().catch(() => []),
         ]);
 
         setUser(userData);
         setDisplayName(userData.display_name || '');
         setPreferredLocale(userData.preferred_locale || 'es-ES');
         setStats(statsData);
+        setClassrooms(classroomsData);
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -176,7 +179,7 @@ export default function ProfilePage() {
               )}
             </form>
 
-            <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="mt-4 pt-4 border-t border-gray-200 space-y-1">
               <p className="text-xs text-gray-600">Email: {user?.email}</p>
               <p className="text-xs text-gray-600">
                 Plan:{" "}
@@ -186,6 +189,26 @@ export default function ProfilePage() {
                     ? "Gold"
                     : "Free"}
               </p>
+              {user && user.role !== 'teacher' && user.role !== 'admin' && classrooms.length > 0 && (
+                <div className="pt-3 border-t border-gray-100 mt-2">
+                  <p className="text-xs font-semibold text-gray-700 mb-2">Enrolled Classes</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {classrooms.map((classroom: any) => (
+                      <span
+                        key={classroom.id}
+                        className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium"
+                        style={{
+                          backgroundColor: `${classroom.color || '#8B5CF6'}15`,
+                          color: classroom.color || '#8B5CF6',
+                          border: `1px solid ${classroom.color || '#8B5CF6'}40`
+                        }}
+                      >
+                        {classroom.name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Sign out section */}
