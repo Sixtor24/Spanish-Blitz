@@ -3,6 +3,7 @@ import useUser from "@/shared/hooks/useUser";
 import { api } from "@/config/api";
 import Navigation from "@/shared/components/Navigation";
 import { Search, Shield, Crown, Trash2 } from "lucide-react";
+import { withAdminAuth } from "@/shared/hoc/withAuth";
 
 type AdminUser = {
   id: string;
@@ -14,8 +15,8 @@ type AdminUser = {
   created_at: string;
 };
 
-export default function AdminUsersPage() {
-  const { data: currentUser, loading: userLoading } = useUser();
+function AdminUsersPage() {
+  const { data: currentUser } = useUser();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -24,16 +25,7 @@ export default function AdminUsersPage() {
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
 
-  // Check if user is admin
-  useEffect(() => {
-    if (!userLoading && currentUser) {
-      if (currentUser.role !== "admin") {
-        window.location.href = "/dashboard";
-      }
-    } else if (!userLoading && !currentUser) {
-      window.location.href = "/account/signin";
-    }
-  }, [currentUser, userLoading]);
+  // Auth is handled by withAdminAuth HOC
 
   // Fetch users
   useEffect(() => {
@@ -111,7 +103,13 @@ export default function AdminUsersPage() {
   const updateUser = async (userId: string, updates: Partial<Pick<AdminUser, "role" | "plan" | "is_premium">>) => {
     setConfirmDialog(null);
     try {
-      await api.admin.users.update(userId, updates);
+      // Cast role to expected type for API
+      const apiUpdates: { role?: "user" | "admin"; is_premium?: boolean; plan?: "free" | "premium" } = {};
+      if (updates.role) apiUpdates.role = updates.role as "user" | "admin";
+      if (updates.is_premium !== undefined) apiUpdates.is_premium = updates.is_premium;
+      if (updates.plan) apiUpdates.plan = updates.plan as "free" | "premium";
+      
+      await api.admin.users.update(userId, apiUpdates);
       showMessage("User updated successfully", "success");
       fetchUsers();
     } catch (error) {
@@ -126,7 +124,7 @@ export default function AdminUsersPage() {
     setTimeout(() => setMessage(null), 3000);
   };
 
-  if (userLoading || (currentUser && currentUser.role !== "admin")) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-gray-600">Loading...</div>
@@ -343,3 +341,6 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
+// Export with admin authentication protection
+export default withAdminAuth(AdminUsersPage);

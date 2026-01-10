@@ -1,11 +1,17 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import Navigation from "@/shared/components/Navigation";
 import { User, Globe, LogOut, Users, Plus } from "lucide-react";
 import useAuth from "@/shared/hooks/useAuth";
 import { api } from "@/config/api";
 import type { DbUser } from "@/types/api.types";
+import { withAuth } from "@/shared/hoc/withAuth";
+import { JoinClassroomUseCase } from "@/domain/use-cases/classroom/JoinClassroom";
+import { ClassroomRepository } from "@/infrastructure/repositories/ClassroomRepository";
+import { AuthService } from "@/infrastructure/services/AuthService";
 
-export default function ProfilePage() {
+function ProfilePage() {
+  const navigate = useNavigate();
   const [user, setUser] = useState<DbUser | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [preferredLocale, setPreferredLocale] = useState("es-ES");
@@ -68,25 +74,33 @@ export default function ProfilePage() {
 
   const handleSignOut = async () => {
     await signOut();
+    // Hard navigate after logout to clear all state
     window.location.href = "/";
   };
 
   const handleJoinClassroom = async (e: React.FormEvent) => {
     e.preventDefault();
     setJoinMessage("");
-    
-    if (!joinCode.trim()) {
-      setJoinMessage("Please enter a classroom code");
-      return;
-    }
 
     setJoiningClassroom(true);
     try {
-      await api.classrooms.join(joinCode.trim().toUpperCase());
-      setJoinMessage("✅ Successfully joined classroom! Check your Assignments.");
+      // Use Case pattern - business logic is now in the use case
+      const repository = new ClassroomRepository();
+      const authService = new AuthService();
+      const joinClassroom = new JoinClassroomUseCase(repository, authService);
+      
+      await joinClassroom.execute({
+        code: joinCode.trim().toUpperCase(),
+      });
+      
+      setJoinMessage("✅ Successfully joined class! Check your Assignments.");
       setJoinCode("");
+      
+      // Refresh classrooms list
+      const classroomsData = await api.classrooms.list();
+      setClassrooms(classroomsData);
     } catch (err) {
-      setJoinMessage(err instanceof Error ? err.message : "Failed to join classroom");
+      setJoinMessage(err instanceof Error ? err.message : "Failed to join class");
     } finally {
       setJoiningClassroom(false);
     }
@@ -223,18 +237,18 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Join Classroom - Only for students */}
+          {/* Join Class - Only for students */}
           {user && user.role !== 'teacher' && user.role !== 'admin' && (
             <div className="bg-white rounded-lg shadow p-5">
               <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <Users size={20} className="text-blue-600" />
-                Join Classroom
+                Join a Class
               </h2>
               
               <form onSubmit={handleJoinClassroom} className="space-y-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Classroom Code
+                    Class Code
                   </label>
                   <input
                     type="text"
@@ -260,7 +274,7 @@ export default function ProfilePage() {
                   ) : (
                     <>
                       <Plus size={18} />
-                      Join Classroom
+                      Join a Class
                     </>
                   )}
                 </button>
@@ -306,3 +320,6 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+// Export with authentication protection
+export default withAuth(ProfilePage);

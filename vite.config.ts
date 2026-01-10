@@ -17,8 +17,14 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 4000,
+    strictPort: true,
     hmr: {
       overlay: false,
+      clientPort: 4000,
+    },
+    cors: true,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
     },
   },
 });

@@ -1,25 +1,21 @@
-
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
 import Navigation from "@/shared/components/Navigation";
 import useUser from "@/shared/hooks/useUser";
 import { ArrowLeft, Users, Play, Search } from "lucide-react";
 import { api } from "@/config/api";
+import { withAuth } from "@/shared/hoc/withAuth";
 import type { DbDeck } from "@/types/api.types";
 
-export default function BlitzChallengePage() {
-  const { data: user, loading: userLoading } = useUser();
+function BlitzChallengePage() {
+  const { data: user } = useUser();
   const [challengeCode, setChallengeCode] = useState("");
   const [decks, setDecks] = useState<DbDeck[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [message, setMessage] = useState<string | null>(null);
 
-  // Check authentication
-  useEffect(() => {
-    if (!userLoading && !user) {
-      window.location.href = "/account/signin";
-    }
-  }, [user, userLoading]);
+  // Auth handled by withAuth HOC
 
   useEffect(() => {
     if (user) {
@@ -29,7 +25,9 @@ export default function BlitzChallengePage() {
 
   const fetchDecks = async () => {
     try {
-      const params: { search?: string; filter?: string } = { filter: 'owned' };
+      const params: { search?: string; filter?: "all" | "owned" | "assigned" | "public" } = { 
+        filter: 'owned' as const 
+      };
       if (searchQuery) params.search = searchQuery;
 
       const decksData = await api.decks.list(params);
@@ -58,7 +56,7 @@ export default function BlitzChallengePage() {
     }
   };
 
-  if (userLoading || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navigation />
@@ -234,3 +232,5 @@ export default function BlitzChallengePage() {
     </div>
   );
 }
+
+export default withAuth(BlitzChallengePage);

@@ -12,11 +12,20 @@ export default function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { data: user } = useUser();
 
-  const links: NavLink[] = [
+  // Base links for all users
+  const baseLinks: NavLink[] = [
     { href: '/dashboard', label: 'Dashboard' },
-    { href: '/pricing', label: 'Plans' },
     { href: '/profile', label: 'Profile' },
   ];
+
+  // Plans link only for teachers and admins
+  const links: NavLink[] = user?.role === 'teacher' || user?.role === 'admin'
+    ? [
+        { href: '/dashboard', label: 'Dashboard' },
+        { href: '/pricing', label: 'Plans' },
+        { href: '/profile', label: 'Profile' },
+      ]
+    : baseLinks;
 
   return (
     <nav className="bg-white border-b border-gray-200">

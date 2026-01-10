@@ -1,11 +1,12 @@
 // @ts-nocheck
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Navigation from "@/shared/components/Navigation";
 import useUser from "@/shared/hooks/useUser";
-import { ArrowLeft, Users, Timer, Trophy, Play } from "lucide-react";
+import { Trophy, Crown, Medal, Zap, Users, Clock, ArrowLeft, Timer, Play } from "lucide-react";
+import { api, API_BASE_URL } from "@/config/api";
+import { withAuth } from "@/shared/hoc/withAuth";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition from "@/shared/components/SpeechRecognition";
-import { api, API_BASE_URL } from "@/config/api";
 import {
   QUESTION_TYPES,
   getSpanishPrompt,
@@ -79,8 +80,8 @@ function GameView({
     }
 
     const isCorrect = option === correctAnswer;
-  setFeedback(isCorrect ? "correct" : "incorrect");
-  onAnswer(isCorrect, option);
+    setFeedback(isCorrect ? "correct" : "incorrect");
+    onAnswer(isCorrect, option);
   };
 
   const handleSpeechAnswer = (transcript: string) => {
@@ -104,18 +105,18 @@ function GameView({
           <p className="text-xl font-semibold">{score}</p>
         </div>
         <div className="text-center sm:text-right text-sm text-gray-600">
-            Progress {answeredCount}/{totalQuestions}
+          Progress {answeredCount}/{totalQuestions}
         </div>
       </div>
 
-      <p className="text-sm text-gray-500 mb-2 text-center sm:text-left">Question {question.position} of {totalQuestions}</p>
+      <p className="text-sm text-gray-500 mb-2 text-center">Question {question.position} of {totalQuestions}</p>
       <div className="bg-white border rounded-lg p-4 mb-4 shadow-sm">
-        <div className="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium mb-3 mx-auto sm:mx-0 block sm:inline-block text-center">
+        <div className="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium mb-3 mx-auto block text-center">
           {getQuestionTypeLabelText()}
         </div>
 
         {getQuestionPromptText() && (
-          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4 text-center sm:text-left">{getQuestionPromptText()}</h2>
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 mb-4 text-center">{getQuestionPromptText()}</h2>
         )}
 
         {isAudioQuestion(questionType) && (
@@ -159,9 +160,8 @@ function GameView({
                   key={index}
                   onClick={() => handleSelectOption(option)}
                   disabled={!!selectedOption || isTeacher}
-                  className={`w-full px-4 py-3 sm:px-5 sm:py-4 border-2 rounded-lg text-left sm:text-left text-center font-medium text-sm sm:text-base ${bgColor} ${hoverEffect} ${
-                    selectedOption === null ? "cursor-pointer" : "cursor-not-allowed"
-                  }`}
+                  className={`w-full px-4 py-3 sm:px-5 sm:py-4 border-2 rounded-lg text-left sm:text-left text-center font-medium text-sm sm:text-base ${bgColor} ${hoverEffect} ${selectedOption === null ? "cursor-pointer" : "cursor-not-allowed"
+                    }`}
                 >
                   {option}
                 </button>
@@ -170,7 +170,7 @@ function GameView({
           </div>
         )}
 
-  {isSpeechQuestion(questionType) && !selectedOption && (
+        {isSpeechQuestion(questionType) && !selectedOption && (
           <div className="space-y-4 mt-4">
             <div className="flex justify-center">
               <SpeechRecognition
@@ -184,14 +184,13 @@ function GameView({
           </div>
         )}
 
-  {isSpeechQuestion(questionType) && selectedOption && (
+        {isSpeechQuestion(questionType) && selectedOption && (
           <div className="space-y-3 mt-4">
             <div
-              className={`p-3 rounded-lg ${
-                feedback === "correct"
+              className={`p-3 rounded-lg ${feedback === "correct"
                   ? "bg-green-100 border-2 border-green-500"
                   : "bg-red-100 border-2 border-red-500"
-              }`}
+                }`}
             >
               <p className="text-xs text-gray-600 mb-1">You said:</p>
               <p className="font-medium text-gray-900">{selectedOption}</p>
@@ -210,12 +209,13 @@ function GameView({
   );
 }
 
-export default function BlitzSessionPage({ params }) {
+function BlitzSessionPage({ params }) {
   const code = params.code?.toUpperCase();
-  const { data: user, loading: userLoading } = useUser();
+  const { data: user } = useUser();
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<number>(0);
@@ -240,10 +240,14 @@ export default function BlitzSessionPage({ params }) {
     return state.questions.find((q) => !answeredIds.has(q.id)) ?? null;
   }, [state, currentAnswers]);
 
-  const timeLeftSeconds = useMemo(() => {
-    if (!state?.session?.ends_at || state?.session?.status === 'pending') return null;
+  // Calculate initial time left
+  useEffect(() => {
+    if (!state?.session?.ends_at || state?.session?.status === 'pending') {
+      setTimeLeft(null);
+      return;
+    }
     const diff = Math.floor((new Date(state.session.ends_at).getTime() - Date.now()) / 1000);
-    return Math.max(0, diff);
+    setTimeLeft(Math.max(0, diff));
   }, [state?.session?.ends_at, state?.session?.status]);
 
   const formatSeconds = (secs: number | null) => {
@@ -270,17 +274,13 @@ export default function BlitzSessionPage({ params }) {
     if (!sessionId) return;
     try {
       const data = await api.playSessions.getState(sessionId);
-        setState(data);
+      setState(data);
     } catch (e) {
       /* ignore polling error */
     }
   }
 
-  useEffect(() => {
-    if (!userLoading && !user) {
-      window.location.href = "/account/signin";
-    }
-  }, [user, userLoading]);
+  // Auth handled by withAuth HOC
 
   useEffect(() => {
     if (user && code) {
@@ -291,6 +291,28 @@ export default function BlitzSessionPage({ params }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, code]);
+
+  // Timer countdown effect - updates every second and ends game when time runs out
+  useEffect(() => {
+    if (!state?.session || state.session.status !== 'active' || !state.session.ends_at) return;
+    
+    const timerInterval = setInterval(() => {
+      const now = Date.now();
+      const endsAt = new Date(state.session.ends_at).getTime();
+      const newTimeLeft = Math.floor((endsAt - now) / 1000);
+      
+      if (newTimeLeft <= 0) {
+        clearInterval(timerInterval);
+        setTimeLeft(0);
+        // Force refresh to get final state
+        fetchState();
+      } else {
+        setTimeLeft(newTimeLeft);
+      }
+    }, 1000);
+    
+    return () => clearInterval(timerInterval);
+  }, [state?.session?.status, state?.session?.ends_at]);
 
   useEffect(() => {
     if (sessionId) {
@@ -362,9 +384,9 @@ export default function BlitzSessionPage({ params }) {
       return !isThisPlayerTeacherHost;
     })
     .map((p) => {
-    const answered = p.answered_count ?? 0;
-    const progress = totalQuestions ? Math.min(100, Math.round((answered / totalQuestions) * 100)) : 0;
-    return { ...p, answered, progress };
+      const answered = p.answered_count ?? 0;
+      const progress = totalQuestions ? Math.min(100, Math.round((answered / totalQuestions) * 100)) : 0;
+      return { ...p, answered, progress };
     })
     .sort((a, b) => b.score - a.score);
 
@@ -381,7 +403,7 @@ export default function BlitzSessionPage({ params }) {
   const kickPlayer = async (playerId: string, playerName: string) => {
     if (!sessionId) return;
     if (!confirm(`¿Expulsar a ${playerName} de la sesión?`)) return;
-    
+
     try {
       await api.playSessions.kickPlayer(sessionId, playerId);
       fetchState();
@@ -407,12 +429,12 @@ export default function BlitzSessionPage({ params }) {
             </div>
             <div className="flex flex-wrap gap-4 items-center">
               {canSeeRanking && (
-              <div className="flex items-center gap-2 text-gray-700">
-                  <Users size={18} /> {state?.players?.length ?? 0} jugadores
-              </div>
+                <div className="flex items-center gap-2 text-gray-700">
+                  <Users size={18} /> {playerProgress.length} jugadores
+                </div>
               )}
               <div className="flex items-center gap-2 text-gray-700">
-                <Timer size={18} /> {state?.session?.time_limit_seconds ? formatSeconds(timeLeftSeconds ?? state.session.time_limit_seconds) : 'Sin límite'}
+                <Timer size={18} /> {state?.session?.time_limit_seconds ? formatSeconds(timeLeft ?? state.session.time_limit_seconds) : 'Sin límite'}
               </div>
               <div className="px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-700 capitalize">
                 {status === 'pending' ? 'Esperando' : status === 'active' ? 'En curso' : 'Finalizado'}
@@ -421,18 +443,18 @@ export default function BlitzSessionPage({ params }) {
           </div>
 
           {canSeeRanking && (
-          <div className="mt-4 grid sm:grid-cols-3 gap-3 text-sm">
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+            <div className="mt-4 grid sm:grid-cols-3 gap-3 text-sm">
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                 <p className="font-semibold text-gray-800">Tu rol</p>
                 <p className="text-gray-600 mt-1">
                   {isTeacherHost ? 'Profesor - Solo observas el progreso' : 'Organizador - Puedes ver el ranking en vivo'}
                 </p>
-            </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                 <p className="font-semibold text-gray-800">Puntuación</p>
                 <p className="text-gray-600 mt-1">Correcta +2 · Incorrecta -1. Preguntas tipo Solo Blitz.</p>
-            </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+              </div>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
                 <p className="font-semibold text-gray-800">Final del juego</p>
                 <p className="text-gray-600 mt-1">Termina cuando todos acaben o se agote el tiempo.</p>
               </div>
@@ -441,10 +463,14 @@ export default function BlitzSessionPage({ params }) {
         </div>
 
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-4">{error}</div>
+          <div className={`rounded-lg p-3 mb-4 ${
+            error.includes('finalizado') || error.includes('resultados') 
+              ? 'bg-blue-50 border border-blue-200 text-blue-700' 
+              : 'bg-red-50 border border-red-200 text-red-700'
+          }`}>{error}</div>
         )}
 
-        {loading || userLoading ? (
+        {loading ? (
           <div className="bg-white rounded-xl shadow p-6">Loading...</div>
         ) : status === 'completed' || allAnswered ? (
           /* Full screen winners view */
@@ -542,7 +568,7 @@ export default function BlitzSessionPage({ params }) {
                       {playerProgress.map((p, idx) => {
                         const isCurrentUser = p.email === user?.email;
                         const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
-                        
+
                         return (
                           <tr key={p.id} className={isCurrentUser ? 'bg-blue-50' : 'hover:bg-gray-50'}>
                             <td className="px-6 py-4 whitespace-nowrap">
@@ -610,7 +636,7 @@ export default function BlitzSessionPage({ params }) {
                         Sala de Espera
                       </h2>
                       <p className="text-gray-600 text-lg">
-                        {(state?.players?.length ?? 0) < 2 
+                        {(state?.players?.length ?? 0) < 2
                           ? "Esperando más jugadores para comenzar..."
                           : "¡Listos para comenzar!"}
                       </p>
@@ -635,23 +661,23 @@ export default function BlitzSessionPage({ params }) {
                       <div className="bg-white border-2 border-gray-200 rounded-lg p-4 sm:p-6">
                         <div className="flex items-center justify-between mb-4">
                           <h3 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
-                            <Users size={20} className="sm:w-6 sm:h-6" /> 
+                            <Users size={20} className="sm:w-6 sm:h-6" />
                             <span className="hidden sm:inline">Participantes en la Sala</span>
                             <span className="sm:hidden">Participantes</span>
                           </h3>
                           <span className="bg-blue-100 text-blue-800 px-3 py-1 sm:px-4 sm:py-2 rounded-full text-base sm:text-lg font-bold">
-                            {playerProgress.length}
+                            {playerProgress.filter(p => !p.is_host).length}
                           </span>
                         </div>
-                        
+
                         {/* Scrollable list with max height */}
                         <div className="max-h-[400px] overflow-y-auto space-y-2 sm:space-y-3 pr-2">
                           {playerProgress.map((p) => {
                             const canKick = isHost && !p.is_host && p.email !== user?.email;
-                            
+
                             return (
-                              <div 
-                                key={p.id} 
+                              <div
+                                key={p.id}
                                 className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow gap-2"
                               >
                                 <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
@@ -669,28 +695,28 @@ export default function BlitzSessionPage({ params }) {
                                     </span>
                                   </div>
                                 </div>
-                                
+
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                   <span className="bg-green-100 text-green-700 px-2 py-1 sm:px-4 sm:py-2 rounded-full text-xs sm:text-sm font-bold">
                                     ✓ Listo
                                   </span>
-                                  
+
                                   {canKick && (
-                      <button
+                                    <button
                                       onClick={() => kickPlayer(p.id, p.display_name || p.email)}
                                       className="bg-red-100 text-red-700 hover:bg-red-200 px-2 py-1 sm:px-3 sm:py-2 rounded-lg text-xs sm:text-sm font-semibold transition-colors"
                                       title="Expulsar jugador"
                                     >
                                       <span className="hidden sm:inline">Expulsar</span>
                                       <span className="sm:hidden">✕</span>
-                      </button>
-                    )}
-                  </div>
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             );
                           })}
                         </div>
-                        
+
                         {playerProgress.length > 5 && (
                           <p className="text-xs text-gray-500 text-center mt-2">
                             Desliza para ver más jugadores
@@ -710,8 +736,8 @@ export default function BlitzSessionPage({ params }) {
                           >
                             <Play size={24} /> Iniciar Actividad
                           </button>
-                          
-                  {(state?.players?.length ?? 0) < 2 && (
+
+                          {(state?.players?.length ?? 0) < 2 && (
                             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center max-w-md mx-auto mt-4">
                               <p className="text-yellow-800 font-medium">
                                 Se necesitan al menos 2 jugadores para comenzar
@@ -740,21 +766,21 @@ export default function BlitzSessionPage({ params }) {
                         <p className="text-gray-600 text-xl">
                           Esperando que el organizador inicie la actividad...
                         </p>
+                      </div>
                     </div>
-                  </div>
 
                     {/* Session Info */}
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-6">
                         <p className="text-xs text-blue-600 font-semibold mb-2">CONJUNTO</p>
                         <p className="font-bold text-gray-800 text-xl">{state?.session?.deck_title ?? '—'}</p>
-                          </div>
+                      </div>
                       <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-6">
                         <p className="text-xs text-purple-600 font-semibold mb-2">PREGUNTAS · TIEMPO</p>
                         <p className="font-bold text-gray-800 text-xl">
                           {totalQuestions} preguntas · {state?.session?.time_limit_seconds ? formatSeconds(state.session.time_limit_seconds) : 'Sin límite'}
                         </p>
-                        </div>
+                      </div>
                     </div>
                   </div>
                 )
@@ -803,7 +829,7 @@ export default function BlitzSessionPage({ params }) {
 
             {/* Right sidebar: Ranking (only for host/admin during active game) */}
             {canSeeRanking && status === 'active' && (
-            <div className="bg-white rounded-xl shadow p-6">
+              <div className="bg-white rounded-xl shadow p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">
                     📊 Ranking en Vivo
@@ -817,7 +843,7 @@ export default function BlitzSessionPage({ params }) {
                 <div className="space-y-2">
                   {playerProgress.map((p, idx) => {
                     const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
-                    
+
                     return (
                       <div
                         key={p.id}
@@ -825,12 +851,11 @@ export default function BlitzSessionPage({ params }) {
                       >
                         <div className="flex items-center gap-3 flex-1">
                           {/* Position Badge */}
-                          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                            idx === 0 ? 'bg-yellow-400 text-yellow-900' :
-                            idx === 1 ? 'bg-gray-300 text-gray-700' :
-                            idx === 2 ? 'bg-orange-400 text-orange-900' :
-                            'bg-gray-200 text-gray-600'
-                          }`}>
+                          <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${idx === 0 ? 'bg-yellow-400 text-yellow-900' :
+                              idx === 1 ? 'bg-gray-300 text-gray-700' :
+                                idx === 2 ? 'bg-orange-400 text-orange-900' :
+                                  'bg-gray-200 text-gray-600'
+                            }`}>
                             {medal || `#${idx + 1}`}
                           </div>
 
@@ -839,7 +864,7 @@ export default function BlitzSessionPage({ params }) {
                             <p className="font-semibold text-gray-900 truncate text-sm">
                               {p.display_name || p.email}
                             </p>
-                            
+
                             {/* Progress Bar */}
                             <div className="mt-2">
                               <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
@@ -861,9 +886,9 @@ export default function BlitzSessionPage({ params }) {
                               {p.score}
                             </div>
                             <div className="text-xs text-gray-500">pts</div>
-                    </div>
-                    </div>
-                  </div>
+                          </div>
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -875,3 +900,5 @@ export default function BlitzSessionPage({ params }) {
     </div>
   );
 }
+
+export default withAuth(BlitzSessionPage);

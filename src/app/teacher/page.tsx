@@ -1,4 +1,3 @@
-"use client";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navigation from "../../shared/components/Navigation";
@@ -6,10 +5,14 @@ import useUser from "../../shared/hooks/useUser";
 import { Plus, Users, Key, ArrowRight, Loader2, Copy, Check, Trash2 } from "lucide-react";
 import { api } from "../../config/api";
 import type { DbClassroom } from "../../types/api.types";
+import { withTeacherAuth } from "../../shared/hoc/withAuth";
+import { CreateClassroomUseCase } from "../../domain/use-cases/classroom/CreateClassroom";
+import { ClassroomRepository } from "../../infrastructure/repositories/ClassroomRepository";
+import { AuthService } from "../../infrastructure/services/AuthService";
 
-export default function TeacherPanelPage() {
+function TeacherPanelPage() {
   const navigate = useNavigate();
-  const { user, loading: userLoading } = useUser();
+  const { user } = useUser();
   const [classrooms, setClassrooms] = useState<DbClassroom[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -23,19 +26,6 @@ export default function TeacherPanelPage() {
   const [submitting, setSubmitting] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  // Redirect students to /classrooms
-  useEffect(() => {
-    if (!userLoading && user && user.role !== 'teacher' && user.role !== 'admin') {
-      navigate('/classrooms');
-    }
-  }, [user, userLoading, navigate]);
-
-  useEffect(() => {
-    if (!userLoading && !user) {
-      window.location.href = "/account/signin";
-    }
-  }, [user, userLoading]);
 
   useEffect(() => {
     if (user) {
@@ -60,14 +50,15 @@ export default function TeacherPanelPage() {
   const handleCreateClassroom = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!classroomForm.name.trim()) {
-      alert("Please enter a classroom name");
-      return;
-    }
-
     try {
       setSubmitting(true);
-      await api.classrooms.create({
+      
+      // Use Case pattern - business logic is now in the use case
+      const repository = new ClassroomRepository();
+      const authService = new AuthService();
+      const createClassroom = new CreateClassroomUseCase(repository, authService);
+      
+      await createClassroom.execute({
         name: classroomForm.name,
         description: classroomForm.description || undefined,
         color: classroomForm.color,
@@ -138,7 +129,7 @@ export default function TeacherPanelPage() {
     }
   };
 
-  if (userLoading || loading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navigation />
@@ -147,10 +138,6 @@ export default function TeacherPanelPage() {
         </div>
       </div>
     );
-  }
-
-  if (!user) {
-    return null;
   }
 
   return (
@@ -164,7 +151,8 @@ export default function TeacherPanelPage() {
           <p className="text-gray-600">
             Manage your classrooms and assignments
           </p>
-          {user && user.role !== 'teacher' && user.role !== 'admin' && (
+          {/* Teacher account is guaranteed by withTeacherAuth HOC */}
+          {false && (
             <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
                 <strong>ℹ️ Teacher Account Required:</strong> To create classrooms, you need a teacher account. 
@@ -342,3 +330,6 @@ export default function TeacherPanelPage() {
     </div>
   );
 }
+
+// Export with authentication protection
+export default withTeacherAuth(TeacherPanelPage);

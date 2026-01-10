@@ -95,14 +95,8 @@ export function buildOptions({ question, questions, questionType }: BuildOptions
     .filter(Boolean)
     .filter((v) => (distractorType === "english" ? normalizeSpanish(v) !== spanishSideCurrent : true));
 
-  // Secondary pool: opposite side, useful when the main side is sparse
-  const secondaryPool = otherCards
-    .map((c) => (distractorType === "english" ? getSpanishAnswer(c) : getEnglishAnswer(c)))
-    .filter(Boolean)
-    .filter((v) => (distractorType === "english" ? normalizeSpanish(v) !== spanishSideCurrent : true));
-
   // Build a unique pool of wrong answers (exclude the correct answer always)
-  const uniquePool = Array.from(new Set([...primaryPool, ...secondaryPool])).filter(
+  const uniquePool = Array.from(new Set(primaryPool)).filter(
     (val) => val && val !== correctAnswer,
   );
 

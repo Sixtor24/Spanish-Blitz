@@ -1,10 +1,12 @@
-import { useState, useEffect, useRef } from "react";
-import { ArrowLeft, RotateCw, RefreshCw } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate } from "react-router";
 import Navigation from "@/shared/components/Navigation";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition, { type SpeechRecognitionHandle } from "@/shared/components/SpeechRecognition";
-import useUser from "@/shared/hooks/useUser";
+import { ArrowLeft, Check, X, Zap, Trophy, RefreshCw, RotateCw } from "lucide-react";
 import { api } from "@/config/api";
+import { withAuth } from "@/shared/hoc/withAuth";
+import useUser from "@/shared/hooks/useUser";
 import type { DbDeck, DbCard } from "@/types/api.types";
 
 // Variant types
@@ -45,7 +47,8 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
-export default function StudyPage() {
+function StudyPage() {
+  const navigate = useNavigate();
   const { user } = useUser();
   const userLocale = user?.preferred_locale || 'es-ES';
   
@@ -74,6 +77,10 @@ export default function StudyPage() {
   // Track unique hard cards for stats
   const [hardCardsCount, setHardCardsCount] = useState(0);
 
+  // Track assignment repetitions
+  const [requiredRepetitions, setRequiredRepetitions] = useState<number>(1);
+  const [completedRepetitions, setCompletedRepetitions] = useState<number>(0);
+
   // Random completion phrase (set once on mount)
   const [completionPhrase, setCompletionPhrase] = useState("");
 
@@ -90,7 +97,7 @@ export default function StudyPage() {
       const assignment = params.get("assignment");
       
       if (!id) {
-        window.location.href = "/dashboard";
+        navigate("/dashboard", { replace: true });
         return;
       }
       setDeckId(id);
@@ -112,10 +119,29 @@ export default function StudyPage() {
 
   const fetchDeckAndCards = async (id: string) => {
     try {
-      const [deckData, cardsData] = await Promise.all([
+      const promises: Promise<any>[] = [
         api.decks.get(id),
         api.cards.list(id),
-      ]);
+      ];
+
+      // If this is an assignment, fetch assignment details to get repetitions
+      if (assignmentId && classroomId) {
+        promises.push(api.classrooms.assignments(classroomId));
+      }
+
+      const results = await Promise.all(promises);
+      const deckData = results[0];
+      const cardsData = results[1];
+      const assignmentsData = results[2];
+
+      // If we have assignment data, find this assignment and get repetitions
+      if (assignmentsData && assignmentId) {
+        const assignment = assignmentsData.find((a: any) => a.id === assignmentId);
+        if (assignment) {
+          setRequiredRepetitions(assignment.required_repetitions || 1);
+          setCompletedRepetitions(assignment.completed_repetitions || 0);
+        }
+      }
 
       if (cardsData.length === 0) {
         setError("This set has no cards yet");
@@ -341,6 +367,11 @@ export default function StudyPage() {
 
   // Completion screen
   if (isCompleted) {
+    const isAssignment = assignmentId !== null;
+    const newCompletedCount = completedRepetitions + 1;
+    const hasMoreRepetitions = newCompletedCount < requiredRepetitions;
+    const showStudyAgain = !isAssignment || hasMoreRepetitions;
+    
     return (
       <div
         className="min-h-screen"
@@ -377,28 +408,52 @@ export default function StudyPage() {
                 You studied <strong>{cards.length} cards</strong> ·{" "}
                 <strong>{hardCardsCount} marked Hard</strong>
               </p>
+              
+              {isAssignment && requiredRepetitions > 1 && (
+                <div className="mt-4">
+                  <p className="text-2xl font-bold text-blue-600">
+                    {newCompletedCount} / {requiredRepetitions} completed
+                  </p>
+                  {hasMoreRepetitions && (
+                    <p className="text-lg text-blue-600 font-semibold mt-2">
+                      Keep going! Study this set to complete your assignment.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button
-                onClick={handleStudyAgain}
-                className="flex items-center justify-center gap-2 bg-gray-200 text-gray-700 font-bold py-4 px-8 rounded-lg hover:bg-gray-300 transition-colors shadow-lg"
-              >
-                <RefreshCw size={20} />
-                Study Again
-              </button>
-              <a
-                href={`/play/solo?deck=${deckId}`}
-                className="flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-4 px-8 rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
-              >
-                Play Solo
-              </a>
-            </div>
+            {showStudyAgain && (
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button
+                  onClick={handleStudyAgain}
+                  className="flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-4 px-8 rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                >
+                  <RefreshCw size={20} />
+                  Study Again
+                </button>
+                {!isAssignment && (
+                  <a
+                    href={`/play/solo?deck=${deckId}`}
+                    className="flex items-center justify-center gap-2 bg-gray-200 text-gray-700 font-bold py-4 px-8 rounded-lg hover:bg-gray-300 transition-colors shadow-lg"
+                  >
+                    <Zap size={20} />
+                    Play Solo
+                  </a>
+                )}
+              </div>
+            )}
 
             <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
               <p className="text-sm text-blue-800">
-                Ready for another round? "Study Again" will shuffle the cards
-                and give you a fresh mix of listening and speaking practice!
+                {isAssignment && requiredRepetitions > 1
+                  ? hasMoreRepetitions
+                    ? "Complete all required repetitions to finish this assignment!"
+                    : "🎉 Assignment completed! You've finished all required repetitions."
+                  : isAssignment
+                  ? "🎉 Assignment completed!"
+                  : "Ready for another round? \"Study Again\" will shuffle the cards and give you a fresh mix of listening and speaking practice!"
+                }
               </p>
             </div>
           </div>
@@ -597,3 +652,5 @@ export default function StudyPage() {
     </div>
   );
 }
+
+export default withAuth(StudyPage);

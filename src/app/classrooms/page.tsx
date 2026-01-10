@@ -1,4 +1,3 @@
-"use client";
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import Navigation from "../../shared/components/Navigation";
@@ -157,10 +156,6 @@ export default function StudentAssignmentsPage() {
                       </div>
                       
                       <div className="flex items-center gap-4 mb-2">
-                        <p className="text-sm text-gray-600">
-                          <BookOpen size={14} className="inline mr-1" />
-                          {assignment.deck_title}
-                        </p>
                         <p className="text-sm font-semibold" style={{ color: assignment.classroom_color || '#8B5CF6' }}>
                           {assignment.classroom_name}
                         </p>

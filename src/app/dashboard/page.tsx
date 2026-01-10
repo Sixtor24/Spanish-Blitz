@@ -7,10 +7,11 @@ import { BookOpen, Zap, Search, Plus } from "lucide-react";
 import useUser from "@/shared/hooks/useUser";
 import type { DbDeck } from "@/types/api.types";
 import { api } from "@/config/api";
+import { withAuth } from "@/shared/hoc/withAuth";
 
-export default function DashboardPage() {
+function DashboardPage() {
   const navigate = useNavigate();
-  const { data: user, loading: userLoading } = useUser();
+  const { data: user } = useUser();
   const [decks, setDecks] = useState<DbDeck[]>([]);
   const [stats, setStats] = useState({
     cardsStudied: 0,
@@ -22,12 +23,7 @@ export default function DashboardPage() {
   const [filterMode, setFilterMode] = useState("owned");
   const [showWelcome, setShowWelcome] = useState(false);
 
-  // Check authentication
-  useEffect(() => {
-    if (!userLoading && !user) {
-      navigate("/account/signin");
-    }
-  }, [user, userLoading, navigate]);
+  // Auth is handled by withAuth HOC
 
   useEffect(() => {
     if (user) {
@@ -58,10 +54,10 @@ export default function DashboardPage() {
 
   const fetchData = async () => {
     try {
-      const params = new URLSearchParams();
-      if (searchQuery) params.append("search", searchQuery);
-      // Always send filter parameter - "owned" is the default
-      params.append("filter", filterMode);
+      const params: { search?: string; filter?: "all" | "owned" | "assigned" | "public" } = {
+        filter: filterMode as "all" | "owned" | "assigned" | "public"
+      };
+      if (searchQuery) params.search = searchQuery;
 
       const [decksData, statsData] = await Promise.all([
         api.decks.list(params),
@@ -77,7 +73,7 @@ export default function DashboardPage() {
     }
   };
 
-  if (userLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Navigation />
@@ -86,10 +82,6 @@ export default function DashboardPage() {
         </div>
       </div>
     );
-  }
-
-  if (!user) {
-    return null; // Will redirect
   }
 
   return (
@@ -206,7 +198,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Botones My Sets y Assigned ocultos temporalmente */}
-            <div className="hidden flex gap-2">
+            <div className="hidden">
               <button
                 onClick={() => setFilterMode("owned")}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -277,3 +269,6 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+// Export with authentication protection
+export default withAuth(DashboardPage);
