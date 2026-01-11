@@ -23,12 +23,16 @@ export class AssignmentRepository implements IAssignmentRepository {
     title: string;
     description?: string;
     dueDate?: string;
+    studentIds?: string[];
+    requiredRepetitions?: number;
   }): Promise<any> {
     return await api.classrooms.createAssignment(data.classroomId, {
       deck_id: data.deckId,
       title: data.title,
       description: data.description,
       due_date: data.dueDate,
+      student_ids: data.studentIds,
+      required_repetitions: data.requiredRepetitions,
     });
   }
 

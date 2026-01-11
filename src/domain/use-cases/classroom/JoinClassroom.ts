@@ -11,9 +11,7 @@ export interface JoinClassroomDTO {
 }
 
 export interface IClassroomRepository {
-  findByCode(code: string): Promise<DbClassroom | null>;
-  addStudent(classroomId: string, studentId: string): Promise<void>;
-  getStudentCount(classroomId: string): Promise<number>;
+  joinByCode(code: string): Promise<DbClassroom>;
 }
 
 export interface IAuthService {
@@ -21,8 +19,6 @@ export interface IAuthService {
 }
 
 export class JoinClassroomUseCase {
-  private readonly MAX_STUDENTS_PER_CLASSROOM = 100;
-
   constructor(
     private classroomRepository: IClassroomRepository,
     private authService: IAuthService
@@ -36,26 +32,11 @@ export class JoinClassroomUseCase {
 
     const code = data.code.trim().toUpperCase();
 
-    // 2. Get current user
-    const currentUser = await this.authService.getCurrentUser();
+    // 2. Ensure user is authenticated
+    await this.authService.getCurrentUser();
 
-    // 3. Find classroom by code
-    const classroom = await this.classroomRepository.findByCode(code);
-
-    if (!classroom) {
-      throw new Error('Classroom not found. Please check the code and try again.');
-    }
-
-    // 4. Business rule: Check if classroom is full
-    const studentCount = await this.classroomRepository.getStudentCount(classroom.id);
-
-    if (studentCount >= this.MAX_STUDENTS_PER_CLASSROOM) {
-      throw new Error('This classroom is full. Maximum 100 students allowed.');
-    }
-
-    // 5. Add student to classroom
-    await this.classroomRepository.addStudent(classroom.id, currentUser.id);
-
-    return classroom;
+    // 3. Join classroom - backend handles validation
+    // (checking if classroom exists, if it's full, if user is already a member, etc.)
+    return await this.classroomRepository.joinByCode(code);
   }
 }

@@ -14,6 +14,8 @@ interface Assignment {
   due_date: string | null;
   completed: boolean;
   completed_at: string | null;
+  required_repetitions: number;
+  repetitions_completed: number;
 }
 
 interface Classroom {
@@ -172,6 +174,15 @@ export default function StudentClassroomPage() {
                           <h3 className="font-bold text-lg text-gray-900">
                             {assignment.title}
                           </h3>
+                          {assignment.required_repetitions > 1 && (
+                            <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
+                              assignment.completed
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-blue-100 text-blue-700'
+                            }`}>
+                              {assignment.repetitions_completed || 0}/{assignment.required_repetitions}
+                            </span>
+                          )}
                           {assignment.completed && (
                             <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
                               <CheckCircle size={14} />

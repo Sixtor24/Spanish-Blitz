@@ -439,6 +439,8 @@ export const api = {
       title: string;
       description?: string;
       due_date?: string;
+      student_ids?: string[];
+      required_repetitions?: number;
     }) =>
       apiFetch(`/api/classrooms/${classroomId}/assignments`, {
         method: 'POST',

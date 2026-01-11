@@ -29,6 +29,7 @@ interface Assignment {
   deck_title?: string;
   completed_count?: number;
   total_students?: number;
+  required_repetitions: number;
 }
 
 function ClassroomDetailPage({ params }: { params: { id: string } }) {
@@ -44,11 +45,9 @@ function ClassroomDetailPage({ params }: { params: { id: string } }) {
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
   
-  const [assignmentForm, setAssignmentForm] = useState({
-    deck_id: "",
-    repetitions: 1,
-    due_date: "",
-  });
+  const [assignmentForm, setAssignmentForm] = useState({ deck_id: "", repetitions: 1, due_date: "" });
+  const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+  const [assignToAll, setAssignToAll] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   // Auth handled by withTeacherAuth HOC
@@ -112,12 +111,9 @@ function ClassroomDetailPage({ params }: { params: { id: string } }) {
       const deckName = selectedDeck?.title || "Study Set";
       
       // Build description based on repetitions
-      const repetitionText = assignmentForm.repetitions === 1 ? "once" :
-                            assignmentForm.repetitions === 2 ? "twice" :
-                            assignmentForm.repetitions === 3 ? "three times" :
-                            assignmentForm.repetitions === 4 ? "four times" :
-                            "five times";
-      const description = `Study this set ${repetitionText}`;
+      const description = assignmentForm.repetitions === 1 
+        ? `Study this set 1 time`
+        : `Study this set ${assignmentForm.repetitions} times`;
       
       // Use Case pattern - business logic is now in the use case
       const repository = new AssignmentRepository();
@@ -130,10 +126,14 @@ function ClassroomDetailPage({ params }: { params: { id: string } }) {
         title: deckName,
         description: description,
         dueDate: assignmentForm.due_date || undefined,
+        studentIds: assignToAll ? undefined : selectedStudents,
+        requiredRepetitions: assignmentForm.repetitions,
       });
       
       setShowAssignmentModal(false);
       setAssignmentForm({ deck_id: "", repetitions: 1, due_date: "" });
+      setSelectedStudents([]);
+      setAssignToAll(true);
       await fetchClassroomData();
     } catch (err) {
       console.error("Error creating assignment:", err);
@@ -275,7 +275,14 @@ function ClassroomDetailPage({ params }: { params: { id: string } }) {
                   <div key={assignment.id} className="p-4 border-2 border-gray-200 rounded-lg">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
-                        <h3 className="font-bold text-gray-900">{assignment.title}</h3>
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-bold text-gray-900">{assignment.title}</h3>
+                          {assignment.required_repetitions > 1 && (
+                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded">
+                              {assignment.required_repetitions}x repetitions
+                            </span>
+                          )}
+                        </div>
                         {assignment.description && <p className="text-sm text-gray-600">{assignment.description}</p>}
                         {assignment.due_date && <p className="text-xs text-orange-600 mt-1">Due: {new Date(assignment.due_date).toLocaleDateString()}</p>}
                       </div>
@@ -286,7 +293,7 @@ function ClassroomDetailPage({ params }: { params: { id: string } }) {
                       )}
                     </div>
                     <div className="text-xs text-gray-500 pt-2 border-t border-gray-100">
-                      {assignment.completed_count || 0} / {assignment.total_students || 0} completed
+                      {assignment.completed_count || 0} / {assignment.total_students || 0} students completed
                     </div>
                   </div>
                 ))}
@@ -324,11 +331,11 @@ function ClassroomDetailPage({ params }: { params: { id: string } }) {
                   required 
                   disabled={submitting}
                 >
-                  <option value={1}>Once</option>
-                  <option value={2}>Twice</option>
-                  <option value={3}>Three times</option>
-                  <option value={4}>Four times</option>
-                  <option value={5}>Five times</option>
+                  <option value={1}>1</option>
+                  <option value={2}>2</option>
+                  <option value={3}>3</option>
+                  <option value={4}>4</option>
+                  <option value={5}>5</option>
                 </select>
               </div>
               <div>
@@ -341,9 +348,79 @@ function ClassroomDetailPage({ params }: { params: { id: string } }) {
                   }} className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg" disabled={submitting} />
                 </div>
               </div>
+
+              {/* Student Selection */}
+              <div className="rounded-lg p-4 border-2 border-gray-200 bg-gray-50">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">Assign to:</label>
+                
+                <div className="space-y-2 mb-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={assignToAll}
+                      onChange={() => {
+                        setAssignToAll(true);
+                        setSelectedStudents([]);
+                      }}
+                      className="w-4 h-4"
+                      disabled={submitting}
+                    />
+                    <span className="text-sm font-medium text-gray-700">All students ({students.filter(s => s.is_active).length})</span>
+                  </label>
+                  
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      checked={!assignToAll}
+                      onChange={() => setAssignToAll(false)}
+                      className="w-4 h-4"
+                      disabled={submitting}
+                    />
+                    <span className="text-sm font-medium text-gray-700">Specific students</span>
+                  </label>
+                </div>
+
+                {!assignToAll && (
+                  <div className="mt-3 max-h-48 overflow-y-auto border rounded-lg p-3 bg-white">
+                    {students.filter(s => s.is_active).length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-2">No students yet</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {students.filter(s => s.is_active).map((student) => (
+                          <label key={student.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                            <input
+                              type="checkbox"
+                              checked={selectedStudents.includes(student.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedStudents([...selectedStudents, student.id]);
+                                } else {
+                                  setSelectedStudents(selectedStudents.filter(id => id !== student.id));
+                                }
+                              }}
+                              className="w-4 h-4"
+                              disabled={submitting}
+                            />
+                            <span className="text-sm text-gray-700">
+                              {student.display_name || student.email}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!assignToAll && selectedStudents.length > 0 && (
+                  <p className="text-xs text-gray-600 mt-2">
+                    {selectedStudents.length} student{selectedStudents.length !== 1 ? 's' : ''} selected
+                  </p>
+                )}
+              </div>
+
               <div className="flex gap-3 pt-6 border-t border-gray-200">
-                <button type="button" onClick={() => setShowAssignmentModal(false)} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-semibold" disabled={submitting}>Cancel</button>
-                <button type="submit" className="flex-1 px-4 py-2 text-white rounded-lg font-semibold flex items-center justify-center gap-2" style={{ backgroundColor: classroomColor }} disabled={submitting}>
+                <button type="button" onClick={() => { setShowAssignmentModal(false); setAssignmentForm({ deck_id: "", repetitions: 1, due_date: "" }); setSelectedStudents([]); setAssignToAll(true); }} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-semibold" disabled={submitting}>Cancel</button>
+                <button type="submit" className="flex-1 px-4 py-2 text-white rounded-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" style={{ backgroundColor: classroomColor }} disabled={submitting || (!assignToAll && selectedStudents.length === 0)}>
                   {submitting ? <><Loader2 className="w-5 h-5 animate-spin" />Creating...</> : <><Plus size={20} />Create Assignment</>}
                 </button>
               </div>

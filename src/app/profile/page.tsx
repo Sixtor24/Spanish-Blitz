@@ -100,7 +100,13 @@ function ProfilePage() {
       const classroomsData = await api.classrooms.list();
       setClassrooms(classroomsData);
     } catch (err) {
-      setJoinMessage(err instanceof Error ? err.message : "Failed to join class");
+      const errorMessage = err instanceof Error ? err.message : "Failed to join class";
+      // Make error messages more user-friendly
+      if (errorMessage.includes("Invalid classroom code") || errorMessage.includes("not found")) {
+        setJoinMessage("Classroom not found. Please check the code and try again.");
+      } else {
+        setJoinMessage(errorMessage);
+      }
     } finally {
       setJoiningClassroom(false);
     }

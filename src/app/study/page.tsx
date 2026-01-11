@@ -103,7 +103,7 @@ function StudyPage() {
       setDeckId(id);
       setClassroomId(classroom);
       setAssignmentId(assignment);
-      fetchDeckAndCards(id);
+      fetchDeckAndCards(id, classroom, assignment);
       fetchUser();
     }
   }, []);
@@ -117,7 +117,7 @@ function StudyPage() {
     }
   };
 
-  const fetchDeckAndCards = async (id: string) => {
+  const fetchDeckAndCards = async (id: string, classroom?: string | null, assignment?: string | null) => {
     try {
       const promises: Promise<any>[] = [
         api.decks.get(id),
@@ -125,8 +125,8 @@ function StudyPage() {
       ];
 
       // If this is an assignment, fetch assignment details to get repetitions
-      if (assignmentId && classroomId) {
-        promises.push(api.classrooms.assignments(classroomId));
+      if (assignment && classroom) {
+        promises.push(api.classrooms.assignments(classroom));
       }
 
       const results = await Promise.all(promises);
@@ -135,11 +135,15 @@ function StudyPage() {
       const assignmentsData = results[2];
 
       // If we have assignment data, find this assignment and get repetitions
-      if (assignmentsData && assignmentId) {
-        const assignment = assignmentsData.find((a: any) => a.id === assignmentId);
-        if (assignment) {
-          setRequiredRepetitions(assignment.required_repetitions || 1);
-          setCompletedRepetitions(assignment.completed_repetitions || 0);
+      if (assignmentsData && assignment) {
+        const assignmentData = assignmentsData.find((a: any) => a.id === assignment);
+        if (assignmentData) {
+          // Get required repetitions from assignment
+          setRequiredRepetitions(assignmentData.required_repetitions || 1);
+          
+          // Get completed repetitions from assignment_submissions
+          // The backend calculates this based on assignment_submissions
+          setCompletedRepetitions(assignmentData.repetitions_completed || 0);
         }
       }
 
@@ -368,9 +372,11 @@ function StudyPage() {
   // Completion screen
   if (isCompleted) {
     const isAssignment = assignmentId !== null;
+    // After completing this session, the count will be incremented by 1
     const newCompletedCount = completedRepetitions + 1;
     const hasMoreRepetitions = newCompletedCount < requiredRepetitions;
     const showStudyAgain = !isAssignment || hasMoreRepetitions;
+    const remainingRepetitions = requiredRepetitions - newCompletedCount;
     
     return (
       <div
@@ -409,15 +415,68 @@ function StudyPage() {
                 <strong>{hardCardsCount} marked Hard</strong>
               </p>
               
-              {isAssignment && requiredRepetitions > 1 && (
-                <div className="mt-4">
-                  <p className="text-2xl font-bold text-blue-600">
-                    {newCompletedCount} / {requiredRepetitions} completed
-                  </p>
-                  {hasMoreRepetitions && (
-                    <p className="text-lg text-blue-600 font-semibold mt-2">
-                      Keep going! Study this set to complete your assignment.
-                    </p>
+              {isAssignment && (
+                <div className="mt-6">
+                  {/* Progress Circle and Info */}
+                  {requiredRepetitions > 1 && (
+                    <div className="flex flex-col items-center gap-3 mb-4">
+                      {/* Circular Progress */}
+                      <div className="relative inline-flex items-center justify-center">
+                        <svg className="transform -rotate-90" width="140" height="140">
+                          {/* Background circle */}
+                          <circle
+                            cx="70"
+                            cy="70"
+                            r="60"
+                            stroke="#E5E7EB"
+                            strokeWidth="12"
+                            fill="none"
+                          />
+                          {/* Progress circle */}
+                          <circle
+                            cx="70"
+                            cy="70"
+                            r="60"
+                            stroke={hasMoreRepetitions ? "#3B82F6" : "#10B981"}
+                            strokeWidth="12"
+                            fill="none"
+                            strokeDasharray={`${(newCompletedCount / requiredRepetitions) * 377} 377`}
+                            strokeLinecap="round"
+                            className="transition-all duration-500"
+                          />
+                        </svg>
+                        {/* Center text */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <span className={`text-4xl font-bold ${hasMoreRepetitions ? 'text-blue-600' : 'text-green-600'}`}>
+                            {newCompletedCount}
+                          </span>
+                          <span className="text-gray-400 text-sm font-medium">of {requiredRepetitions}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Message */}
+                  {hasMoreRepetitions ? (
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl p-5">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <span className="text-2xl">🎯</span>
+                        <h3 className="text-xl font-bold text-blue-900">Keep Going!</h3>
+                      </div>
+                      <p className="text-center text-blue-800 font-medium">
+                        Study this set <span className="font-bold text-blue-600">{remainingRepetitions} more {remainingRepetitions === 1 ? 'time' : 'times'}</span> to complete your assignment
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-5">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <span className="text-3xl">🎉</span>
+                        <h3 className="text-xl font-bold text-green-900">Assignment Complete!</h3>
+                      </div>
+                      <p className="text-center text-green-800 font-medium">
+                        {requiredRepetitions > 1 ? "You've finished all required repetitions!" : "Great job completing your assignment!"}
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
@@ -444,18 +503,13 @@ function StudyPage() {
               </div>
             )}
 
-            <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                {isAssignment && requiredRepetitions > 1
-                  ? hasMoreRepetitions
-                    ? "Complete all required repetitions to finish this assignment!"
-                    : "🎉 Assignment completed! You've finished all required repetitions."
-                  : isAssignment
-                  ? "🎉 Assignment completed!"
-                  : "Ready for another round? \"Study Again\" will shuffle the cards and give you a fresh mix of listening and speaking practice!"
-                }
-              </p>
-            </div>
+            {!isAssignment && (
+              <div className="mt-8 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-4">
+                <p className="text-sm text-purple-800 text-center">
+                  <span className="font-semibold">💡 Tip:</span> "Study Again" will shuffle the cards and give you a fresh mix of listening and speaking practice!
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>

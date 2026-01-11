@@ -10,6 +10,8 @@ export interface CreateAssignmentDTO {
   title: string;
   description?: string;
   dueDate?: string;
+  studentIds?: string[];
+  requiredRepetitions?: number;
 }
 
 export interface IAssignmentRepository {
@@ -83,6 +85,8 @@ export class CreateAssignmentUseCase {
       title: data.title.trim(),
       description: data.description?.trim(),
       dueDate: data.dueDate,
+      studentIds: data.studentIds,
+      requiredRepetitions: data.requiredRepetitions || 1,
     });
 
     return assignment;
