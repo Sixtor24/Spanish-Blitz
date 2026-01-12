@@ -14,6 +14,10 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY . .
 
+# Build-time environment variables (Railway provides these)
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
+
 # Build application
 RUN pnpm run build
 
