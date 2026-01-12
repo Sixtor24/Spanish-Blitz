@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router";
 import Navigation from "@/shared/components/Navigation";
 import { User, Globe, LogOut, Users, Plus } from "lucide-react";
@@ -30,6 +30,7 @@ function ProfilePage() {
   const { signOut } = useAuth();
 
   useEffect(() => {
+    let mounted = true;
     async function fetchData() {
       try {
         const [userData, statsData, classroomsData] = await Promise.all([
@@ -38,6 +39,8 @@ function ProfilePage() {
           api.classrooms.list().catch(() => []),
         ]);
 
+        if (!mounted) return;
+        
         setUser(userData);
         setDisplayName(userData.display_name || '');
         setPreferredLocale(userData.preferred_locale || 'es-ES');
@@ -46,13 +49,14 @@ function ProfilePage() {
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
-        setLoading(false);
+        if (mounted) setLoading(false);
       }
     }
     fetchData();
+    return () => { mounted = false; };
   }, []);
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setMessage("");
@@ -70,7 +74,7 @@ function ProfilePage() {
     } finally {
       setSaving(false);
     }
-  };
+  }, [displayName, preferredLocale]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -112,6 +116,12 @@ function ProfilePage() {
     }
   };
 
+  // Habilitar selección de dialecto para usuarios Premium y Gold (MUST be before early returns)
+  const isDialectSelectionEnabled = useMemo(
+    () => user?.plan === "premium" || user?.plan === "gold" || user?.is_premium,
+    [user?.plan, user?.is_premium]
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -122,9 +132,6 @@ function ProfilePage() {
       </div>
     );
   }
-
-  // Habilitar selección de dialecto para usuarios Premium y Gold
-  const isDialectSelectionEnabled = user?.plan === "premium" || user?.plan === "gold" || user?.is_premium;
 
   return (
     <div className="min-h-screen bg-gray-50">

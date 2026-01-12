@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router";
 import Navigation from "@/shared/components/Navigation";
 import AdPlaceholder from "@/shared/components/AdPlaceholder";
@@ -26,14 +26,22 @@ function DashboardPage() {
   // Auth is handled by withAuth HOC
 
   useEffect(() => {
-    if (user) {
-      fetchData();
+    let mounted = true;
+    const timeoutId = setTimeout(() => {
+      if (user && mounted) {
+        fetchData();
 
-      // Show welcome modal if user hasn't seen it yet
-      if (!user.has_seen_welcome) {
-        setShowWelcome(true);
+        // Show welcome modal if user hasn't seen it yet
+        if (!user.has_seen_welcome) {
+          setShowWelcome(true);
+        }
       }
-    }
+    }, 300); // Debounce search by 300ms
+    
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+    };
   }, [filterMode, searchQuery, user]);
 
   const handleDismissWelcome = async () => {
@@ -52,7 +60,7 @@ function DashboardPage() {
     navigate("/admin/create-set");
   };
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const params: { search?: string; filter?: "all" | "owned" | "assigned" | "public" } = {
         filter: filterMode as "all" | "owned" | "assigned" | "public"
@@ -71,7 +79,7 @@ function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filterMode, searchQuery]);
 
   if (loading) {
     return (

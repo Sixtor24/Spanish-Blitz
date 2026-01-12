@@ -27,4 +27,28 @@ export default defineConfig({
       'Access-Control-Allow-Origin': '*',
     },
   },
+  build: {
+    target: 'es2020',
+    minify: 'esbuild',
+    cssMinify: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Only chunk vendor modules for client build
+          if (id.includes('node_modules')) {
+            if (id.includes('lucide-react') || id.includes('sonner')) {
+              return 'ui-vendor';
+            }
+            if (id.includes('react-hook-form') || id.includes('yup')) {
+              return 'form-vendor';
+            }
+          }
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
+  optimizeDeps: {
+    include: ['lucide-react', 'sonner'],
+  },
 });

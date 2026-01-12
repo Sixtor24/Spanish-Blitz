@@ -86,7 +86,7 @@ export default function HomePage() {
             src="https://ucarecdn.com/de98c936-2bfa-4258-8713-5057c6621107/-/format/auto/"
             alt="The Spanish Blitz"
             className="mx-auto mb-6 h-32 md:h-40 w-auto"
-            loading="eager"
+            loading="lazy"
           />
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             Master Spanish with <span className="text-orange-500">Voice Power</span>

@@ -8,7 +8,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name?: string) => Promise<void>;
   signOut: () => Promise<void>;
-  refetch: () => Promise<void>;
+  refetch: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -49,11 +49,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await api.auth.signIn(email, password);
       // Wait for cookies to be set (especially important for Safari)
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Retry fetching user up to 5 times for Safari compatibility
+      // Retry fetching user up to 2 times for Safari compatibility
       let attempts = 0;
-      const maxAttempts = 5;
+      const maxAttempts = 2;
       let success = false;
       
       while (attempts < maxAttempts && !success) {
@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         attempts++;
         if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 300));
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
     } catch (error) {
@@ -75,11 +75,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       await api.auth.signUp(email, password, name);
       // Wait for cookies to be set (especially important for Safari)
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Retry fetching user up to 5 times for Safari compatibility
+      // Retry fetching user up to 2 times for Safari compatibility
       let attempts = 0;
-      const maxAttempts = 5;
+      const maxAttempts = 2;
       let success = false;
       
       while (attempts < maxAttempts && !success) {
@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         attempts++;
         if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 300));
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
     } catch (error) {

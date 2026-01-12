@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X, Shield, GraduationCap, Users } from 'lucide-react';
 import useUser from '@/shared/hooks/useUser';
@@ -8,24 +8,26 @@ type NavLink = {
   label: string;
 };
 
-export default function Navigation() {
+function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { data: user } = useUser();
 
-  // Base links for all users
-  const baseLinks: NavLink[] = [
-    { href: '/dashboard', label: 'Dashboard' },
-    { href: '/profile', label: 'Profile' },
-  ];
+  // Memoize links calculation
+  const links: NavLink[] = useMemo(() => {
+    const baseLinks: NavLink[] = [
+      { href: '/dashboard', label: 'Dashboard' },
+      { href: '/profile', label: 'Profile' },
+    ];
 
-  // Plans link only for teachers and admins
-  const links: NavLink[] = user?.role === 'teacher' || user?.role === 'admin'
-    ? [
-        { href: '/dashboard', label: 'Dashboard' },
-        { href: '/pricing', label: 'Plans' },
-        { href: '/profile', label: 'Profile' },
-      ]
-    : baseLinks;
+    // Plans link only for teachers and admins
+    return user?.role === 'teacher' || user?.role === 'admin'
+      ? [
+          { href: '/dashboard', label: 'Dashboard' },
+          { href: '/pricing', label: 'Plans' },
+          { href: '/profile', label: 'Profile' },
+        ]
+      : baseLinks;
+  }, [user?.role]);
 
   return (
     <nav className="bg-white border-b border-gray-200">
@@ -145,3 +147,5 @@ export default function Navigation() {
     </nav>
   );
 }
+
+export default memo(Navigation);
