@@ -7,6 +7,7 @@ import { ArrowLeft, Check, X, Zap, Trophy, RefreshCw, RotateCw } from "lucide-re
 import { api } from "@/config/api";
 import { withAuth } from "@/shared/hoc/withAuth";
 import useUser from "@/shared/hooks/useUser";
+import { usePrefetchVocabularyAudio } from "@/shared/hooks/usePrefetchAudio";
 import type { DbDeck, DbCard } from "@/types/api.types";
 
 // Variant types
@@ -162,6 +163,16 @@ function StudyPage() {
       setLoading(false);
     }
   };
+
+  // Prefetch all audio from cards for instant playback
+  usePrefetchVocabularyAudio(
+    cards.map(card => ({
+      spanish: card.question, // Spanish text
+      definition: card.answer, // English translation
+      example: undefined // No example sentences in current schema
+    })),
+    userLocale
+  );
 
   const initializeStudySession = (cardsData: DbCard[]) => {
     // Shuffle cards and assign random variants

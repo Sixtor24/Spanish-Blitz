@@ -20,39 +20,27 @@ type SpeechRecognitionProps = {
   stopOnCorrect?: boolean; // If true, parent can call stop() when answer is correct
 };
 
-// Constants
-const MAX_DURATION = 15000; // 15 seconds maximum (safety timeout only)
-const AUDIO_CHUNK_INTERVAL = 50; // 50ms for aggressive capture - faster on mobile
-
-/**
- * Get optimal audio format - no complex detection, just use what works fastest
- */
-const getAudioMimeType = (): string | undefined => {
-  if (typeof window === 'undefined') return undefined;
-  // Use browser default - fastest option, no detection overhead
-  return undefined;
-};
+// Constants - Optimized for instant recording
+const MAX_DURATION = 10000;
+const AUDIO_CHUNK_INTERVAL = 1; 
 
 const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionProps>(
   ({ onTranscript, locale = 'es-ES', onError, autoStop = true, stopOnCorrect = false }, ref) => {
-  // State
+  // State - Simplified
   const [isListening, setIsListening] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [currentTranscript, setCurrentTranscript] = useState<string>('');
-  const [finalTranscript, setFinalTranscript] = useState<string>(''); // Final transcript to show below button
-  const [isConnecting, setIsConnecting] = useState(false); // Track if we're in connecting/warmup phase
+  const [finalTranscript, setFinalTranscript] = useState<string>('');
   
-  // Refs
+  // Refs - Simplified
   const isListeningRef = useRef(false);
-  const startTimeRef = useRef<number | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const sessionIdRef = useRef<string | null>(null);
-  const maxDurationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const autoStopRef = useRef(autoStop);
-  const audioBufferRef = useRef<string[]>([]); // Buffer for audio chunks before WebSocket is ready
-  const isWebSocketReadyRef = useRef(false); // Track if WebSocket is ready to receive audio
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioBufferRef = useRef<Blob[]>([]);
+  const wsReadyRef = useRef(false)
 
   /**
    * Expose methods to parent component
@@ -67,286 +55,150 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     isListening: () => isListeningRef.current,
   }));
 
-  /**
-   * Cleanup function
-   */
   const cleanup = () => {
-    console.log('🧹 [Speech] Cleaning up resources');
-    
-    // Stop MediaRecorder
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      try {
-        mediaRecorderRef.current.stop();
-      } catch (e) {
-        console.warn('MediaRecorder stop error:', e);
-      }
+    if (mediaRecorderRef.current?.state !== 'inactive') {
+      mediaRecorderRef.current?.stop();
     }
-    mediaRecorderRef.current = null;
+    streamRef.current?.getTracks().forEach(track => track.stop());
     
-    // Stop media stream
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    
-    // Close WebSocket
     if (wsRef.current && sessionIdRef.current) {
       try {
-        wsRef.current.send(JSON.stringify({
-          type: 'speech:stop',
-          sessionId: sessionIdRef.current,
-        }));
+        wsRef.current.send(JSON.stringify({ type: 'speech:stop', sessionId: sessionIdRef.current }));
         wsRef.current.close();
-      } catch (e) {
-        console.warn('WebSocket close error:', e);
-      }
+      } catch {}
     }
+    
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    
+    mediaRecorderRef.current = null;
+    streamRef.current = null;
     wsRef.current = null;
     sessionIdRef.current = null;
-    
-    // Clear audio buffer
     audioBufferRef.current = [];
-    isWebSocketReadyRef.current = false;
-    
-    // Clear max duration timeout
-    if (maxDurationTimeoutRef.current) {
-      clearTimeout(maxDurationTimeoutRef.current);
-      maxDurationTimeoutRef.current = null;
-    }
-    
-    // Reset state
+    wsReadyRef.current = false;
     isListeningRef.current = false;
-    startTimeRef.current = null;
   };
 
-  /**
-   * Start listening
-   */
   const startListening = async () => {
+    if (isListeningRef.current) return;
+    
     try {
-      console.log('🎤 [Speech] Starting speech recognition');
+      // Get microphone - optimized settings for speed
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 16000 // Optimal for speech recognition
+        } 
+      });
+      streamRef.current = stream;
       
-      // Check if already listening
-      if (isListeningRef.current) {
-        console.warn('⚠️ [Speech] Already listening');
-        return;
-      }
-      
-      // Request microphone permission
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          } 
-        });
-        streamRef.current = stream;
-      } catch (err: any) {
-        console.error('❌ [Speech] Microphone permission denied:', err);
-        setErrorMessage('Microphone permission required. Please allow access.');
-        if (onError) onError('microphone-denied');
-        return;
-      }
-      
-      // Update state
+      // Update state instantly
       isListeningRef.current = true;
       setIsListening(true);
-      setIsConnecting(false); // Button is interactive immediately - no connection delay
-      startTimeRef.current = Date.now();
-      setCurrentTranscript('Speak Now'); // Show "Speak Now" immediately
-      setFinalTranscript(''); // Clear previous final transcript
+      setCurrentTranscript('Speak Now');
+      setFinalTranscript('');
       setErrorMessage(null);
-      audioBufferRef.current = []; // Clear buffer
-      isWebSocketReadyRef.current = false; // WebSocket not ready yet
+      audioBufferRef.current = [];
+      wsReadyRef.current = false;
       
-      // START MEDIARECORDER IMMEDIATELY - this is the key to eliminating latency
-      // User can start speaking right away, audio will be buffered
-      startMediaRecorder(stream);
+      // Start recording IMMEDIATELY
+      const mediaRecorder = new MediaRecorder(stream, { 
+        mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : undefined 
+      });
+      mediaRecorderRef.current = mediaRecorder;
       
-      // Create WebSocket connection IN PARALLEL while capturing audio
-      const ws = createWebSocket();
-      const sessionId = `speech-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      wsRef.current = ws;
-      sessionIdRef.current = sessionId;
-      
-      // Setup WebSocket handlers
-      ws.onopen = () => {
-        console.log('🔌 [Speech] WebSocket connected');
-        ws.send(JSON.stringify({
-          type: 'speech:start',
-          sessionId,
-          locale,
-        }));
-      };
-      
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          
-          if (data.type === 'stream:started') {
-            console.log('✅ [Speech] Backend ready, flushing buffered audio...');
-            isWebSocketReadyRef.current = true;
-            
-            // Send all buffered audio chunks to backend
-            const bufferedChunks = audioBufferRef.current;
-            if (bufferedChunks.length > 0) {
-              console.log(`📤 [Speech] Sending ${bufferedChunks.length} buffered chunks`);
-              bufferedChunks.forEach((base64Audio) => {
-                if (ws.readyState === WebSocket.OPEN && sessionIdRef.current) {
-                  ws.send(JSON.stringify({
-                    type: 'speech:audio',
-                    sessionId: sessionIdRef.current,
-                    audio: base64Audio,
-                  }));
-                }
-              });
-              // Clear buffer after sending
-              audioBufferRef.current = [];
-              console.log('✅ [Speech] Buffer flushed, now sending real-time');
-            }
+      // Buffer audio chunks
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0 && isListeningRef.current) {
+          if (wsReadyRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
+            sendAudioChunk(e.data);
+          } else {
+            audioBufferRef.current.push(e.data);
           }
-          
-          else if (data.type === 'transcript') {
-            const { transcript, isFinal } = data;
-            if (transcript && transcript.trim()) {
-              if (!isFinal) {
-                // Show interim results - clear status message when we have actual words
-                setCurrentTranscript(transcript);
-              } else {
-                // Final result
-                console.log(`📝 [Speech] Final transcript: "${transcript}"`);
-                setFinalTranscript(transcript); // Store final transcript to show below
-                setCurrentTranscript(''); // Clear status message
-                onTranscript(transcript);
-                
-                // Always stop after final transcript (both correct and incorrect)
-                console.log('🛑 [Speech] Stopping after final transcript');
-                setTimeout(() => {
-                  stopListening();
-                }, 100); // Small delay to ensure transcript is processed
-              }
-            }
-          }
-          
-          else if (data.type === 'error') {
-            console.error('❌ [Speech] Backend error:', data.message);
-            setErrorMessage(data.message || 'Transcription error');
-            if (onError) onError('transcription-failed');
-            stopListening();
-          }
-        } catch (error: any) {
-          console.error('❌ [Speech] Error parsing message:', error);
         }
       };
       
-      ws.onerror = (error) => {
-        console.error('❌ [Speech] WebSocket error:', error);
-        setErrorMessage('Connection error. Please try again.');
+      mediaRecorder.start(AUDIO_CHUNK_INTERVAL);
+      
+      // Setup WebSocket in parallel
+      const ws = createWebSocket();
+      const sessionId = `speech-${Date.now()}`;
+      wsRef.current = ws;
+      sessionIdRef.current = sessionId;
+      
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'speech:start', sessionId, locale }));
+      };
+      
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'stream:started') {
+          wsReadyRef.current = true;
+          // Flush buffer
+          audioBufferRef.current.forEach(blob => sendAudioChunk(blob));
+          audioBufferRef.current = [];
+        }
+        else if (data.type === 'transcript') {
+          const { transcript, isFinal } = data;
+          if (transcript?.trim()) {
+            if (!isFinal) {
+              setCurrentTranscript(transcript);
+            } else {
+              setFinalTranscript(transcript);
+              setCurrentTranscript('');
+              onTranscript(transcript);
+              setTimeout(() => stopListening(), 20);
+            }
+          }
+        }
+        else if (data.type === 'error') {
+          setErrorMessage(data.message || 'Error');
+          if (onError) onError('transcription-failed');
+          stopListening();
+        }
+      };
+      
+      ws.onerror = () => {
+        setErrorMessage('Connection error');
         if (onError) onError('connection-failed');
         stopListening();
       };
       
-      ws.onclose = () => {
-        console.log('🔌 [Speech] WebSocket closed');
-      };
+      // Safety timeout
+      timeoutRef.current = setTimeout(() => {
+        if (isListeningRef.current) stopListening();
+      }, MAX_DURATION);
       
-    } catch (error: any) {
-      console.error('❌ [Speech] Start error:', error);
-      setErrorMessage('Failed to start recording. Please try again.');
-      if (onError) onError('start-failed');
+    } catch (err) {
+      setErrorMessage('Microphone access required');
+      if (onError) onError('microphone-denied');
       cleanup();
       setIsListening(false);
     }
   };
 
-  /**
-   * Start MediaRecorder immediately and buffer audio until WebSocket is ready
-   */
-  const startMediaRecorder = (stream: MediaStream) => {
-    try {
-      // Use browser default MIME type - fastest, no detection
-      const mimeType = getAudioMimeType();
-      
-      // Create MediaRecorder - let browser use optimal format
-      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      mediaRecorderRef.current = mediaRecorder;
-      
-      // Handle audio data - buffer or send depending on WebSocket status
-      let chunkCount = 0;
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunkCount++;
-          // Convert to base64
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const base64Audio = (reader.result as string).split(',')[1];
-            if (base64Audio && isListeningRef.current) {
-              // If WebSocket is ready, send immediately
-              if (isWebSocketReadyRef.current && wsRef.current?.readyState === WebSocket.OPEN && sessionIdRef.current) {
-                wsRef.current.send(JSON.stringify({
-                  type: 'speech:audio',
-                  sessionId: sessionIdRef.current,
-                  audio: base64Audio,
-                }));
-              } else {
-                // Otherwise, buffer for later
-                console.log(`📦 [Speech] Buffering chunk ${audioBufferRef.current.length + 1}`);
-                audioBufferRef.current.push(base64Audio);
-              }
-            }
-          };
-          reader.onerror = (error) => {
-            console.error(`❌ [Speech] FileReader error:`, error);
-          };
-          reader.readAsDataURL(event.data);
-        }
-      };
-      
-      // Start recording immediately - user can speak right away!
-      mediaRecorder.start(AUDIO_CHUNK_INTERVAL);
-      console.log(`🔴 [Speech] Recording started IMMEDIATELY, capturing every ${AUDIO_CHUNK_INTERVAL}ms`);
-      console.log('✅ [Speech] User can speak NOW - audio buffered until backend ready');
-      
-      // Setup maximum duration timeout (safety only)
-      setupSilenceDetection(stream);
-      
-    } catch (error: any) {
-      console.error('❌ [Speech] MediaRecorder error:', error);
-      setErrorMessage('Recording failed. Please try again.');
-      stopListening();
-    }
-  };
-
-  /**
-   * Setup maximum duration timeout (safety only)
-   */
-  const setupSilenceDetection = (stream: MediaStream) => {
-    const maxDurationTimeout = setTimeout(() => {
-      if (isListeningRef.current) {
-        console.log('⏱️ [Speech] Max duration reached');
-        stopListening();
+  const sendAudioChunk = (blob: Blob) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = (reader.result as string).split(',')[1];
+      if (base64 && wsRef.current?.readyState === WebSocket.OPEN && sessionIdRef.current) {
+        wsRef.current.send(JSON.stringify({
+          type: 'speech:audio',
+          sessionId: sessionIdRef.current,
+          audio: base64
+        }));
       }
-    }, MAX_DURATION);
-    
-    if (maxDurationTimeoutRef.current) {
-      clearTimeout(maxDurationTimeoutRef.current);
-    }
-    maxDurationTimeoutRef.current = maxDurationTimeout;
+    };
+    reader.readAsDataURL(blob);
   };
 
-
-  /**
-   * Stop listening
-   */
   const stopListening = () => {
-    console.log('🛑 [Speech] Stopping speech recognition');
     cleanup();
     setIsListening(false);
-    setIsConnecting(false);
     setCurrentTranscript('');
-    // Keep finalTranscript visible until next recording starts
   };
 
   /**
@@ -360,83 +212,40 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     }
   };
 
-  /**
-   * Cleanup on unmount
-   */
-  useEffect(() => {
-    autoStopRef.current = autoStop;
-  }, [autoStop]);
+  useEffect(() => () => cleanup(), []);
 
-  useEffect(() => {
-    return () => {
-      cleanup();
-    };
-  }, []);
-
-  // Determine button color and text based on state
-  const getButtonState = () => {
-    if (errorMessage) {
-      return {
-        color: 'bg-red-500 hover:bg-red-600',
-        text: 'Error - Try Again',
-        icon: <MicOff className="w-5 h-5" />
-      };
-    }
-    
-    if (isListening) {
-      // Always show "Speak Now" in orange while listening (no red "Stop Recording")
-      return {
-        color: 'bg-orange-500 hover:bg-orange-600',
-        text: 'Speak Now',
-        icon: <Mic className="w-5 h-5" />
-      };
-    }
-    
-    // Not listening - default state
-    return {
-      color: 'bg-green-500 hover:bg-green-600',
-      text: 'Speak Answer',
-      icon: <Mic className="w-5 h-5" />
-    };
-  };
-
-  const buttonState = getButtonState();
+  const buttonColor = errorMessage ? 'bg-red-500 hover:bg-red-600' 
+    : isListening ? 'bg-orange-500 hover:bg-orange-600' 
+    : 'bg-green-500 hover:bg-green-600';
+  const buttonText = errorMessage ? 'Error - Try Again' 
+    : isListening ? 'Speak Now' 
+    : 'Speak Answer';
+  const ButtonIcon = errorMessage ? MicOff : Mic;
 
   return (
     <div className="flex flex-col items-center gap-4">
-      {/* Microphone Button with Dynamic State */}
       <button
         onClick={toggleListening}
-        className={`
-          flex items-center gap-2 px-6 py-3 rounded-lg font-medium
-          transition-all duration-300 transform hover:scale-105
-          ${buttonState.color} text-white shadow-lg
-          ${isConnecting ? 'opacity-75 cursor-wait' : ''}
-        `}
+        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 ${buttonColor} text-white shadow-lg`}
         aria-label={isListening ? 'Stop Recording' : 'Start Recording'}
-        disabled={isConnecting || (!!errorMessage && !isListening)}
+        disabled={!!errorMessage && !isListening}
       >
-        {buttonState.icon}
-        {buttonState.text}
+        <ButtonIcon className="w-5 h-5" />
+        {buttonText}
       </button>
 
-      {/* Final Transcript - Show the final answer below the button */}
       {finalTranscript && !isListening && (
         <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm max-w-md text-center font-medium">
           {finalTranscript}
         </div>
       )}
 
-      {/* Current Transcript (Interim Results) - Only show when actively listening and transcribing */}
-      {currentTranscript && 
-       isListening &&
-       currentTranscript !== 'Speak Now' && (
+      {currentTranscript && isListening && currentTranscript !== 'Speak Now' && (
         <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm max-w-md text-center">
           {currentTranscript}
         </div>
       )}
 
-      {/* Error Message */}
       {errorMessage && (
         <div className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm max-w-md text-center">
           {errorMessage}

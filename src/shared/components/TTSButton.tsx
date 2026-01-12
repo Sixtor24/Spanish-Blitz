@@ -1,98 +1,123 @@
-import { useState } from 'react';
-import { Volume2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Volume2, Loader2 } from 'lucide-react';
 import { api } from '@/config/api';
 import { useUser } from '@/shared/hooks/useUser';
 
 type TTSButtonProps = {
   text: string;
-  locale?: string; // Opcional, si no se pasa usa el del usuario
+  locale?: string;
   slow?: boolean;
   size?: 'medium' | 'large';
   className?: string;
 };
 
-// Cache de audio para evitar regenerar el mismo texto
-const audioCache = new Map<string, string>();
+// Persistent cache using localStorage + in-memory for speed
+const memoryCache = new Map<string, string>();
+const CACHE_PREFIX = 'tts_audio_';
+const MAX_CACHE_SIZE = 50; // Limit cache entries
+
+// Preload Audio element pool for instant playback
+const audioPool: HTMLAudioElement[] = [];
+const POOL_SIZE = 3;
+
+const initAudioPool = () => {
+  if (typeof window === 'undefined') return;
+  for (let i = 0; i < POOL_SIZE; i++) {
+    audioPool.push(new Audio());
+  }
+};
+
+const getAudioFromPool = (): HTMLAudioElement => {
+  return audioPool.find(a => a.paused) || new Audio();
+};
+
+// Persistent cache helpers
+const getCachedAudio = (key: string): string | null => {
+  if (memoryCache.has(key)) return memoryCache.get(key)!;
+  
+  try {
+    const cached = localStorage.getItem(CACHE_PREFIX + key);
+    if (cached) {
+      memoryCache.set(key, cached);
+      return cached;
+    }
+  } catch {}
+  return null;
+};
+
+const setCachedAudio = (key: string, audio: string): void => {
+  memoryCache.set(key, audio);
+  try {
+    // Manage cache size
+    const keys = Object.keys(localStorage).filter(k => k.startsWith(CACHE_PREFIX));
+    if (keys.length >= MAX_CACHE_SIZE) {
+      localStorage.removeItem(keys[0]);
+    }
+    localStorage.setItem(CACHE_PREFIX + key, audio);
+  } catch {}
+};
 
 export default function TTSButton({
   text,
-  locale, // Ya no tiene valor por defecto
+  locale,
   slow = false,
   size = 'medium',
   className = '',
 }: TTSButtonProps) {
   const [speaking, setSpeaking] = useState(false);
+  const [loading, setLoading] = useState(false);
   const { user } = useUser();
   
-  // Usar el dialecto preferido del usuario, o 'es-ES' por defecto
   const userLocale = locale || user?.preferred_locale || 'es-ES';
 
+  useEffect(() => {
+    initAudioPool();
+  }, []);
+
   const speak = async () => {
-    if (!text || text.trim().length === 0) return;
+    if (!text?.trim() || speaking || loading) return;
     
-    setSpeaking(true);
-    
-    // Alternar aleatoriamente entre voz masculina y femenina
-    const randomVoice: 'male' | 'female' = Math.random() < 0.5 ? 'male' : 'female';
+    const voice: 'male' | 'female' = 'male';
+    const cacheKey = `${text}-${userLocale}-${voice}`;
+    const cachedAudio = getCachedAudio(cacheKey);
     
     try {
-      // Generar clave de caché usando locale y voice por separado
-      const cacheKey = `${text}-${userLocale}-${randomVoice}`;
-      
       let audioBase64: string;
       
-      // Verificar si está en caché
-      if (audioCache.has(cacheKey)) {
-        console.log(`💾 [TTS] Using cached audio for: "${text.substring(0, 50)}" (${randomVoice === 'male' ? '👨' : '👩'} ${userLocale})`);
-        audioBase64 = audioCache.get(cacheKey)!;
+      if (cachedAudio) {
+        // Instant playback from cache
+        audioBase64 = cachedAudio;
+        setSpeaking(true);
       } else {
-        console.log(`🎤 [TTS] Requesting Edge TTS audio for: "${text.substring(0, 50)}" (${randomVoice === 'male' ? '👨' : '👩'} ${userLocale})`);
-        
-        // Intentar usar edge-tts desde el backend con locale y voice separados
-        const response = await api.tts.synthesize(text, userLocale, randomVoice);
-        
-        console.log('✅ [TTS] Received audio from Edge TTS:', {
-          audioLength: response.audio?.length || 0,
-          voice: response.voice,
-          provider: response.provider,
-          locale: userLocale,
-          gender: randomVoice,
-        });
-        
-        if (!response.audio) {
-          throw new Error('No audio data received from backend');
-        }
-        
+        // Show loading immediately for user feedback
+        setLoading(true);
+        const response = await api.tts.synthesize(text, userLocale, voice);
+        if (!response.audio) throw new Error('No audio data');
         audioBase64 = response.audio;
-        
-        // Guardar en caché
-        audioCache.set(cacheKey, audioBase64);
-        console.log(`💾 [TTS] Cached audio (cache size: ${audioCache.size})`);
+        setCachedAudio(cacheKey, audioBase64);
+        setLoading(false);
+        setSpeaking(true);
       }
       
-      // Crear audio desde base64
-      const audio = new Audio(`data:audio/mp3;base64,${audioBase64}`);
+      // Use Web Audio API for faster decoding
+      const audio = getAudioFromPool();
+      audio.src = `data:audio/mp3;base64,${audioBase64}`;
       audio.playbackRate = slow ? 0.7 : 1.0;
       
       audio.onended = () => {
-        console.log('🎵 [TTS] Edge TTS audio playback finished');
         setSpeaking(false);
+        setLoading(false);
       };
-      
-      audio.onerror = (e) => {
-        console.error('❌ [TTS] Audio playback error:', e);
+      audio.onerror = () => {
         setSpeaking(false);
-        // Fallback a Web Speech API
-        console.warn('⚠️ [TTS] Falling back to Web Speech API');
+        setLoading(false);
         fallbackToWebSpeech(userLocale);
       };
 
       await audio.play();
-      console.log(`▶️ [TTS] Playing Edge TTS audio... (${randomVoice === 'male' ? '👨' : '👩'} ${userLocale})`);
     } catch (error) {
-      console.error('❌ [TTS] Backend request error:', error);
-      // Fallback a Web Speech API nativo
-      console.warn('⚠️ [TTS] Falling back to Web Speech API');
+      setLoading(false);
+      setSpeaking(false);
       fallbackToWebSpeech(userLocale);
     }
   };
@@ -104,24 +129,16 @@ export default function TTSButton({
     }
 
     window.speechSynthesis.cancel();
-
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = locale || 'es-ES';
     utterance.rate = slow ? 0.7 : 1.0;
     
-    // Intentar seleccionar una voz en español
     const voices = window.speechSynthesis.getVoices();
-    const spanishVoices = voices.filter(v => v.lang.startsWith('es'));
-    if (spanishVoices.length > 0) {
-      // Intentar encontrar una voz que coincida con el locale
-      const preferredVoice = spanishVoices.find(v => v.lang === locale) || spanishVoices[0];
-      utterance.voice = preferredVoice;
-    }
+    const spanishVoice = voices.find(v => v.lang === locale || v.lang.startsWith('es'));
+    if (spanishVoice) utterance.voice = spanishVoice;
 
-    utterance.onstart = () => setSpeaking(true);
     utterance.onend = () => setSpeaking(false);
     utterance.onerror = () => setSpeaking(false);
-
     window.speechSynthesis.speak(utterance);
   };
 
@@ -130,15 +147,21 @@ export default function TTSButton({
     large: 'px-6 py-4 text-lg',
   };
 
+  const iconSize = size === 'large' ? 24 : 20;
+  
   return (
     <button
       onClick={speak}
-      disabled={speaking}
-      className={`inline-flex items-center gap-2 ${sizeClasses[size]} bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${className}`}
+      disabled={speaking || loading}
+      className={`inline-flex items-center gap-2 ${sizeClasses[size]} bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all ${className}`}
       type="button"
     >
-      <Volume2 size={size === 'large' ? 24 : 20} />
-      {slow ? 'Hear it (slow)' : '🔊 Hear it'}
+      {loading ? (
+        <Loader2 size={iconSize} className="animate-spin" />
+      ) : (
+        <Volume2 size={iconSize} />
+      )}
+      {loading ? 'Loading...' : slow ? 'Hear it (slow)' : '🔊 Hear it'}
     </button>
   );
 }
