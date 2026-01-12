@@ -17,8 +17,5 @@ COPY . .
 # Build application
 RUN pnpm run build
 
-# Expose port
-EXPOSE 3000
-
-# Start application
+# Start application (PORT is provided by Railway)
 CMD ["pnpm", "run", "start"]
