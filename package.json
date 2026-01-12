@@ -6,6 +6,7 @@
 		"node": ">=20.0.0"
 	},
 	"scripts": {
+		"preinstall": "npx only-allow pnpm",
 		"dev": "react-router dev",
 		"build": "react-router build",
 		"start": "serve build/client -s -l ${PORT:-3000}",
