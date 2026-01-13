@@ -9,7 +9,7 @@ frontend:
       commands:
         - pnpm run build
   artifacts:
-    baseDirectory: dist
+    baseDirectory: build/client
     files:
       - '**/*'
   cache:
