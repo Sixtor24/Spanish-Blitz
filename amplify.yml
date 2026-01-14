@@ -17,4 +17,4 @@ frontend:
       - node_modules/**/*
 env:
   variables:
-    VITE_API_URL: https://z3mrkxt3i4.us-east-2.awsapprunner.com
+    VITE_API_URL: https://spanish-blitz-back-production.up.railway.app
