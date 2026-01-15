@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import AdPlaceholder from "@/shared/components/AdPlaceholder";
 import WelcomeModal from "@/shared/components/WelcomeModal";
@@ -263,18 +263,18 @@ function DashboardPage() {
                 </div>
 
                 <div className="flex gap-2">
-                  <a
-                    href={`/study?deck=${deck.id}`}
+                  <Link
+                    to={`/study?deck=${deck.id}`}
                     className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 text-center text-sm font-medium"
                   >
                     📚 Study
-                  </a>
-                  <a
-                    href={`/admin/create-set?id=${deck.id}`}
+                  </Link>
+                  <Link
+                    to={`/admin/create-set?id=${deck.id}`}
                     className="flex-1 bg-gray-200 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-300 text-center text-sm font-medium"
                   >
                     Edit
-                  </a>
+                  </Link>
                 </div>
               </div>
             ))}

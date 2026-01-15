@@ -1,5 +1,5 @@
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import AdPlaceholder from "@/shared/components/AdPlaceholder";
 import TTSButton from "@/shared/components/TTSButton";
@@ -319,9 +319,9 @@ export default function PlaySoloPage() {
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {availableSets.map((set) => (
-                <a
+                <Link
                   key={set.id}
-                  href={`/play/solo?deck=${set.id}`}
+                  to={`/play/solo?deck=${set.id}`}
                   className="bg-white border-2 rounded-lg p-6 hover:shadow-lg transition-all cursor-pointer group"
                   style={{
                     borderLeftWidth: "6px",
@@ -350,7 +350,7 @@ export default function PlaySoloPage() {
                       Start Playing →
                     </span>
                   </div>
-                </a>
+                </Link>
               ))}
             </div>
           )}

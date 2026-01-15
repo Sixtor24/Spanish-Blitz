@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition, { type SpeechRecognitionHandle } from "@/shared/components/SpeechRecognition";
@@ -517,13 +517,13 @@ function StudyPage() {
                   Study Again
                 </button>
                 {!isAssignment && (
-                  <a
-                    href={`/play/solo?deck=${deckId}`}
+                  <Link
+                    to={`/play/solo?deck=${deckId}`}
                     className="flex items-center justify-center gap-2 bg-gray-200 text-gray-700 font-bold py-4 px-8 rounded-lg hover:bg-gray-300 transition-colors shadow-lg"
                   >
                     <Zap size={20} />
                     Play Solo
-                  </a>
+                  </Link>
                 )}
               </div>
             )}

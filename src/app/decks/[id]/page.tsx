@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import { Plus, X, BookOpen } from "lucide-react";
 import { api } from "@/config/api";
@@ -191,19 +191,19 @@ export default function DeckDetailPage() {
         </div>
 
         <div className="grid md:grid-cols-2 gap-4 mb-6">
-          <a
-            href={`/study?deck=${deck.id}`}
+          <Link
+            to={`/study?deck=${deck.id}`}
             className="bg-white rounded-lg shadow p-4 hover:shadow-md transition-all flex items-center justify-between"
           >
             <div>
-              <h3 className="font-semibold text-gray-900">Study Mode</h3>
-              <p className="text-sm text-gray-600">Review flashcards</p>
+              <p className="text-sm text-gray-600">Practice with flashcards</p>
+              <p className="font-semibold text-blue-600">Study Mode</p>
             </div>
-            <BookOpen className="text-blue-600" size={32} />
-          </a>
+            <BookOpen className="text-blue-600" size={24} />
+          </Link>
 
-          <a
-            href={`/play/solo?deck=${deck.id}`}
+          <Link
+            to={`/play/solo?deck=${deck.id}`}
             className="bg-white rounded-lg shadow p-4 hover:shadow-md transition-all flex items-center justify-between"
           >
             <div>
@@ -211,7 +211,7 @@ export default function DeckDetailPage() {
               <p className="text-sm text-gray-600">Test yourself</p>
             </div>
             <BookOpen className="text-green-600" size={32} />
-          </a>
+          </Link>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
