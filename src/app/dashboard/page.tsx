@@ -165,23 +165,23 @@ function DashboardPage() {
 
         {/* Quick Actions */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <a
-            href="/blitz-challenge"
+          <Link
+            to="/blitz-challenge"
             className="bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg shadow p-6 hover:from-purple-700 hover:to-purple-800 transition-all"
           >
             <h3 className="text-xl font-bold mb-2">Blitz Challenge</h3>
             <p className="text-purple-100">Join or create a live challenge</p>
-          </a>
+          </Link>
 
-          <a
-            href="/play/solo"
+          <Link
+            to="/play/solo"
             className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg shadow p-6 hover:from-green-700 hover:to-green-800 transition-all"
           >
             <h3 className="text-xl font-bold mb-2">Solo Blitz</h3>
             <p className="text-green-100">
               Test yourself with quizzes and voice
             </p>
-          </a>
+          </Link>
         </div>
 
         {/* Ad Placeholder */}
