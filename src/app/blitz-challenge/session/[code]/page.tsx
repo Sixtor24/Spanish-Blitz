@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useParams } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import useUser from "@/shared/hooks/useUser";
 import { Trophy, Crown, Medal, Zap, Users, Clock, ArrowLeft, Timer, Play } from "lucide-react";
@@ -222,8 +223,9 @@ function GameView({
   );
 }
 
-function BlitzSessionPage({ params }) {
-  const code = params.code?.toUpperCase();
+function BlitzSessionPage() {
+  const { code: codeParam } = useParams<{ code: string }>();
+  const code = codeParam?.toUpperCase();
   const { data: user } = useUser();
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);

@@ -1,13 +1,15 @@
 import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import useUser from "@/shared/hooks/useUser";
 import { ArrowLeft, Clock, HelpCircle, Users } from "lucide-react";
 import { api } from "@/config/api";
 import type { DbDeck } from "@/types/api.types";
 
-export default function CreateBlitzChallengePage({ params }: { params: { id: string } }) {
+export default function CreateBlitzChallengePage() {
+  const { id } = useParams<{ id: string }>();
+  const deckId = id!;
   const { data: user, loading: userLoading } = useUser();
-  const deckId = params.id;
 
   const [deck, setDeck] = useState<DbDeck | null>(null);
   const [loading, setLoading] = useState(true);
