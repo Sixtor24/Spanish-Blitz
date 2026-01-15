@@ -1,32 +1,37 @@
 import { Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
-import { AuthProvider } from '@/lib/auth-context';
-import '@/app/global.css';
+import { AuthProvider } from './lib/auth-context';
+import './app/global.css';
 
 // Pages
-import HomePage from '@/app/homepage/page';
-import SignInPage from '@/app/account/signin/page';
-import SignUpPage from '@/app/account/signup/page';
-import LogoutPage from '@/app/account/logout/page';
-import ForgotPasswordPage from '@/app/account/forgot-password/page';
-import ResetPasswordPage from '@/app/account/reset-password/page';
-import DashboardPage from '@/app/dashboard/page';
-import ProfilePage from '@/app/profile/page';
+import HomePage from './app/homepage/page';
+import SignInPage from './app/account/signin/page';
+import SignUpPage from './app/account/signup/page';
+import LogoutPage from './app/account/logout/page';
+import ForgotPasswordPage from './app/account/forgot-password/page';
+import ResetPasswordPage from './app/account/reset-password/page';
+import DashboardPage from './app/dashboard/page';
+import ProfilePage from './app/profile/page';
 import StudyPage from '@/app/study/page';
+// @ts-expect-error - Dynamic route path resolved by Vite
 import DeckDetailPage from '@/app/decks/[id]/page';
 import CreateSetPage from '@/app/admin/create-set/page';
-import AdminUsersPage from '@/app/admin/users/page';
-import SoloBlitzPage from '@/app/play/solo/page';
-import BlitzChallengePage from '@/app/blitz-challenge/page';
-import BlitzChallengeCreateWithIdPage from '@/app/blitz-challenge/create/[id]/page';
-import BlitzChallengeSessionPage from '@/app/blitz-challenge/session/[code]/page';
-import PricingPage from '@/app/pricing/page';
-import PrivacyPage from '@/app/privacy/page';
+import AdminUsersPage from './app/admin/users/page';
+import SoloBlitzPage from './app/play/solo/page';
+import BlitzChallengePage from './app/blitz-challenge/page';
+// @ts-expect-error - Dynamic route path resolved by Vite
+import BlitzChallengeCreateWithIdPage from './app/blitz-challenge/create/[id]/page';
+// @ts-expect-error - Dynamic route path resolved by Vite
+import BlitzChallengeSessionPage from './app/blitz-challenge/session/[code]/page';
+import PricingPage from './app/pricing/page';
+import PrivacyPage from './app/privacy/page';
 import ClassroomsPage from '@/app/classrooms/page';
+// @ts-expect-error - Dynamic route path resolved by Vite
 import ClassroomDetailPage from '@/app/classrooms/[id]/page';
 import TeacherPage from '@/app/teacher/page';
+// @ts-expect-error - Dynamic route path resolved by Vite
 import TeacherClassroomDetailPage from '@/app/teacher/classrooms/[id]/page';
-import NotFoundPage from '@/app/__create/not-found';
+import NotFoundPage from './app/__create/not-found';
 
 export default function App() {
   return (
