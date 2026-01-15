@@ -1,5 +1,4 @@
 version: 1
-# Force clean rebuild - Jan 15 2026
 frontend:
   phases:
     preBuild:
@@ -10,7 +9,7 @@ frontend:
       commands:
         - pnpm run build
   artifacts:
-    baseDirectory: build/client
+    baseDirectory: dist
     files:
       - '**/*'
   cache:

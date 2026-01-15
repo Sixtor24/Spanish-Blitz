@@ -4,7 +4,7 @@
  * Replaces direct window.location usage with React Router navigation
  */
 
-import type { NavigateFunction } from 'react-router';
+import type { NavigateFunction } from 'react-router-dom';
 
 /**
  * Navigate to a path using React Router (SPA navigation)

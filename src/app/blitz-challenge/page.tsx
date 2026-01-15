@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import useUser from "@/shared/hooks/useUser";
 import { ArrowLeft, Users, Play, Search } from "lucide-react";

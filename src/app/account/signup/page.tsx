@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import useAuth from "@/shared/hooks/useAuth";
 import useUser from "@/shared/hooks/useUser";
 

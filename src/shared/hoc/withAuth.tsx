@@ -1,5 +1,5 @@
 import { useEffect, type ComponentType } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 
 /**

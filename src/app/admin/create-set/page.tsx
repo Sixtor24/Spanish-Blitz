@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import ColorPicker from "@/shared/components/ColorPicker";
 import { BookOpen, Plus, Upload, X, ArrowLeft, Trash2, AlertCircle } from "lucide-react";

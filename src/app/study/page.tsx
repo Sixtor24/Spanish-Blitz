@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition, { type SpeechRecognitionHandle } from "@/shared/components/SpeechRecognition";

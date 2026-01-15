@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router';
+import { Link } from 'react-router-dom';
 import { api } from '@/config/api';
 
 export default function ForgotPasswordPage() {

@@ -1,4 +1,4 @@
-import { Link } from 'react-router';
+import { Link } from 'react-router-dom';
 import { Check, X } from 'lucide-react';
 import useUser from '@/shared/hooks/useUser';
 

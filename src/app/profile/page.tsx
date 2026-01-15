@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import { User, Globe, LogOut, Users, Plus } from "lucide-react";
 import useAuth from "@/shared/hooks/useAuth";
