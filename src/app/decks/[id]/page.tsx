@@ -147,12 +147,12 @@ export default function DeckDetailPage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
             Deck Not Found
           </h1>
-          <a
-            href="/dashboard"
+          <Link
+            to="/dashboard"
             className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
           >
             Back to Dashboard
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -458,12 +458,12 @@ export default function DeckDetailPage() {
               >
                 Maybe Later
               </button>
-              <a
-                href="/pricing"
+              <Link
+                to="/pricing"
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-center"
               >
                 View Pricing
-              </a>
+              </Link>
             </div>
           </div>
         </div>

@@ -77,13 +77,13 @@ function BlitzChallengePage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Back to Dashboard */}
-        <a
-          href="/dashboard"
+        <Link
+          to="/dashboard"
           className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-6"
         >
           <ArrowLeft size={20} />
           Back to Dashboard
-        </a>
+        </Link>
 
         {/* Header */}
         <div className="mb-8">
@@ -186,12 +186,12 @@ function BlitzChallengePage() {
               {decks.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-gray-500 mb-4">No sets found</p>
-                  <a
-                    href="/admin/create-set"
+                  <Link
+                    to="/admin/create-set"
                     className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
                   >
                     Create Your First Set
-                  </a>
+                  </Link>
                 </div>
               ) : (
                 decks.map((deck) => (

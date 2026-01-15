@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import ColorPicker from "@/shared/components/ColorPicker";
 import { BookOpen, Plus, Upload, X, ArrowLeft, Trash2, AlertCircle } from "lucide-react";
@@ -751,12 +751,12 @@ export default function CreateSetPage() {
               >
                 Maybe Later
               </button>
-              <a
+              <Link
                 href="/pricing"
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-center"
               >
                 View Pricing
-              </a>
+              </Link>
             </div>
           </div>
         </div>

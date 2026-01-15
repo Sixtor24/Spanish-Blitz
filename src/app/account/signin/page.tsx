@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import useAuth from "@/shared/hooks/useAuth";
 import useUser from "@/shared/hooks/useUser";
 
@@ -146,18 +146,18 @@ function MainComponent() {
             {loading ? "Loading..." : "Sign In"}
           </button>
           <div className="text-center text-sm text-gray-600">
-            <a href="/account/forgot-password" className="text-[#357AFF] hover:text-[#2E69DE] font-medium">
+            <Link to="/account/forgot-password" className="text-[#357AFF] hover:text-[#2E69DE] font-medium">
               Forgot your password?
-            </a>
+            </Link>
           </div>
           <p className="text-center text-sm text-gray-600">
             Don't have an account?{" "}
-            <a
-              href="/account/signup"
+            <Link
+              to="/account/signup"
               className="text-[#357AFF] hover:text-[#2E69DE]"
             >
               Sign up
-            </a>
+            </Link>
           </p>
         </div>
       </form>

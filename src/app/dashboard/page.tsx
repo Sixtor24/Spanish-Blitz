@@ -193,13 +193,13 @@ function DashboardPage() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Your Sets</h2>
-            <a
-              href="/admin/create-set"
+            <Link
+              to="/admin/create-set"
               className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors"
             >
               <Plus size={20} />
               Create Set
-            </a>
+            </Link>
           </div>
 
           {/* Search & Filter */}

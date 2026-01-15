@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import useUser from "@/shared/hooks/useUser";
 import { Trophy, Crown, Medal, Zap, Users, Clock, ArrowLeft, Timer, Play } from "lucide-react";
@@ -431,9 +431,9 @@ function BlitzSessionPage() {
     <div className="min-h-screen bg-gray-50">
       <Navigation />
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <a href="/blitz-challenge" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4">
+        <Link to="/blitz-challenge" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4">
           <ArrowLeft size={18} /> Back
-        </a>
+        </Link>
 
         <div className="bg-white rounded-xl shadow p-6 mb-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -629,12 +629,12 @@ function BlitzSessionPage() {
 
               {/* Action Button */}
               <div className="mt-8">
-                <a
-                  href="/blitz-challenge"
+                <Link
+                  to="/blitz-challenge"
                   className="inline-flex items-center gap-2 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 text-lg font-semibold shadow-md transition-all"
                 >
                   Nueva Actividad
-                </a>
+                </Link>
               </div>
             </div>
           </div>

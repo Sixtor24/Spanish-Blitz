@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import useUser from "@/shared/hooks/useUser";
 import { ArrowLeft, Clock, HelpCircle, Users } from "lucide-react";
@@ -89,12 +89,12 @@ export default function CreateBlitzChallengePage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
             Set Not Found
           </h1>
-          <a
-            href="/blitz-challenge"
+          <Link
+            to="/blitz-challenge"
             className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
           >
             Back to Blitz Challenge
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -106,13 +106,13 @@ export default function CreateBlitzChallengePage() {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Back to Blitz Challenge */}
-        <a
-          href="/blitz-challenge"
+        <Link
+          to="/blitz-challenge"
           className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-6"
         >
           <ArrowLeft size={20} />
           Back
-        </a>
+        </Link>
 
         {/* Header */}
         <div className="mb-8">
@@ -237,12 +237,12 @@ export default function CreateBlitzChallengePage() {
 
               {/* Action Buttons */}
               <div className="flex gap-3 pt-4">
-                <a
-                  href="/blitz-challenge"
+                <Link
+                  to="/blitz-challenge"
                   className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 font-semibold text-center transition-colors"
                 >
                   Back
-                </a>
+                </Link>
                 <button
                   type="submit"
                   className="flex-1 bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
@@ -276,12 +276,12 @@ export default function CreateBlitzChallengePage() {
                   <p className="text-sm text-purple-100">
                     Students join at <strong>/blitz-challenge</strong> using this code.
                   </p>
-                  <a
-                    href={`/blitz-challenge/session/${challengeCode}`}
+                  <Link
+                    to={`/blitz-challenge/session/${challengeCode}`}
                     className="block w-full text-center bg-white text-purple-700 font-semibold py-2 rounded-lg hover:bg-purple-50"
                   >
                     Open Host View
-                  </a>
+                  </Link>
                 </div>
               ) : (
                 <div className="bg-white bg-opacity-10 rounded-lg p-4">

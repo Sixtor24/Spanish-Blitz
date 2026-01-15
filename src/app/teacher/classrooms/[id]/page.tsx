@@ -180,10 +180,10 @@ function ClassroomDetailPage() {
           <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
             {error || "Classroom not found"}
           </div>
-          <a href="/teacher" className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 mt-4">
+          <Link to="/teacher" className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 mt-4">
             <ArrowLeft size={20} />
             Back to Teacher Panel
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -197,10 +197,10 @@ function ClassroomDetailPage() {
       <Navigation />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">
-          <a href="/teacher" className="inline-flex items-center gap-2 mb-4 transition-colors" style={{ color: classroomColor }}>
+          <Link to="/teacher" className="inline-flex items-center gap-2 mb-4 transition-colors" style={{ color: classroomColor }}>
             <ArrowLeft size={20} />
             Back to Teacher Panel
-          </a>
+          </Link>
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-start justify-between mb-4">
               <div>

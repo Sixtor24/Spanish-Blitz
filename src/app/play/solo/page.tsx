@@ -309,12 +309,12 @@ export default function PlaySoloPage() {
               <p className="text-gray-600 mb-6">
                 Create your first set to start practicing
               </p>
-              <a
-                href="/admin/create-set"
+              <Link
+                to="/admin/create-set"
                 className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium"
               >
                 Create Your First Set
-              </a>
+              </Link>
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -385,12 +385,12 @@ export default function PlaySoloPage() {
           <p className="text-gray-600 mb-6">
             This set doesn't exist or has no cards.
           </p>
-          <a
-            href="/play/solo"
+          <Link
+            to="/play/solo"
             className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
           >
             Choose Another Set
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -444,12 +444,12 @@ export default function PlaySoloPage() {
               >
                 Play Again
               </button>
-              <a
-                href="/play/solo"
+              <Link
+                to="/play/solo"
                 className="bg-gray-200 text-gray-700 px-8 py-3 rounded-lg hover:bg-gray-300 font-medium"
               >
                 Choose Another Set
-              </a>
+              </Link>
             </div>
           </div>
 

@@ -382,13 +382,13 @@ function StudyPage() {
           <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
             {error}
           </div>
-          <a
-            href="/dashboard"
+          <Link
+            to="/dashboard"
             className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mt-4"
           >
             <ArrowLeft size={20} />
             Back to Dashboard
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -420,13 +420,13 @@ function StudyPage() {
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="bg-white rounded-xl shadow-2xl p-12 text-center relative">
             {/* Back link in top left */}
-            <a
-              href="/dashboard"
+            <Link
+              to="/dashboard"
               className="absolute top-6 left-6 inline-flex items-center gap-1 text-gray-600 hover:text-gray-900 text-sm"
             >
               <ArrowLeft size={16} />
               Back to Dashboard
-            </a>
+            </Link>
 
             <div className="mb-8">
               <div className="text-6xl mb-4">
@@ -558,13 +558,13 @@ function StudyPage() {
       <div className="max-w-4xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-6">
-          <a
-            href="/dashboard"
+          <Link
+            to="/dashboard"
             className="inline-flex items-center gap-2 text-white hover:text-blue-100 mb-4"
           >
             <ArrowLeft size={20} />
             Back to Dashboard
-          </a>
+          </Link>
           <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4">
             <h1 className="text-2xl font-bold text-white mb-2">
               Study Mode: {deck?.title}
