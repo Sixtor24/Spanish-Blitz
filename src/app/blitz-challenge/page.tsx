@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import useUser from "@/shared/hooks/useUser";
 import { ArrowLeft, Users, Play, Search } from "lucide-react";
@@ -216,12 +216,12 @@ function BlitzChallengePage() {
                         </p>
                       </div>
                     </div>
-                    <a
-                      href={`/blitz-challenge/create/${deck.id}`}
+                    <Link
+                      to={`/blitz-challenge/create/${deck.id}`}
                       className="block w-full mt-3 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-center font-medium transition-colors"
                     >
                       Create Challenge
-                    </a>
+                    </Link>
                   </div>
                 ))
               )}
