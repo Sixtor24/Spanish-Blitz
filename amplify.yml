@@ -28,7 +28,6 @@ redirects:
   - source: '/<*>'
     target: '/index.html'
     status: '200'
-    type: 'rewrite'
 env:
   variables:
     VITE_API_URL: https://spanish-blitz-back-production.up.railway.app
