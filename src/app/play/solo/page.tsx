@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import AdPlaceholder from "@/shared/components/AdPlaceholder";
 import TTSButton from "@/shared/components/TTSButton";
@@ -30,6 +30,9 @@ interface CardQuestion {
 }
 
 export default function PlaySoloPage() {
+  const [searchParams] = useSearchParams();
+  const deckId = searchParams.get("deck");
+  
   const [showSetSelection, setShowSetSelection] = useState(true);
   const [availableSets, setAvailableSets] = useState<DbDeck[]>([]);
   const [deck, setDeck] = useState<DbDeck | null>(null);
@@ -47,8 +50,14 @@ export default function PlaySoloPage() {
   const [currentOptions, setCurrentOptions] = useState<string[]>([]);
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const deckId = params.get("deck");
+    // Reset game state when deck changes
+    setCurrentIndex(0);
+    setScore(0);
+    setAnsweredCards(0);
+    setSelectedOption(null);
+    setFeedback(null);
+    setGameEnded(false);
+    setLoading(true);
 
     if (deckId) {
       setShowSetSelection(false);
@@ -57,10 +66,11 @@ export default function PlaySoloPage() {
       fetchUserLocale();
       setStartTime(Date.now());
     } else {
+      setShowSetSelection(true);
       fetchAvailableSets();
       setLoading(false);
     }
-  }, []);
+  }, [deckId]);
 
   const fetchAvailableSets = async () => {
     try {
