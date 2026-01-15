@@ -27,7 +27,7 @@ customHeaders:
 redirects:
   - source: '/<*>'
     target: '/index.html'
-    status: 200
+    status: 404
 env:
   variables:
     VITE_API_URL: https://spanish-blitz-back-production.up.railway.app
