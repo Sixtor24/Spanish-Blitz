@@ -13,7 +13,7 @@ export interface SpeechRecognitionHandle {
 }
 
 type SpeechRecognitionProps = {
-  onTranscript: (transcript: string) => void;
+  onTranscript: (transcript: string, confidence?: number) => void;
   locale?: string;
   onError?: (error: string) => void;
   autoStop?: boolean; // If true, stops after receiving a final transcript
@@ -142,14 +142,14 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
           audioBufferRef.current = [];
         }
         else if (data.type === 'transcript') {
-          const { transcript, isFinal } = data;
+          const { transcript, isFinal, confidence } = data;
           if (transcript?.trim()) {
             if (!isFinal) {
               setCurrentTranscript(transcript);
             } else {
               setFinalTranscript(transcript);
               setCurrentTranscript('');
-              onTranscript(transcript);
+              onTranscript(transcript, confidence);
               setTimeout(() => stopListening(), 20);
             }
           }

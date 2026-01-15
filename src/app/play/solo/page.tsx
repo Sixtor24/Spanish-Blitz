@@ -168,33 +168,62 @@ export default function PlaySoloPage() {
     }, 1500);
   };
 
-  const handleSpeechAnswer = async (transcript: string) => {
+  const handleSpeechAnswer = async (transcript: string, confidence?: number) => {
     if (!currentCard) return;
     
-    const normalized = normalizeSpanish(transcript);
-    const correctAnswer = normalizeSpanish(getSpanishAnswer(currentCard));
-    const isCorrect = normalized === correctAnswer;
+    const target = getSpanishAnswer(currentCard);
 
-    setFeedback(isCorrect ? "correct" : "incorrect");
-    setSelectedOption(transcript);
+    try {
+      // Use lenient matching evaluation from backend
+      const result = await api.speech.evaluate(transcript, target, confidence);
+      const isCorrect = result.accepted;
 
-    if (isCorrect) {
-      setScore(score + 1);
+      setFeedback(isCorrect ? "correct" : "incorrect");
+      setSelectedOption(transcript);
+
+      if (isCorrect) {
+        setScore(score + 1);
+      }
+
+      // Save study event
+      await saveStudyEvent(
+        isCorrect ? "correct" : "incorrect",
+        "speech",
+        transcript,
+      );
+
+      setAnsweredCards(answeredCards + 1);
+
+      // Move to next card after 2 seconds
+      setTimeout(() => {
+        moveToNext();
+      }, 2000);
+    } catch (err) {
+      console.error("Error evaluating speech:", err);
+      // Fallback to simple comparison
+      const normalized = normalizeSpanish(transcript);
+      const correctAnswer = normalizeSpanish(target);
+      const isCorrect = normalized === correctAnswer;
+
+      setFeedback(isCorrect ? "correct" : "incorrect");
+      setSelectedOption(transcript);
+
+      if (isCorrect) {
+        setScore(score + 1);
+      }
+
+      await saveStudyEvent(
+        isCorrect ? "correct" : "incorrect",
+        "speech",
+        transcript,
+      );
+
+      setAnsweredCards(answeredCards + 1);
+
+      setTimeout(() => {
+        moveToNext();
+      }, 2000);
     }
-
-    // Save study event
-    await saveStudyEvent(
-      isCorrect ? "correct" : "incorrect",
-      "speech",
-      transcript,
-    );
-
-    setAnsweredCards(answeredCards + 1);
-
-    // Move to next card after 2 seconds
-    setTimeout(() => {
-      moveToNext();
-    }, 2000);
   };
 
   const moveToNext = () => {

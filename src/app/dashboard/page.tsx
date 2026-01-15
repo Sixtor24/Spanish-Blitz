@@ -27,21 +27,34 @@ function DashboardPage() {
 
   useEffect(() => {
     let mounted = true;
-    const timeoutId = setTimeout(() => {
-      if (user && mounted) {
-        fetchData();
-
-        // Show welcome modal if user hasn't seen it yet
-        if (!user.has_seen_welcome) {
-          setShowWelcome(true);
-        }
-      }
-    }, 300); // Debounce search by 300ms
     
-    return () => {
-      mounted = false;
-      clearTimeout(timeoutId);
-    };
+    if (!user) return;
+
+    // Show welcome modal if user hasn't seen it yet
+    if (!user.has_seen_welcome) {
+      setShowWelcome(true);
+    }
+
+    // Debounce only for search queries, load immediately otherwise
+    if (searchQuery) {
+      const timeoutId = setTimeout(() => {
+        if (mounted) {
+          fetchData();
+        }
+      }, 300);
+      
+      return () => {
+        mounted = false;
+        clearTimeout(timeoutId);
+      };
+    } else {
+      // Immediate load for initial render and filter changes
+      fetchData();
+      
+      return () => {
+        mounted = false;
+      };
+    }
   }, [filterMode, searchQuery, user]);
 
   const handleDismissWelcome = async () => {

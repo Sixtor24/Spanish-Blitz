@@ -212,6 +212,7 @@ export const api = {
       distractor_1_es?: string;
       distractor_2_es?: string;
       distractor_3_es?: string;
+      notes?: string;
     }>) =>
       apiFetch(`/api/decks/${deckId}/cards/bulk`, {
         method: 'POST',
@@ -502,6 +503,15 @@ export const api = {
       apiFetch('/api/speech/transcribe', {
         method: 'POST',
         body: JSON.stringify({ audio: audioBase64, locale }),
+      }),
+    
+    /**
+     * Evaluate a speech transcript with lenient matching
+     */
+    evaluate: (transcript: string, target: string, confidence?: number) =>
+      apiFetch('/api/speech/evaluate', {
+        method: 'POST',
+        body: JSON.stringify({ transcript, target, confidence }),
       }),
     
     /**

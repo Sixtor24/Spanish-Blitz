@@ -15,9 +15,9 @@ export default function CreateSetPage() {
   const [setColor, setSetColor] = useState("#0EA5E9"); // default blue
   const [mode, setMode] = useState("line-by-line");
   const [cards, setCards] = useState([
-    { id: null, spanish: "", english: "" },
-    { id: null, spanish: "", english: "" },
-    { id: null, spanish: "", english: "" },
+    { id: null, spanish: "", english: "", notes: "" },
+    { id: null, spanish: "", english: "", notes: "" },
+    { id: null, spanish: "", english: "", notes: "" },
   ]);
   const [bulkText, setBulkText] = useState("");
   const [importSummary, setImportSummary] = useState(null);
@@ -81,8 +81,9 @@ export default function CreateSetPage() {
               id: c.id,
               spanish: c.prompt_es || c.question || "",
               english: c.translation_en || c.answer || "",
+              notes: c.notes || "",
             }))
-          : [{ id: null, spanish: "", english: "" }],
+          : [{ id: null, spanish: "", english: "", notes: "" }],
       );
     } catch (error) {
       console.error("Error fetching set:", error);
@@ -93,7 +94,7 @@ export default function CreateSetPage() {
   };
 
   const addRow = () => {
-    setCards([...cards, { id: null, spanish: "", english: "" }]);
+    setCards([...cards, { id: null, spanish: "", english: "", notes: "" }]);
   };
 
   const removeRow = async (index) => {
@@ -138,21 +139,27 @@ export default function CreateSetPage() {
       const trimmed = line.trim();
       if (!trimmed) return;
 
-      const equalsIndex = trimmed.indexOf("=");
-      if (equalsIndex === -1) {
+      // Split by '=' to support format: Spanish = English = Notes
+      const parts = trimmed.split("=").map(p => p.trim());
+      
+      if (parts.length < 2) {
         skipped++;
         return;
       }
 
-      const spanish = trimmed.substring(0, equalsIndex).trim();
-      const english = trimmed.substring(equalsIndex + 1).trim();
+      const spanish = parts[0];
+      const english = parts[1];
+      const notes = parts.length >= 3 ? parts.slice(2).join("=").trim() : "";
 
       if (!spanish) {
         skipped++;
         return;
       }
 
-      imported.push({ id: null, spanish, english });
+      // Truncate notes to 150 characters
+      const truncatedNotes = notes.length > 150 ? notes.substring(0, 150) : notes;
+
+      imported.push({ id: null, spanish, english, notes: truncatedNotes });
     });
 
     // Append imported cards to existing cards instead of replacing
@@ -162,7 +169,7 @@ export default function CreateSetPage() {
     
     // If no existing cards and no imported cards, keep one empty card
     setCards(
-      newCards.length > 0 ? newCards : [{ id: null, spanish: "", english: "" }],
+      newCards.length > 0 ? newCards : [{ id: null, spanish: "", english: "", notes: "" }],
     );
     
     // Switch to line-by-line view after import
@@ -190,7 +197,7 @@ export default function CreateSetPage() {
     });
     
     if (uniqueCards.length === 0) {
-      setCards([{ id: null, spanish: "", english: "" }]);
+      setCards([{ id: null, spanish: "", english: "", notes: "" }]);
     } else {
       setCards(uniqueCards);
     }
@@ -263,6 +270,7 @@ export default function CreateSetPage() {
             prompt_es: card.spanish.trim(),
             answer_es: card.spanish.trim(),
             translation_en: card.english.trim(),
+            notes: card.notes ? card.notes.trim() : "",
           });
         }
         
@@ -273,6 +281,7 @@ export default function CreateSetPage() {
             prompt_es: card.spanish.trim(),
             answer_es: card.spanish.trim(),
             translation_en: card.english.trim(),
+            notes: card.notes ? card.notes.trim() : "",
           }));
           await api.cards.bulkCreate(deckId, newCardsData);
         }
@@ -306,7 +315,10 @@ export default function CreateSetPage() {
         prompt_es: card.spanish.trim(),
         answer_es: card.spanish.trim(),
         translation_en: card.english.trim(),
+        notes: card.notes ? card.notes.trim() : "",
       }));
+
+      console.log('🔍 [DEBUG] Cards data being sent:', JSON.stringify(cardsData, null, 2));
 
       try {
         await api.cards.bulkCreate(deckId, cardsData);
@@ -548,42 +560,60 @@ export default function CreateSetPage() {
                   <div className="space-y-2">
                     {cards.map((card, index) => {
                       const isDuplicate = duplicateIndices.has(index);
+                      const notesLength = card.notes?.length || 0;
                       return (
                         <div
                           key={index}
-                          className={`grid grid-cols-[1fr_1fr_auto] gap-2 items-start ${
-                            isDuplicate ? "bg-red-50 p-2 rounded border border-red-200" : ""
-                          }`}
+                          className={`${isDuplicate ? "bg-red-50 p-2 rounded border border-red-200" : ""}`}
                         >
-                          <input
-                            type="text"
-                            value={card.spanish}
-                            onChange={(e) =>
-                              updateCard(index, "spanish", e.target.value)
-                            }
-                            placeholder="Spanish"
-                            className={`px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                              isDuplicate ? "border-red-300 bg-white" : "border-gray-300"
-                            }`}
-                          />
-                          <input
-                            type="text"
-                            value={card.english}
-                            onChange={(e) =>
-                              updateCard(index, "english", e.target.value)
-                            }
-                            placeholder="English"
-                            className={`px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                              isDuplicate ? "border-red-300 bg-white" : "border-gray-300"
-                            }`}
-                          />
-                          <button
-                            onClick={() => removeRow(index)}
-                            className="p-2 rounded text-red-600 hover:bg-red-50 transition-colors"
-                            title={card.id ? "Delete card permanently" : "Remove card"}
-                          >
-                            <X size={20} />
-                          </button>
+                          <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-start mb-2">
+                            <input
+                              type="text"
+                              value={card.spanish}
+                              onChange={(e) =>
+                                updateCard(index, "spanish", e.target.value)
+                              }
+                              placeholder="Spanish"
+                              className={`px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                isDuplicate ? "border-red-300 bg-white" : "border-gray-300"
+                              }`}
+                            />
+                            <input
+                              type="text"
+                              value={card.english}
+                              onChange={(e) =>
+                                updateCard(index, "english", e.target.value)
+                              }
+                              placeholder="English"
+                              className={`px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                                isDuplicate ? "border-red-300 bg-white" : "border-gray-300"
+                              }`}
+                            />
+                            <button
+                              onClick={() => removeRow(index)}
+                              className="p-2 rounded text-red-600 hover:bg-red-50 transition-colors"
+                              title={card.id ? "Delete card permanently" : "Remove card"}
+                            >
+                              <X size={20} />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-[1fr_auto] gap-2 items-start">
+                            <textarea
+                              value={card.notes || ""}
+                              onChange={(e) =>
+                                updateCard(index, "notes", e.target.value.substring(0, 150))
+                              }
+                              placeholder="Optional notes or examples (max 150 characters)"
+                              rows={2}
+                              maxLength={150}
+                              className={`px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none ${
+                                isDuplicate ? "border-red-300 bg-white" : "border-gray-300"
+                              }`}
+                            />
+                            <div className="text-xs text-gray-500 pt-2 text-right w-12">
+                              {notesLength}/150
+                            </div>
+                          </div>
                         </div>
                       );
                     })}

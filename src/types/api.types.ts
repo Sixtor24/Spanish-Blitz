@@ -59,6 +59,7 @@ export interface DbCard {
   answer: string; // English text (also referred as translation_en)
   prompt_es?: string; // Alias for question
   translation_en?: string; // Alias for answer
+  notes?: string | null; // Optional notes (max 150 chars)
   type?: 'text' | 'audio' | 'image';
   audio_url?: string | null;
   image_url?: string | null;

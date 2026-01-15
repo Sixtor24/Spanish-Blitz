@@ -296,39 +296,53 @@ function StudyPage() {
 
   const speechRecognitionRef = useRef<SpeechRecognitionHandle>(null);
 
-  const handleSpeechResult = async (transcript: string) => {
+  const handleSpeechResult = async (transcript: string, confidence?: number) => {
     if (!currentCard || !deckId) return;
 
-    const expected = normalizeForComparison(currentCard.prompt_es || currentCard.question);
-    const actual = normalizeForComparison(transcript);
+    const target = currentCard.prompt_es || currentCard.question;
 
-    const isCorrect = expected === actual;
+    // Use lenient matching evaluation from backend
+    try {
+      const result = await api.speech.evaluate(transcript, target, confidence);
+      const isCorrect = result.accepted;
 
-    setSpeechFeedback({
-      transcript,
-      isCorrect,
-    });
+      setSpeechFeedback({
+        transcript,
+        isCorrect,
+      });
 
-    // Stop microphone if answer is correct
-    if (isCorrect && speechRecognitionRef.current) {
-      console.log('✅ [Study] Correct answer detected, stopping microphone');
-      speechRecognitionRef.current.stop();
-    }
-
-    // Record study event with speech
-    if (userId) {
-      try {
-        await api.studyEvents.create({
-          deck_id: deckId,
-          card_id: currentCard.id,
-          result: isCorrect ? "correct" : "incorrect",
-          mode: "study",
-          response_type: "speech",
-          transcript_es: transcript,
-        });
-      } catch (err) {
-        console.error("Error recording speech event:", err);
+      // Stop microphone if answer is correct
+      if (isCorrect && speechRecognitionRef.current) {
+        console.log('✅ [Study] Correct answer detected, stopping microphone');
+        speechRecognitionRef.current.stop();
       }
+
+      // Record study event with speech
+      if (userId) {
+        try {
+          await api.studyEvents.create({
+            deck_id: deckId,
+            card_id: currentCard.id,
+            result: isCorrect ? "correct" : "incorrect",
+            mode: "study",
+            response_type: "speech",
+            transcript_es: transcript,
+          });
+        } catch (err) {
+          console.error("Error recording speech event:", err);
+        }
+      }
+    } catch (err) {
+      console.error("Error evaluating speech:", err);
+      // Fallback to simple comparison if backend fails
+      const expected = normalizeForComparison(target);
+      const actual = normalizeForComparison(transcript);
+      const isCorrect = expected === actual;
+      
+      setSpeechFeedback({
+        transcript,
+        isCorrect,
+      });
     }
   };
 
@@ -703,16 +717,23 @@ function StudyPage() {
           )}
         </div>
 
-        {/* Help text */}
-        <div className="mt-6 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 text-blue-100 text-sm">
-          <p className="font-medium mb-2">📚 Study Mode Tips:</p>
-          <ul className="list-disc list-inside space-y-1">
-            <li>Take your time - no timers or scores</li>
-            <li>Mark "Hard" for cards you want to review more</li>
-            <li>Mark "Easy" for cards you know well</li>
-            <li>Your progress is tracked to help you learn more effectively</li>
-          </ul>
-        </div>
+        {/* Notes or Help text */}
+        {currentCard?.notes && currentCard.notes.trim() ? (
+          <div className="mt-6 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 text-blue-100 text-sm">
+            <p className="font-medium mb-2">📝 Notes:</p>
+            <p className="whitespace-pre-wrap">{currentCard.notes}</p>
+          </div>
+        ) : (
+          <div className="mt-6 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 text-blue-100 text-sm">
+            <p className="font-medium mb-2">📚 Study Mode Tips:</p>
+            <ul className="list-disc list-inside space-y-1">
+              <li>Take your time - no timers or scores</li>
+              <li>Mark "Hard" for cards you want to review more</li>
+              <li>Mark "Easy" for cards you know well</li>
+              <li>Your progress is tracked to help you learn more effectively</li>
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -84,13 +84,26 @@ function GameView({
     onAnswer(isCorrect, option);
   };
 
-  const handleSpeechAnswer = (transcript: string) => {
-    const normalized = normalizeSpanish(transcript);
-    const correctAnswer = normalizeSpanish(getSpanishAnswer(question));
-    const isCorrect = normalized === correctAnswer;
-    setSelectedOption(transcript);
-    setFeedback(isCorrect ? "correct" : "incorrect");
-    onAnswer(isCorrect, transcript);
+  const handleSpeechAnswer = async (transcript: string, confidence?: number) => {
+    const target = getSpanishAnswer(question);
+
+    try {
+      // Use lenient matching evaluation from backend
+      const result = await api.speech.evaluate(transcript, target, confidence);
+      const isCorrect = result.accepted;
+      setSelectedOption(transcript);
+      setFeedback(isCorrect ? "correct" : "incorrect");
+      onAnswer(isCorrect, transcript);
+    } catch (err) {
+      console.error("Error evaluating speech:", err);
+      // Fallback to simple comparison
+      const normalized = normalizeSpanish(transcript);
+      const correctAnswer = normalizeSpanish(target);
+      const isCorrect = normalized === correctAnswer;
+      setSelectedOption(transcript);
+      setFeedback(isCorrect ? "correct" : "incorrect");
+      onAnswer(isCorrect, transcript);
+    }
   };
 
   const getQuestionPromptText = () => computeQuestionPrompt(question, questionType);
