@@ -25,9 +25,10 @@ customHeaders:
       - key: 'Cache-Control'
         value: 'no-cache'
 redirects:
-  - source: '</^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json|webp)$)([^.]+$)/>'
+  - source: '/<*>'
     target: '/index.html'
-    status: '200'
+    status: '404'
+    condition: null
 env:
   variables:
     VITE_API_URL: https://spanish-blitz-back-production.up.railway.app
