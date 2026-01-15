@@ -25,6 +25,9 @@ customHeaders:
       - key: 'Cache-Control'
         value: 'no-cache'
 redirects:
+  - source: '/assets/<*>'
+    target: '/assets/<*>'
+    status: 200
   - source: '/<*>'
     target: '/index.html'
     status: 404
