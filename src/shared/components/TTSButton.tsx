@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Volume2, Loader2 } from 'lucide-react';
+import { Volume2, Loader2, Turtle } from 'lucide-react';
 import { api } from '@/config/api';
 import { useUser } from '@/shared/hooks/useUser';
 
@@ -74,12 +74,13 @@ export default function TTSButton({
     initAudioPool();
   }, []);
 
-  const speak = async () => {
+  const speak = async (slowMode: boolean = false) => {
     if (!text?.trim() || speaking || loading) return;
     
     // Usar preferencia de género de voz del usuario o 'female' por defecto
     const voice: 'male' | 'female' = (user?.preferred_voice_gender as 'male' | 'female') || 'female';
-    const cacheKey = `${text}-${userLocale}-${voice}`;
+    const rate = slowMode ? '-25%' : '0%';
+    const cacheKey = `${text}-${userLocale}-${voice}-${rate}`;
     const cachedAudio = getCachedAudio(cacheKey);
     
     try {
@@ -92,7 +93,7 @@ export default function TTSButton({
       } else {
         // Show loading immediately for user feedback
         setLoading(true);
-        const response = await api.tts.synthesize(text, userLocale, voice);
+        const response = await api.tts.synthesize(text, userLocale, voice, rate);
         if (!response.audio) throw new Error('No audio data');
         audioBase64 = response.audio;
         setCachedAudio(cacheKey, audioBase64);
@@ -103,7 +104,7 @@ export default function TTSButton({
       // Use Web Audio API for faster decoding
       const audio = getAudioFromPool();
       audio.src = `data:audio/mp3;base64,${audioBase64}`;
-      audio.playbackRate = slow ? 0.7 : 1.0;
+      // No modificar playbackRate - el audio ya viene a la velocidad correcta del backend
       
       audio.onended = () => {
         setSpeaking(false);
@@ -112,18 +113,18 @@ export default function TTSButton({
       audio.onerror = () => {
         setSpeaking(false);
         setLoading(false);
-        fallbackToWebSpeech(userLocale);
+        fallbackToWebSpeech(userLocale, slowMode);
       };
 
       await audio.play();
     } catch (error) {
       setLoading(false);
       setSpeaking(false);
-      fallbackToWebSpeech(userLocale);
+      fallbackToWebSpeech(userLocale, slowMode);
     }
   };
 
-  const fallbackToWebSpeech = (locale: string) => {
+  const fallbackToWebSpeech = (locale: string, slowMode: boolean = false) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       setSpeaking(false);
       return;
@@ -132,14 +133,18 @@ export default function TTSButton({
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = locale || 'es-ES';
-    utterance.rate = slow ? 0.7 : 1.0;
+    utterance.rate = slowMode ? 0.75 : 1.0; // Web Speech API usa playback rate
     
     const voices = window.speechSynthesis.getVoices();
     const spanishVoice = voices.find(v => v.lang === locale || v.lang.startsWith('es'));
     if (spanishVoice) utterance.voice = spanishVoice;
 
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
+    utterance.onend = () => {
+      setSpeaking(false);
+    };
+    utterance.onerror = () => {
+      setSpeaking(false);
+    };
     window.speechSynthesis.speak(utterance);
   };
 
@@ -148,21 +153,33 @@ export default function TTSButton({
     large: 'px-6 py-4 text-lg',
   };
 
-  const iconSize = size === 'large' ? 24 : 20;
-  
+  const iconSize = size === 'large' ? 'w-6 h-6' : 'w-5 h-5';
+  const buttonSize = size === 'large' ? 'p-4' : 'p-3';
+
   return (
-    <button
-      onClick={speak}
-      disabled={speaking || loading}
-      className={`inline-flex items-center gap-2 ${sizeClasses[size]} bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all ${className}`}
-      type="button"
-    >
-      {loading ? (
-        <Loader2 size={iconSize} className="animate-spin" />
-      ) : (
-        <Volume2 size={iconSize} />
-      )}
-      {loading ? 'Loading...' : slow ? 'Hear it (slow)' : '🔊 Hear it'}
-    </button>
+    <div className="flex items-center gap-2">
+      <button
+        onClick={() => speak(false)}
+        disabled={speaking || loading}
+        className={`${buttonSize} rounded-full bg-blue-500 hover:bg-blue-600 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors ${className}`}
+        aria-label="Play audio"
+      >
+        {loading ? (
+          <Loader2 className={`${iconSize} text-white animate-spin`} />
+        ) : (
+          <Volume2 className={`${iconSize} text-white`} />
+        )}
+      </button>
+      
+      <button
+        onClick={() => speak(true)}
+        disabled={speaking || loading}
+        className={`${buttonSize} rounded-full transition-colors bg-green-500 hover:bg-green-600 disabled:bg-gray-200 disabled:cursor-not-allowed`}
+        aria-label="Play slow"
+        title="Reproducir lento (🐢)"
+      >
+        <Turtle className={`${iconSize} text-white`} />
+      </button>
+    </div>
   );
 }
