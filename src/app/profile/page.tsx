@@ -70,7 +70,18 @@ function ProfilePage() {
         preferred_voice_gender: preferredVoiceGender,
       } as any);
       setUser(updated);
+      
+      console.log('✅ [Profile] Saved preferences:', {
+        locale: preferredLocale,
+        voiceGender: preferredVoiceGender,
+        plan: updated.plan,
+        isPremium: updated.is_premium
+      });
+      
       setMessage("Profile updated successfully!");
+      
+      // Force page reload to refresh user context globally
+      setTimeout(() => window.location.reload(), 500);
     } catch (error) {
       console.error("Error updating profile:", error);
       setMessage("Error updating profile");
