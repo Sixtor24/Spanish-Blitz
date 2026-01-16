@@ -479,14 +479,17 @@ export const api = {
     /**
      * Synthesize speech from text using edge-tts
      */
-    synthesize: async (text: string, locale: string = 'es-ES', voice?: 'male' | 'female', rate: string = '0%') => {
+    synthesize: async (text: string, locale: string = 'es-ES', voice?: 'male' | 'female', rate?: string) => {
+      const body: any = { text, locale, voice };
+      if (rate) body.rate = rate;
+      
       const response = await fetch(`${API_BASE_URL}/api/tts/synthesize`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({ text, locale, voice, rate }),
+        body: JSON.stringify(body),
       });
       
       if (!response.ok) {
