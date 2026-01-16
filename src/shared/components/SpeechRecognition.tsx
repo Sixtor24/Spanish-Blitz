@@ -317,7 +317,8 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
         onMouseLeave={handleMouseUp}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${buttonColor} text-white shadow-lg active:scale-95 select-none`}
+        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${buttonColor} text-white shadow-lg active:scale-95 select-none touch-none`}
+        style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none', userSelect: 'none' }}
         aria-label={isListening ? 'Recording' : 'Hold to Record'}
         disabled={!!errorMessage}
       >
