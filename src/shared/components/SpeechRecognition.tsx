@@ -65,7 +65,10 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     
     if (wsRef.current && sessionIdRef.current) {
       try {
-        wsRef.current.send(JSON.stringify({ type: 'speech:stop', sessionId: sessionIdRef.current }));
+        // Solo enviar si la conexión está abierta
+        if (wsRef.current.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: 'speech:stop', sessionId: sessionIdRef.current }));
+        }
         wsRef.current.close();
       } catch {}
     }
@@ -244,7 +247,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       
       // Dar 300ms para que el último chunk de audio se envíe y procese
       setTimeout(() => {
-        if (wsRef.current && sessionIdRef.current) {
+        if (wsRef.current && sessionIdRef.current && wsRef.current.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({ 
             type: 'speech:stop', 
             sessionId: sessionIdRef.current 
@@ -286,7 +289,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       setCurrentTranscript('Processing...');
       
       setTimeout(() => {
-        if (wsRef.current && sessionIdRef.current) {
+        if (wsRef.current && sessionIdRef.current && wsRef.current.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({ 
             type: 'speech:stop', 
             sessionId: sessionIdRef.current 
