@@ -30,6 +30,7 @@ export interface DbUser {
   display_name?: string | null;
   role?: 'user' | 'teacher' | 'admin' | null;
   preferred_locale?: string | null;
+  preferred_voice_gender?: 'male' | 'female' | null;
   is_premium?: boolean | null;
   plan?: 'free' | 'premium' | 'gold' | null;
   has_seen_welcome?: boolean | null;

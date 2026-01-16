@@ -717,23 +717,82 @@ function StudyPage() {
           )}
         </div>
 
-        {/* Notes or Help text */}
-        {currentCard?.notes && currentCard.notes.trim() ? (
-          <div className="mt-6 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 text-blue-100 text-sm">
-            <p className="font-medium mb-2">📝 Notes:</p>
-            <p className="whitespace-pre-wrap">{currentCard.notes}</p>
-          </div>
-        ) : (
-          <div className="mt-6 bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4 text-blue-100 text-sm">
-            <p className="font-medium mb-2">📚 Study Mode Tips:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>Take your time - no timers or scores</li>
-              <li>Mark "Hard" for cards you want to review more</li>
-              <li>Mark "Easy" for cards you know well</li>
-              <li>Your progress is tracked to help you learn more effectively</li>
-            </ul>
-          </div>
-        )}
+        {/* Study Mode Tips or Notes */}
+        <div className="mt-6">
+          {!isFlipped ? (
+            <div className="bg-gradient-to-br from-blue-500/20 to-indigo-500/20 backdrop-blur-md rounded-xl p-5 border border-white/30 shadow-lg">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <span className="text-2xl">📚</span>
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-white mb-3 text-base uppercase tracking-wide">Study Mode Tips:</p>
+                  <ul className="space-y-2 text-white/90 text-sm">
+                    <li className="flex items-start gap-2">
+                      <span className="text-white/60 mt-0.5">•</span>
+                      <span>Take your time - no timers or scores</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-white/60 mt-0.5">•</span>
+                      <span>Mark "Hard" for cards you want to review more</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-white/60 mt-0.5">•</span>
+                      <span>Mark "Easy" for cards you know well</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-white/60 mt-0.5">•</span>
+                      <span>Your progress is tracked to help you learn more effectively</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          ) : currentCard?.notes && currentCard.notes.trim() ? (
+            <div className="bg-gradient-to-br from-amber-50 to-yellow-50 rounded-xl p-5 shadow-md border-2 border-amber-200">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shadow-sm">
+                  <span className="text-white text-xl">📝</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-amber-900 mb-2 uppercase tracking-wide">Notes:</p>
+                  <p className="text-base text-gray-800 leading-relaxed whitespace-pre-wrap font-medium">
+                    {currentCard.notes}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-gradient-to-br from-blue-500/20 to-indigo-500/20 backdrop-blur-md rounded-xl p-5 border border-white/30 shadow-lg">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                  <span className="text-2xl">📚</span>
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-white mb-3 text-base uppercase tracking-wide">Study Mode Tips:</p>
+                  <ul className="space-y-2 text-white/90 text-sm">
+                    <li className="flex items-start gap-2">
+                      <span className="text-white/60 mt-0.5">•</span>
+                      <span>Take your time - no timers or scores</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-white/60 mt-0.5">•</span>
+                      <span>Mark "Hard" for cards you want to review more</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-white/60 mt-0.5">•</span>
+                      <span>Mark "Easy" for cards you know well</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-white/60 mt-0.5">•</span>
+                      <span>Your progress is tracked to help you learn more effectively</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

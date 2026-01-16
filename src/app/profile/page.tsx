@@ -15,6 +15,7 @@ function ProfilePage() {
   const [user, setUser] = useState<DbUser | null>(null);
   const [displayName, setDisplayName] = useState("");
   const [preferredLocale, setPreferredLocale] = useState("es-ES");
+  const [preferredVoiceGender, setPreferredVoiceGender] = useState<'male' | 'female'>('female');
   const [stats, setStats] = useState({
     cardsStudied: 0,
     accuracy: 0,
@@ -44,6 +45,7 @@ function ProfilePage() {
         setUser(userData);
         setDisplayName(userData.display_name || '');
         setPreferredLocale(userData.preferred_locale || 'es-ES');
+        setPreferredVoiceGender((userData as any).preferred_voice_gender || 'female');
         setStats(statsData);
         setClassrooms(classroomsData);
       } catch (error) {
@@ -65,7 +67,8 @@ function ProfilePage() {
       const updated = await api.users.patch({
         display_name: displayName,
         preferred_locale: preferredLocale,
-      });
+        preferred_voice_gender: preferredVoiceGender,
+      } as any);
       setUser(updated);
       setMessage("Profile updated successfully!");
     } catch (error) {
@@ -74,7 +77,7 @@ function ProfilePage() {
     } finally {
       setSaving(false);
     }
-  }, [displayName, preferredLocale]);
+  }, [displayName, preferredLocale, preferredVoiceGender]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -187,6 +190,24 @@ function ProfilePage() {
                     Upgrade to customize your learning experience with regional accents!
                   </p>
                 )}
+              </div>
+
+              <div>
+                <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-2">
+                  <User size={16} />
+                  Preferred Voice Gender
+                </label>
+                <select
+                  value={preferredVoiceGender}
+                  onChange={(e) => setPreferredVoiceGender(e.target.value as 'male' | 'female')}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="female">👩 Female Voice</option>
+                  <option value="male">👨 Male Voice</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Choose between male and female voices for text-to-speech
+                </p>
               </div>
 
               <button

@@ -77,7 +77,8 @@ export default function TTSButton({
   const speak = async () => {
     if (!text?.trim() || speaking || loading) return;
     
-    const voice: 'male' | 'female' = 'male';
+    // Usar preferencia de género de voz del usuario o 'female' por defecto
+    const voice: 'male' | 'female' = (user?.preferred_voice_gender as 'male' | 'female') || 'female';
     const cacheKey = `${text}-${userLocale}-${voice}`;
     const cachedAudio = getCachedAudio(cacheKey);
     

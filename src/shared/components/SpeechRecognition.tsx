@@ -40,7 +40,9 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
   const sessionIdRef = useRef<string | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioBufferRef = useRef<Blob[]>([]);
-  const wsReadyRef = useRef(false)
+  const wsReadyRef = useRef(false);
+  const startTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isStartingRef = useRef(false);
 
   /**
    * Expose methods to parent component
@@ -69,6 +71,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     }
     
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (startTimerRef.current) clearTimeout(startTimerRef.current);
     
     mediaRecorderRef.current = null;
     streamRef.current = null;
@@ -77,6 +80,8 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     audioBufferRef.current = [];
     wsReadyRef.current = false;
     isListeningRef.current = false;
+    isStartingRef.current = false;
+    startTimerRef.current = null;
   };
 
   const startListening = async () => {
@@ -150,7 +155,8 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
               setFinalTranscript(transcript);
               setCurrentTranscript('');
               onTranscript(transcript, confidence);
-              setTimeout(() => stopListening(), 20);
+              // Dar más tiempo antes de hacer cleanup completo
+              setTimeout(() => stopListening(), 500);
             }
           }
         }
@@ -202,37 +208,125 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
   };
 
   /**
-   * Toggle listening
+   * Push-to-Talk handlers with debounce
    */
-  const toggleListening = () => {
+  const handleMouseDown = () => {
+    if (!isListeningRef.current && !isStartingRef.current && !errorMessage) {
+      isStartingRef.current = true;
+      // Debounce: solo inicia si se mantiene presionado 150ms
+      startTimerRef.current = setTimeout(() => {
+        if (isStartingRef.current) {
+          startListening();
+        }
+      }, 150);
+    }
+  };
+
+  const handleMouseUp = () => {
+    // Si está en proceso de inicio (debounce), cancelar
+    if (isStartingRef.current && !isListeningRef.current) {
+      if (startTimerRef.current) {
+        clearTimeout(startTimerRef.current);
+        startTimerRef.current = null;
+      }
+      isStartingRef.current = false;
+      return;
+    }
+    
+    // Si ya está grabando, detener normalmente
     if (isListeningRef.current) {
-      stopListening();
-    } else {
-      startListening();
+      isStartingRef.current = false;
+      // Detener grabación pero dar tiempo para procesar el audio final
+      if (mediaRecorderRef.current?.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+      setCurrentTranscript('Processing...');
+      
+      // Dar 300ms para que el último chunk de audio se envíe y procese
+      setTimeout(() => {
+        if (wsRef.current && sessionIdRef.current) {
+          wsRef.current.send(JSON.stringify({ 
+            type: 'speech:stop', 
+            sessionId: sessionIdRef.current 
+          }));
+        }
+      }, 300);
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isListeningRef.current && !isStartingRef.current && !errorMessage) {
+      isStartingRef.current = true;
+      // Debounce: solo inicia si se mantiene presionado 150ms
+      startTimerRef.current = setTimeout(() => {
+        if (isStartingRef.current) {
+          startListening();
+        }
+      }, 150);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    // Si está en proceso de inicio (debounce), cancelar
+    if (isStartingRef.current && !isListeningRef.current) {
+      if (startTimerRef.current) {
+        clearTimeout(startTimerRef.current);
+        startTimerRef.current = null;
+      }
+      isStartingRef.current = false;
+      return;
+    }
+    
+    // Si ya está grabando, detener normalmente
+    if (isListeningRef.current) {
+      isStartingRef.current = false;
+      if (mediaRecorderRef.current?.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+      setCurrentTranscript('Processing...');
+      
+      setTimeout(() => {
+        if (wsRef.current && sessionIdRef.current) {
+          wsRef.current.send(JSON.stringify({ 
+            type: 'speech:stop', 
+            sessionId: sessionIdRef.current 
+          }));
+        }
+      }, 300);
     }
   };
 
   useEffect(() => () => cleanup(), []);
 
   const buttonColor = errorMessage ? 'bg-red-500 hover:bg-red-600' 
-    : isListening ? 'bg-orange-500 hover:bg-orange-600' 
+    : isListening ? 'bg-orange-500 hover:bg-orange-600 scale-105 shadow-xl' 
     : 'bg-green-500 hover:bg-green-600';
   const buttonText = errorMessage ? 'Error - Try Again' 
-    : isListening ? 'Speak Now' 
-    : 'Speak Answer';
+    : isListening ? '🎤 Recording...' 
+    : '🎙️ Hold to Speak';
   const ButtonIcon = errorMessage ? MicOff : Mic;
 
   return (
     <div className="flex flex-col items-center gap-4">
       <button
-        onClick={toggleListening}
-        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-300 transform hover:scale-105 ${buttonColor} text-white shadow-lg`}
-        aria-label={isListening ? 'Stop Recording' : 'Start Recording'}
-        disabled={!!errorMessage && !isListening}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${buttonColor} text-white shadow-lg active:scale-95 select-none`}
+        aria-label={isListening ? 'Recording' : 'Hold to Record'}
+        disabled={!!errorMessage}
       >
         <ButtonIcon className="w-5 h-5" />
         {buttonText}
       </button>
+      
+      {!isListening && !errorMessage && (
+        <p className="text-xs text-gray-500 text-center max-w-xs">
+          Press and hold the button to record your answer, release to stop
+        </p>
+      )}
 
       {finalTranscript && !isListening && (
         <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm max-w-md text-center font-medium">
