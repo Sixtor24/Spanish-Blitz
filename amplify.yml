@@ -28,9 +28,12 @@ redirects:
   - source: '/assets/<*>'
     target: '/assets/<*>'
     status: 200
+  - source: '/api/<*>'
+    target: 'https://spanish-blitz-back-production.up.railway.app/api/<*>'
+    status: 200
   - source: '/<*>'
     target: '/index.html'
     status: 200
 env:
   variables:
-    VITE_API_URL: https://spanish-blitz-back-production.up.railway.app
+    VITE_API_URL: https://thespanishblitz.com
