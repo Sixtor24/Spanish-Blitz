@@ -37,3 +37,4 @@ redirects:
 env:
   variables:
     VITE_API_URL: https://thespanishblitz.com
+    VITE_WS_URL: wss://spanish-blitz-back-production.up.railway.app

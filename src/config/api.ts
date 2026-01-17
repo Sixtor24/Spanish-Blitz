@@ -2,6 +2,7 @@
  * API Configuration for Spanish Blitz
  * Central configuration for all backend API calls
  */
+import { WS_URL } from './env';
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -566,7 +567,7 @@ export function createWebSocket(path: string = '') {
   if (typeof window === 'undefined') {
     throw new Error('WebSocket can only be created in the browser');
   }
-  const wsUrl = API_BASE_URL.replace('http', 'ws') + path;
+  const wsUrl = WS_URL + path;
   console.log(`🔌 [WebSocket] Creating connection to: ${wsUrl}`);
   return new WebSocket(wsUrl);
 }
