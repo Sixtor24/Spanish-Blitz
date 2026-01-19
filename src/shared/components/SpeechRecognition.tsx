@@ -27,8 +27,8 @@ type SpeechRecognitionProps = {
 const MAX_DURATION = 10000; // 10s max recording
 const AUDIO_CHUNK_INTERVAL = 250; // 250ms chunks for optimal processing
 const DEBOUNCE_DELAY = 150; // 150ms debounce for accidental taps
-const STOP_SIGNAL_DELAY = 500; // 500ms delay before sending stop (captures full audio)
-const PROCESSING_TIMEOUT = 5000; // 5s auto-reset if stuck
+const STOP_SIGNAL_DELAY = 200; // 200ms delay (reduced from 500ms for faster response)
+const PROCESSING_TIMEOUT = 3000; // 3s auto-reset (reduced from 5s)
 const ERROR_DISPLAY_DURATION = 3000; // 3s error message display 
 
 const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionProps>(
@@ -172,10 +172,12 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
             const shouldShowTranscript = filterEvaluationKeywords(transcript);
             
             if (!isFinal) {
+              // Show interim results for immediate feedback
               if (shouldShowTranscript) {
                 setCurrentTranscript(transcript);
               }
             } else {
+              // Final transcript - evaluate immediately
               if (shouldShowTranscript) {
                 setFinalTranscript(transcript);
               }
@@ -183,7 +185,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
               onTranscript(transcript, confidence);
               // Cleanup after processing
               setIsProcessing(false);
-              setTimeout(() => stopListening(), 300);
+              setTimeout(() => stopListening(), 100); // Reduced from 300ms
             }
           }
         }
