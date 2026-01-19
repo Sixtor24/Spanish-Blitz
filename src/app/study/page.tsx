@@ -656,6 +656,7 @@ function StudyPage() {
                       onTranscript={handleSpeechResult}
                       locale={userLocale}
                       autoStop={false} // Keep mic open for practice, but will stop on correct answer
+                      showTranscript={false} // Don't show transcript here, only in feedback below
                     />
                   </div>
 
@@ -678,9 +679,11 @@ function StudyPage() {
                           ? "✓ Correct!"
                           : "Try again - keep practicing!"}
                       </p>
-                      <p className="text-sm text-gray-600 mt-1">
-                        You said: "{speechFeedback.transcript}"
-                      </p>
+                      {!speechFeedback.isCorrect && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          You said: "{speechFeedback.transcript}"
+                        </p>
+                      )}
                     </div>
                   )}
                 </>

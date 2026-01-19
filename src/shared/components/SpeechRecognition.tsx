@@ -18,16 +18,24 @@ type SpeechRecognitionProps = {
   onError?: (error: string) => void;
   autoStop?: boolean; // If true, stops after receiving a final transcript
   stopOnCorrect?: boolean; // If true, parent can call stop() when answer is correct
+  showTranscript?: boolean; // If false, don't show transcript in component (let parent handle it)
 };
 
-// Constants - Optimized for instant recording
-const MAX_DURATION = 10000;
-const AUDIO_CHUNK_INTERVAL = 1; 
+// ============================================
+// CONSTANTS
+// ============================================
+const MAX_DURATION = 10000; // 10s max recording
+const AUDIO_CHUNK_INTERVAL = 250; // 250ms chunks for optimal processing
+const DEBOUNCE_DELAY = 150; // 150ms debounce for accidental taps
+const STOP_SIGNAL_DELAY = 500; // 500ms delay before sending stop (captures full audio)
+const PROCESSING_TIMEOUT = 5000; // 5s auto-reset if stuck
+const ERROR_DISPLAY_DURATION = 3000; // 3s error message display 
 
 const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionProps>(
-  ({ onTranscript, locale = 'es-ES', onError, autoStop = true, stopOnCorrect = false }, ref) => {
-  // State - Simplified
-  const [isListening, setIsListening] = useState(false);
+  ({ onTranscript, locale = 'es-ES', onError, autoStop = true, stopOnCorrect = false, showTranscript = true }, ref) => {
+  // State - Separated UI from processing
+  const [isListening, setIsListening] = useState(false); // UI state: button appearance
+  const [isProcessing, setIsProcessing] = useState(false); // Internal: still processing audio
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [currentTranscript, setCurrentTranscript] = useState<string>('');
   const [finalTranscript, setFinalTranscript] = useState<string>('');
@@ -43,6 +51,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
   const wsReadyRef = useRef(false);
   const startTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isStartingRef = useRef(false);
+  const processingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /**
    * Expose methods to parent component
@@ -75,6 +84,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (startTimerRef.current) clearTimeout(startTimerRef.current);
+    if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
     
     mediaRecorderRef.current = null;
     streamRef.current = null;
@@ -85,6 +95,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     isListeningRef.current = false;
     isStartingRef.current = false;
     startTimerRef.current = null;
+    processingTimeoutRef.current = null;
   };
 
   const startListening = async () => {
@@ -119,13 +130,18 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       
       // Buffer audio chunks
       mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0 && isListeningRef.current) {
+        if (e.data.size > 0) {
           if (wsReadyRef.current && wsRef.current?.readyState === WebSocket.OPEN) {
             sendAudioChunk(e.data);
           } else {
             audioBufferRef.current.push(e.data);
           }
         }
+      };
+      
+      // CRITICAL: Capture final audio chunk when recording stops
+      mediaRecorder.onstop = () => {
+        console.log('📦 [Speech] MediaRecorder stopped - final chunk captured');
       };
       
       mediaRecorder.start(AUDIO_CHUNK_INTERVAL);
@@ -152,19 +168,28 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
         else if (data.type === 'transcript') {
           const { transcript, isFinal, confidence } = data;
           if (transcript?.trim()) {
+            // Filter evaluation keywords
+            const shouldShowTranscript = filterEvaluationKeywords(transcript);
+            
             if (!isFinal) {
-              setCurrentTranscript(transcript);
+              if (shouldShowTranscript) {
+                setCurrentTranscript(transcript);
+              }
             } else {
-              setFinalTranscript(transcript);
+              if (shouldShowTranscript) {
+                setFinalTranscript(transcript);
+              }
               setCurrentTranscript('');
               onTranscript(transcript, confidence);
-              // Dar más tiempo antes de hacer cleanup completo
-              setTimeout(() => stopListening(), 500);
+              // Cleanup after processing
+              setIsProcessing(false);
+              setTimeout(() => stopListening(), 300);
             }
           }
         }
         else if (data.type === 'error') {
           setErrorMessage(data.message || 'Error');
+          setIsProcessing(false);
           if (onError) onError('transcription-failed');
           stopListening();
         }
@@ -182,10 +207,22 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       }, MAX_DURATION);
       
     } catch (err) {
-      setErrorMessage('Microphone access required');
+      const error = err as Error;
+      console.error('Microphone error:', error);
+      
+      // Better error message for permissions
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        setErrorMessage('Please allow microphone access in your browser settings');
+      } else if (error.name === 'NotFoundError') {
+        setErrorMessage('No microphone found');
+      } else {
+        setErrorMessage('Microphone access failed');
+      }
+      
       if (onError) onError('microphone-denied');
       cleanup();
       setIsListening(false);
+      setIsProcessing(false);
     }
   };
 
@@ -207,26 +244,72 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
   const stopListening = () => {
     cleanup();
     setIsListening(false);
+    setIsProcessing(false);
     setCurrentTranscript('');
   };
 
   /**
-   * Push-to-Talk handlers with debounce
+   * Filter evaluation keywords from display
+   * Rules:
+   * - "bien" → Don't show
+   * - "regular" or "medio correcta" → Don't show
+   * - "incorrecta" → Show the exact word
+   * - Other words → Show normally
    */
-  const handleMouseDown = () => {
+  const filterEvaluationKeywords = (transcript: string): boolean => {
+    const normalized = transcript.toLowerCase().trim();
+    
+    // Don't show "bien" or variations
+    if (normalized === 'bien' || normalized === 'muy bien') {
+      return false;
+    }
+    
+    // Don't show "regular" or "medio correcta"
+    if (normalized === 'regular' || normalized === 'medio correcta' || normalized === 'medio') {
+      return false;
+    }
+    
+    // Show everything else (including "incorrecta")
+    return true;
+  };
+
+  // ============================================
+  // EVENT HANDLERS
+  // ============================================
+  
+  /**
+   * Reset/Cancel processing if stuck
+   */
+  const handleReset = () => {
+    console.log('🔄 [Speech] Resetting stuck processing');
+    stopListening();
+    setErrorMessage(null);
+  };
+
+  /**
+   * Start recording with debounce
+   */
+  const handlePressStart = () => {
+    if (isProcessing) {
+      handleReset();
+      return;
+    }
+    
     if (!isListeningRef.current && !isStartingRef.current && !errorMessage) {
       isStartingRef.current = true;
-      // Debounce: solo inicia si se mantiene presionado 150ms
       startTimerRef.current = setTimeout(() => {
         if (isStartingRef.current) {
           startListening();
         }
-      }, 150);
+      }, DEBOUNCE_DELAY);
     }
   };
 
-  const handleMouseUp = () => {
-    // Si está en proceso de inicio (debounce), cancelar
+  /**
+   * Stop recording and process
+   */
+  const handlePressEnd = () => {
+    // Cancel debounce if released early
     if (isStartingRef.current && !isListeningRef.current) {
       if (startTimerRef.current) {
         clearTimeout(startTimerRef.current);
@@ -236,16 +319,22 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       return;
     }
     
-    // Si ya está grabando, detener normalmente
+    // Stop recording if active
     if (isListeningRef.current) {
       isStartingRef.current = false;
-      // Detener grabación pero dar tiempo para procesar el audio final
+      isListeningRef.current = false;
+      
+      // UI: Button turns green immediately
+      setIsListening(false);
+      setIsProcessing(true);
+      setCurrentTranscript('');
+      
+      // Stop MediaRecorder
       if (mediaRecorderRef.current?.state === 'recording') {
         mediaRecorderRef.current.stop();
       }
-      setCurrentTranscript('Processing...');
       
-      // Dar 300ms para que el último chunk de audio se envíe y procese
+      // Send stop signal with delay for full audio capture
       setTimeout(() => {
         if (wsRef.current && sessionIdRef.current && wsRef.current.readyState === WebSocket.OPEN) {
           wsRef.current.send(JSON.stringify({ 
@@ -253,70 +342,42 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
             sessionId: sessionIdRef.current 
           }));
         }
-      }, 300);
-    }
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (!isListeningRef.current && !isStartingRef.current && !errorMessage) {
-      isStartingRef.current = true;
-      // Debounce: solo inicia si se mantiene presionado 150ms
-      startTimerRef.current = setTimeout(() => {
-        if (isStartingRef.current) {
-          startListening();
-        }
-      }, 150);
-    }
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    // Si está en proceso de inicio (debounce), cancelar
-    if (isStartingRef.current && !isListeningRef.current) {
-      if (startTimerRef.current) {
-        clearTimeout(startTimerRef.current);
-        startTimerRef.current = null;
-      }
-      isStartingRef.current = false;
-      return;
-    }
-    
-    // Si ya está grabando, detener normalmente
-    if (isListeningRef.current) {
-      isStartingRef.current = false;
-      if (mediaRecorderRef.current?.state === 'recording') {
-        mediaRecorderRef.current.stop();
-      }
-      setCurrentTranscript('Processing...');
+      }, STOP_SIGNAL_DELAY);
       
-      setTimeout(() => {
-        if (wsRef.current && sessionIdRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-          wsRef.current.send(JSON.stringify({ 
-            type: 'speech:stop', 
-            sessionId: sessionIdRef.current 
-          }));
-        }
-      }, 300);
+      // Auto-reset if stuck
+      processingTimeoutRef.current = setTimeout(() => {
+        console.warn('⚠️ [Speech] Processing timeout - resetting');
+        stopListening();
+        setErrorMessage('Processing took too long - please try again');
+        setTimeout(() => setErrorMessage(null), ERROR_DISPLAY_DURATION);
+      }, PROCESSING_TIMEOUT);
     }
   };
 
   useEffect(() => () => cleanup(), []);
 
-  const buttonColor = errorMessage ? 'bg-red-500 hover:bg-red-600' 
+  // ============================================
+  // UI STATE
+  // ============================================
+  const buttonColor = errorMessage ? 'bg-orange-500 hover:bg-orange-600' 
     : isListening ? 'bg-orange-500 hover:bg-orange-600 scale-105 shadow-xl' 
+    : isProcessing ? 'bg-yellow-500 hover:bg-yellow-600 cursor-pointer'
     : 'bg-green-500 hover:bg-green-600';
+  
   const buttonText = errorMessage ? 'Error - Try Again' 
     : isListening ? '🎤 Recording...' 
+    : isProcessing ? '⏳ Processing... (tap to cancel)'
     : '🎙️ Hold to Speak';
   const ButtonIcon = errorMessage ? MicOff : Mic;
 
   return (
     <div className="flex flex-col items-center gap-4">
       <button
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
+        onMouseDown={handlePressStart}
+        onMouseUp={handlePressEnd}
+        onMouseLeave={handlePressEnd}
+        onTouchStart={handlePressStart}
+        onTouchEnd={handlePressEnd}
         className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${buttonColor} text-white shadow-lg active:scale-95 select-none touch-none`}
         style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none', userSelect: 'none' }}
         aria-label={isListening ? 'Recording' : 'Hold to Record'}
@@ -332,20 +393,20 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
         </p>
       )}
 
-      {finalTranscript && !isListening && (
+      {showTranscript && finalTranscript && !isListening && (
         <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm max-w-md text-center font-medium">
           {finalTranscript}
         </div>
       )}
 
-      {currentTranscript && isListening && currentTranscript !== 'Speak Now' && (
+      {showTranscript && currentTranscript && isListening && currentTranscript !== 'Speak Now' && (
         <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm max-w-md text-center">
           {currentTranscript}
         </div>
       )}
 
       {errorMessage && (
-        <div className="px-4 py-2 bg-red-50 text-red-600 rounded-lg text-sm max-w-md text-center">
+        <div className="px-4 py-2 bg-orange-50 text-orange-600 rounded-lg text-sm max-w-md text-center">
           {errorMessage}
         </div>
       )}
