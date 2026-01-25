@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import useUser from "@/shared/hooks/useUser";
-import { ArrowLeft, Users, Trash2, Plus, Calendar, Loader2, Copy, Check } from "lucide-react";
+import { ArrowLeft, Users, Trash2, Plus, Calendar, Loader2, Copy, Check, BookOpen } from "lucide-react";
 import { api } from "@/config/api";
 import type { DbClassroom, DbDeck } from "@/types/api.types";
 import { withTeacherAuth } from "@/shared/hoc/withAuth";
@@ -21,7 +21,7 @@ interface Student {
 interface Assignment {
   id: string;
   classroom_id: string;
-  deck_id: string;
+  deck_id: string | null;
   title: string;
   description: string | null;
   due_date: Date | null;
@@ -30,6 +30,9 @@ interface Assignment {
   completed_count?: number;
   total_students?: number;
   required_repetitions: number;
+  xp_reward?: number | null;
+  xp_goal?: number | null;
+  xp_progress?: number;
 }
 
 function ClassroomDetailPage() {
@@ -46,7 +49,8 @@ function ClassroomDetailPage() {
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
   
-  const [assignmentForm, setAssignmentForm] = useState({ deck_id: "", repetitions: 1, due_date: "" });
+  const [assignmentForm, setAssignmentForm] = useState({ deck_id: "", repetitions: 1, due_date: "", xp_reward: 0, xp_goal: 0 });
+  const [assignmentType, setAssignmentType] = useState<'deck' | 'xp_goal'>('deck');
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [assignToAll, setAssignToAll] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -108,13 +112,16 @@ function ClassroomDetailPage() {
       setSubmitting(true);
       
       // Get the deck name to use as assignment title
-      const selectedDeck = decks.find(d => d.id === assignmentForm.deck_id);
-      const deckName = selectedDeck?.title || "Study Set";
+      const deckName = assignmentType === 'deck' 
+        ? decks?.find(d => d.id === assignmentForm.deck_id)?.title || "Assignment"
+        : `Earn ${assignmentForm.xp_goal} XP`;
       
-      // Build description based on repetitions
-      const description = assignmentForm.repetitions === 1 
-        ? `Study this set 1 time`
-        : `Study this set ${assignmentForm.repetitions} times`;
+      // Build description based on assignment type
+      const description = assignmentType === 'deck'
+        ? (assignmentForm.repetitions === 1 
+            ? `Study this set 1 time`
+            : `Study this set ${assignmentForm.repetitions} times`)
+        : `XP Goal: Earn ${assignmentForm.xp_goal} XP by practicing any of your own sets`;
       
       // Use Case pattern - business logic is now in the use case
       const repository = new AssignmentRepository();
@@ -123,16 +130,19 @@ function ClassroomDetailPage() {
       
       await createAssignment.execute({
         classroomId: classroomId,
-        deckId: assignmentForm.deck_id,
+        deckId: assignmentType === 'deck' ? assignmentForm.deck_id : undefined,
         title: deckName,
         description: description,
         dueDate: assignmentForm.due_date || undefined,
         studentIds: assignToAll ? undefined : selectedStudents,
-        requiredRepetitions: assignmentForm.repetitions,
+        requiredRepetitions: assignmentType === 'deck' ? assignmentForm.repetitions : 1,
+        xpReward: assignmentForm.xp_reward > 0 ? assignmentForm.xp_reward : undefined,
+        xpGoal: assignmentType === 'xp_goal' ? assignmentForm.xp_goal : undefined,
       });
       
       setShowAssignmentModal(false);
-      setAssignmentForm({ deck_id: "", repetitions: 1, due_date: "" });
+      setAssignmentForm({ deck_id: "", repetitions: 1, due_date: "", xp_reward: 0, xp_goal: 0 });
+      setAssignmentType('deck');
       setSelectedStudents([]);
       setAssignToAll(true);
       await fetchClassroomData();
@@ -276,11 +286,21 @@ function ClassroomDetailPage() {
                   <div key={assignment.id} className="p-4 border-2 border-gray-200 rounded-lg">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <h3 className="font-bold text-gray-900">{assignment.title}</h3>
                           {assignment.required_repetitions > 1 && (
                             <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded">
                               {assignment.required_repetitions}x repetitions
+                            </span>
+                          )}
+                          {assignment.xp_reward && assignment.xp_reward > 0 && (
+                            <span className="px-2 py-0.5 bg-gradient-to-r from-yellow-100 to-orange-100 text-orange-700 text-xs font-semibold rounded flex items-center gap-1">
+                              ⚡ {assignment.xp_reward} XP Reward
+                            </span>
+                          )}
+                          {assignment.xp_goal && assignment.xp_goal > 0 && (
+                            <span className="px-2 py-0.5 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 text-xs font-semibold rounded flex items-center gap-1">
+                              💰 {assignment.xp_goal} XP Goal
                             </span>
                           )}
                         </div>
@@ -316,28 +336,124 @@ function ClassroomDetailPage() {
               </button>
             </div>
             <form onSubmit={handleCreateAssignment} className="space-y-6">
-              <div className="rounded-lg p-4" style={{ backgroundColor: `${classroomColor}15`, border: `2px solid ${classroomColor}40` }}>
-                <label className="block text-sm font-semibold mb-2" style={{ color: classroomColor }}>What set? *</label>
-                <select value={assignmentForm.deck_id} onChange={(e) => setAssignmentForm({ ...assignmentForm, deck_id: e.target.value })} className="w-full px-4 py-2 border-2 rounded-lg" style={{ borderColor: `${classroomColor}60` }} required disabled={submitting}>
-                  <option value="">Choose a set...</option>
-                  {decks.map((deck) => <option key={deck.id} value={deck.id}>{deck.title}</option>)}
-                </select>
+              {/* Assignment Type Selector */}
+              <div className="rounded-lg p-4 bg-purple-50 border-2 border-purple-200">
+                <label className="block text-sm font-semibold text-purple-900 mb-3">Assignment Type *</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAssignmentType('deck')}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      assignmentType === 'deck'
+                        ? 'border-purple-500 bg-purple-100 shadow-md'
+                        : 'border-gray-300 bg-white hover:border-purple-300'
+                    }`}
+                    disabled={submitting}
+                  >
+                    <div className="text-center">
+                      <BookOpen className="w-6 h-6 mx-auto mb-2" style={{ color: assignmentType === 'deck' ? '#9333ea' : '#6b7280' }} />
+                      <p className={`font-semibold ${assignmentType === 'deck' ? 'text-purple-700' : 'text-gray-700'}`}>
+                        Study a Set
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">Assign a specific deck to study</p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAssignmentType('xp_goal')}
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      assignmentType === 'xp_goal'
+                        ? 'border-purple-500 bg-purple-100 shadow-md'
+                        : 'border-gray-300 bg-white hover:border-purple-300'
+                    }`}
+                    disabled={submitting}
+                  >
+                    <div className="text-center">
+                      <span className="text-3xl block mb-1">💰</span>
+                      <p className={`font-semibold ${assignmentType === 'xp_goal' ? 'text-purple-700' : 'text-gray-700'}`}>
+                        Earn XP Goal
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">Set an XP goal to achieve</p>
+                    </div>
+                  </button>
+                </div>
               </div>
+
+              {/* Deck Assignment Fields */}
+              {assignmentType === 'deck' && (
+                <>
+                  <div className="rounded-lg p-4" style={{ backgroundColor: `${classroomColor}15`, border: `2px solid ${classroomColor}40` }}>
+                    <label className="block text-sm font-semibold mb-2" style={{ color: classroomColor }}>📚 What set? *</label>
+                    <select 
+                      value={assignmentForm.deck_id} 
+                      onChange={(e) => setAssignmentForm({ ...assignmentForm, deck_id: e.target.value })} 
+                      className="w-full px-4 py-2 border-2 rounded-lg" 
+                      style={{ borderColor: `${classroomColor}60` }} 
+                      required 
+                      disabled={submitting}
+                    >
+                      <option value="">Choose a set...</option>
+                      {decks.map((deck) => <option key={deck.id} value={deck.id}>{deck.title}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">🔁 How many times? *</label>
+                    <select 
+                      value={assignmentForm.repetitions} 
+                      onChange={(e) => setAssignmentForm({ ...assignmentForm, repetitions: parseInt(e.target.value) })} 
+                      className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                      required 
+                      disabled={submitting}
+                    >
+                      <option value={1}>1 time</option>
+                      <option value={2}>2 times</option>
+                      <option value={3}>3 times</option>
+                      <option value={4}>4 times</option>
+                      <option value={5}>5 times</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Number of times students must complete this set</p>
+                  </div>
+                </>
+              )}
+
+              {/* XP Goal Assignment Fields */}
+              {assignmentType === 'xp_goal' && (
+                <div className="rounded-lg p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300">
+                  <label className="block text-sm font-semibold text-purple-900 mb-2">💰 XP Goal *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="500"
+                    value={assignmentForm.xp_goal}
+                    onChange={(e) => setAssignmentForm({ ...assignmentForm, xp_goal: parseInt(e.target.value) || 0 })}
+                    className="w-full px-4 py-3 border-2 border-purple-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-lg font-semibold"
+                    placeholder="e.g., 20"
+                    required
+                    disabled={submitting}
+                  />
+                  <p className="text-sm text-purple-700 mt-2 font-medium">
+                    🎯 Students must earn this amount of XP by practicing <strong>any of their own created sets</strong>
+                  </p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    XP earned will count towards this goal (Solo Blitz: 1 XP per correct answer, Multiplayer: based on ranking)
+                  </p>
+                </div>
+              )}
+
+              {/* XP Reward (common to both types) */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">How many times? *</label>
-                <select 
-                  value={assignmentForm.repetitions} 
-                  onChange={(e) => setAssignmentForm({ ...assignmentForm, repetitions: parseInt(e.target.value) })} 
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg"
-                  required 
+                <label className="block text-sm font-semibold text-gray-700 mb-2">⚡ XP Reward (Optional)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="1000"
+                  value={assignmentForm.xp_reward}
+                  onChange={(e) => setAssignmentForm({ ...assignmentForm, xp_reward: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                  placeholder="0"
                   disabled={submitting}
-                >
-                  <option value={1}>1</option>
-                  <option value={2}>2</option>
-                  <option value={3}>3</option>
-                  <option value={4}>4</option>
-                  <option value={5}>5</option>
-                </select>
+                />
+                <p className="text-xs text-gray-500 mt-1">Bonus XP awarded when assignment is completed</p>
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Due Date (Optional)</label>
@@ -420,8 +536,18 @@ function ClassroomDetailPage() {
               </div>
 
               <div className="flex gap-3 pt-6 border-t border-gray-200">
-                <button type="button" onClick={() => { setShowAssignmentModal(false); setAssignmentForm({ deck_id: "", repetitions: 1, due_date: "" }); setSelectedStudents([]); setAssignToAll(true); }} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-semibold" disabled={submitting}>Cancel</button>
-                <button type="submit" className="flex-1 px-4 py-2 text-white rounded-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" style={{ backgroundColor: classroomColor }} disabled={submitting || (!assignToAll && selectedStudents.length === 0)}>
+                <button type="button" onClick={() => { setShowAssignmentModal(false); setAssignmentForm({ deck_id: "", repetitions: 1, due_date: "", xp_reward: 0, xp_goal: 0 }); setAssignmentType('deck'); setSelectedStudents([]); setAssignToAll(true); }} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-semibold" disabled={submitting}>Cancel</button>
+                <button 
+                  type="submit" 
+                  className="flex-1 px-4 py-2 text-white rounded-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 
+                  style={{ backgroundColor: classroomColor }} 
+                  disabled={
+                    submitting || 
+                    (!assignToAll && selectedStudents.length === 0) ||
+                    (assignmentType === 'deck' && !assignmentForm.deck_id) ||
+                    (assignmentType === 'xp_goal' && assignmentForm.xp_goal <= 0)
+                  }
+                >
                   {submitting ? <><Loader2 className="w-5 h-5 animate-spin" />Creating...</> : <><Plus size={20} />Create Assignment</>}
                 </button>
               </div>

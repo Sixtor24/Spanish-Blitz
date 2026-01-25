@@ -19,12 +19,14 @@ export class AssignmentRepository implements IAssignmentRepository {
    */
   async create(data: {
     classroomId: string;
-    deckId: string;
+    deckId?: string;
     title: string;
     description?: string;
     dueDate?: string;
     studentIds?: string[];
     requiredRepetitions?: number;
+    xpReward?: number;
+    xpGoal?: number;
   }): Promise<any> {
     return await api.classrooms.createAssignment(data.classroomId, {
       deck_id: data.deckId,
@@ -33,6 +35,8 @@ export class AssignmentRepository implements IAssignmentRepository {
       due_date: data.dueDate,
       student_ids: data.studentIds,
       required_repetitions: data.requiredRepetitions,
+      xp_reward: data.xpReward,
+      xp_goal: data.xpGoal,
     });
   }
 

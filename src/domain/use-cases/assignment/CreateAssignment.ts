@@ -6,12 +6,14 @@
 
 export interface CreateAssignmentDTO {
   classroomId: string;
-  deckId: string;
+  deckId?: string;
   title: string;
   description?: string;
   dueDate?: string;
   studentIds?: string[];
   requiredRepetitions?: number;
+  xpReward?: number;
+  xpGoal?: number;
 }
 
 export interface IAssignmentRepository {
@@ -64,8 +66,9 @@ export class CreateAssignmentUseCase {
       throw new Error('Assignment description must be less than 1000 characters');
     }
 
-    if (!data.deckId) {
-      throw new Error('Deck is required for assignment');
+    // Must have either deckId or xpGoal
+    if (!data.deckId && !data.xpGoal) {
+      throw new Error('Assignment must have either a deck or an XP goal');
     }
 
     // 4. Validate due date if provided
@@ -87,6 +90,8 @@ export class CreateAssignmentUseCase {
       dueDate: data.dueDate,
       studentIds: data.studentIds,
       requiredRepetitions: data.requiredRepetitions || 1,
+      xpReward: data.xpReward,
+      xpGoal: data.xpGoal,
     });
 
     return assignment;

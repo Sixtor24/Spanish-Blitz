@@ -125,7 +125,7 @@ function GameView({
 
       <p className="text-sm text-gray-500 mb-2 text-center">Question {question.position} of {totalQuestions}</p>
       <div className="bg-white border rounded-lg p-4 mb-4 shadow-sm">
-        <div className="inline-block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium mb-3 mx-auto block text-center">
+        <div className="block px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium mb-3 mx-auto text-center">
           {getQuestionTypeLabelText()}
         </div>
 
@@ -174,7 +174,7 @@ function GameView({
                   key={index}
                   onClick={() => handleSelectOption(option)}
                   disabled={!!selectedOption || isTeacher}
-                  className={`w-full px-4 py-3 sm:px-5 sm:py-4 border-2 rounded-lg text-left sm:text-left text-center font-medium text-sm sm:text-base ${bgColor} ${hoverEffect} ${selectedOption === null ? "cursor-pointer" : "cursor-not-allowed"
+                  className={`w-full px-4 py-3 sm:px-5 sm:py-4 border-2 rounded-lg sm:text-left text-center font-medium text-sm sm:text-base ${bgColor} ${hoverEffect} ${selectedOption === null ? "cursor-pointer" : "cursor-not-allowed"
                     }`}
                 >
                   {option}
@@ -226,7 +226,7 @@ function GameView({
 function BlitzSessionPage() {
   const { code: codeParam } = useParams<{ code: string }>();
   const code = codeParam?.toUpperCase();
-  const { data: user } = useUser();
+  const { data: user, refetch: refetchUser } = useUser();
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -234,6 +234,7 @@ function BlitzSessionPage() {
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<number>(0);
+  const [xpFinalized, setXpFinalized] = useState(false);
 
   const sessionId = state?.session?.id;
   const me = (state?.players ?? []).find((p) => p.email === user?.email);
@@ -392,6 +393,13 @@ function BlitzSessionPage() {
   const allAnswered = !currentQuestion && currentAnswers.length > 0;
   const status = state?.session?.status;
 
+  // Auto-finalize XP when game completes
+  useEffect(() => {
+    if ((status === 'completed' || allAnswered) && isHost && !xpFinalized) {
+      finalizeXP();
+    }
+  }, [status, allAnswered, isHost, xpFinalized]);
+
   const playerProgress = (state?.players ?? [])
     .filter((p) => {
       // Filter out teacher in spectator mode from rankings
@@ -424,6 +432,34 @@ function BlitzSessionPage() {
       fetchState();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'No se pudo expulsar al jugador');
+    }
+  };
+
+  // Finalize and award XP when game completes
+  const finalizeXP = async () => {
+    if (!sessionId || !isHost || xpFinalized) return;
+    
+    try {
+      // Prepare results for XP calculation
+      const results = playerProgress.map((p, idx) => ({
+        userId: p.user_id,
+        rank: idx + 1,
+        participated: p.answered > 0,
+      }));
+
+      await api.xp.finalizeBlitzChallenge(sessionId, results);
+      
+      setXpFinalized(true);
+      console.log('✅ XP finalized for Blitz Challenge');
+      
+      // Refresh user data to update XP in dashboard
+      await refetchUser();
+      
+      // Fetch state again to get updated XP values
+      await fetchState();
+    } catch (e) {
+      console.error('Error finalizing XP:', e);
+      // Don't show error to user, XP is not critical for game completion
     }
   };
 
@@ -487,7 +523,7 @@ function BlitzSessionPage() {
 
         {loading ? (
           <div className="bg-white rounded-xl shadow p-6">Loading...</div>
-        ) : status === 'completed' || allAnswered ? (
+        ) : status === 'completed' ? (
           /* Full screen winners view */
           <div className="bg-white rounded-xl shadow p-8">
             {/* Winners Screen - Full Width */}
@@ -510,96 +546,116 @@ function BlitzSessionPage() {
                 </p>
               </div>
 
-              {/* Top 3 Podium - Larger */}
-              <div className="mt-12 mb-8">
-                <div className="flex items-end justify-center gap-6 max-w-4xl mx-auto">
+              {/* Top 3 Podium - Responsive */}
+              <div className="mt-8 md:mt-12 mb-6 md:mb-8 px-2">
+                <div className="flex items-end justify-center gap-2 sm:gap-4 md:gap-6 max-w-4xl mx-auto">
                   {/* 2nd Place */}
                   {playerProgress[1] && (
-                    <div className="flex flex-col items-center flex-1">
-                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white font-bold text-2xl border-4 border-white shadow-lg mb-3">
+                    <div className="flex flex-col items-center flex-1 max-w-[120px] sm:max-w-none">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white font-bold text-lg sm:text-xl md:text-2xl border-2 sm:border-4 border-white shadow-lg mb-2 sm:mb-3">
                         {(playerProgress[1].display_name || playerProgress[1].email).charAt(0).toUpperCase()}
                       </div>
-                      <div className="bg-gray-300 rounded-t-lg p-4 text-center w-full">
-                        <p className="text-3xl font-bold mb-1">🥈</p>
-                        <p className="text-base font-bold text-gray-800 truncate">
+                      <div className="bg-gray-300 rounded-t-lg p-2 sm:p-3 md:p-4 text-center w-full">
+                        <p className="text-xl sm:text-2xl md:text-3xl font-bold mb-0.5 sm:mb-1">🥈</p>
+                        <p className="text-xs sm:text-sm md:text-base font-bold text-gray-800 truncate">
                           {playerProgress[1].display_name || playerProgress[1].email.split('@')[0]}
                         </p>
-                        <p className="text-sm text-gray-700 font-bold mt-1">{playerProgress[1].score} puntos</p>
-                        <div className="h-24 bg-gray-400 mt-3 rounded"></div>
+                        <p className="text-xs sm:text-sm text-gray-700 font-bold mt-0.5 sm:mt-1">{playerProgress[1].score} pts</p>
+                        <div className="h-16 sm:h-20 md:h-24 bg-gray-400 mt-2 sm:mt-3 rounded"></div>
                       </div>
                     </div>
                   )}
 
                   {/* 1st Place */}
                   {playerProgress[0] && (
-                    <div className="flex flex-col items-center flex-1">
-                      <div className="w-28 h-28 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-white font-bold text-3xl border-4 border-white shadow-xl mb-3 animate-pulse">
+                    <div className="flex flex-col items-center flex-1 max-w-[140px] sm:max-w-none">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-28 md:h-28 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 flex items-center justify-center text-white font-bold text-xl sm:text-2xl md:text-3xl border-2 sm:border-4 border-white shadow-xl mb-2 sm:mb-3 animate-pulse">
                         {(playerProgress[0].display_name || playerProgress[0].email).charAt(0).toUpperCase()}
                       </div>
-                      <div className="bg-yellow-400 rounded-t-lg p-5 text-center w-full">
-                        <p className="text-4xl font-bold mb-1">🏆</p>
-                        <p className="text-lg font-bold text-gray-900 truncate">
+                      <div className="bg-yellow-400 rounded-t-lg p-3 sm:p-4 md:p-5 text-center w-full">
+                        <p className="text-2xl sm:text-3xl md:text-4xl font-bold mb-0.5 sm:mb-1">🏆</p>
+                        <p className="text-sm sm:text-base md:text-lg font-bold text-gray-900 truncate">
                           {playerProgress[0].display_name || playerProgress[0].email.split('@')[0]}
                         </p>
-                        <p className="text-base text-gray-800 font-bold mt-1">{playerProgress[0].score} puntos</p>
-                        <div className="h-36 bg-yellow-500 mt-3 rounded"></div>
+                        <p className="text-xs sm:text-sm md:text-base text-gray-800 font-bold mt-0.5 sm:mt-1">{playerProgress[0].score} pts</p>
+                        <div className="h-24 sm:h-28 md:h-36 bg-yellow-500 mt-2 sm:mt-3 rounded"></div>
                       </div>
                     </div>
                   )}
 
                   {/* 3rd Place */}
                   {playerProgress[2] && (
-                    <div className="flex flex-col items-center flex-1">
-                      <div className="w-20 h-20 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-bold text-2xl border-4 border-white shadow-lg mb-3">
+                    <div className="flex flex-col items-center flex-1 max-w-[120px] sm:max-w-none">
+                      <div className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-orange-400 to-orange-600 flex items-center justify-center text-white font-bold text-lg sm:text-xl md:text-2xl border-2 sm:border-4 border-white shadow-lg mb-2 sm:mb-3">
                         {(playerProgress[2].display_name || playerProgress[2].email).charAt(0).toUpperCase()}
                       </div>
-                      <div className="bg-orange-400 rounded-t-lg p-4 text-center w-full">
-                        <p className="text-3xl font-bold mb-1">🥉</p>
-                        <p className="text-base font-bold text-gray-800 truncate">
+                      <div className="bg-orange-400 rounded-t-lg p-2 sm:p-3 md:p-4 text-center w-full">
+                        <p className="text-xl sm:text-2xl md:text-3xl font-bold mb-0.5 sm:mb-1">🥉</p>
+                        <p className="text-xs sm:text-sm md:text-base font-bold text-gray-800 truncate">
                           {playerProgress[2].display_name || playerProgress[2].email.split('@')[0]}
                         </p>
-                        <p className="text-sm text-gray-700 font-bold mt-1">{playerProgress[2].score} puntos</p>
-                        <div className="h-16 bg-orange-500 mt-3 rounded"></div>
+                        <p className="text-xs sm:text-sm text-gray-700 font-bold mt-0.5 sm:mt-1">{playerProgress[2].score} pts</p>
+                        <div className="h-12 sm:h-14 md:h-16 bg-orange-500 mt-2 sm:mt-3 rounded"></div>
                       </div>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Full Ranking Table */}
-              <div className="max-w-3xl mx-auto mt-12">
+              {/* XP Earned for Current User */}
+              {me && (() => {
+                const mePlayer = playerProgress.find(p => p.user_id === me.user_id);
+                const myXp = mePlayer?.xp_earned || 0;
+                return myXp > 0 && (
+                  <div className="max-w-md mx-auto mb-8">
+                    <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-xl p-6 text-center">
+                      <div className="text-4xl mb-2">⚡</div>
+                      <p className="text-sm text-purple-600 font-semibold mb-1">HAS GANADO</p>
+                      <p className="text-5xl font-bold text-purple-600 mb-1">+{myXp}</p>
+                      <p className="text-sm text-purple-700 font-medium">Puntos de Experiencia</p>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Full Ranking Table - Responsive */}
+              <div className="w-full max-w-5xl mx-auto mt-12 px-4">
                 <h3 className="text-2xl font-bold text-gray-900 mb-4">📊 Ranking Completo</h3>
-                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-lg">
+                
+                {/* Desktop Table */}
+                <div className="hidden md:block bg-white border border-gray-200 rounded-lg overflow-x-auto shadow-lg">
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Posición</th>
-                        <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Jugador</th>
-                        <th className="px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Respondidas</th>
-                        <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 uppercase">Puntos</th>
+                        <th className="px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Posición</th>
+                        <th className="px-4 lg:px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Jugador</th>
+                        <th className="px-4 lg:px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Respondidas</th>
+                        <th className="px-4 lg:px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Puntos</th>
+                        <th className="px-4 lg:px-6 py-3 text-center text-xs font-semibold text-gray-600 uppercase">XP</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {playerProgress.map((p, idx) => {
                         const isCurrentUser = p.email === user?.email;
                         const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
+                        const xpEarned = p.xp_earned || 0;
 
                         return (
                           <tr key={p.id} className={isCurrentUser ? 'bg-blue-50' : 'hover:bg-gray-50'}>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center gap-2">
                                 <span className="text-lg">{medal || `#${idx + 1}`}</span>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+                            <td className="px-4 lg:px-6 py-4">
                               <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center flex-shrink-0">
                                   <span className="text-gray-600 font-semibold text-sm">
                                     {(p.display_name || p.email).charAt(0).toUpperCase()}
                                   </span>
                                 </div>
-                                <div>
-                                  <p className="font-semibold text-gray-900">
+                                <div className="min-w-0">
+                                  <p className="font-semibold text-gray-900 truncate">
                                     {p.display_name || p.email}
                                     {isCurrentUser && ' (Tú)'}
                                   </p>
@@ -609,14 +665,20 @@ function BlitzSessionPage() {
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-center">
+                            <td className="px-4 lg:px-6 py-4 text-center">
                               <span className="text-sm font-medium text-gray-700">
                                 {p.answered}/{totalQuestions}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-right">
+                            <td className="px-4 lg:px-6 py-4 text-center">
                               <span className={`text-xl font-bold ${isCurrentUser ? 'text-blue-600' : 'text-gray-900'}`}>
                                 {p.score}
+                              </span>
+                            </td>
+                            <td className="px-4 lg:px-6 py-4 text-center">
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-purple-100 text-purple-700 font-bold">
+                                <span className="text-lg">⚡</span>
+                                <span>+{xpEarned}</span>
                               </span>
                             </td>
                           </tr>
@@ -624,6 +686,54 @@ function BlitzSessionPage() {
                       })}
                     </tbody>
                   </table>
+                </div>
+
+                {/* Mobile Cards */}
+                <div className="md:hidden space-y-3">
+                  {playerProgress.map((p, idx) => {
+                    const isCurrentUser = p.email === user?.email;
+                    const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : '';
+                    const xpEarned = p.xp_earned || 0;
+
+                    return (
+                      <div key={p.id} className={`bg-white border-2 rounded-lg p-4 shadow ${isCurrentUser ? 'border-blue-400 bg-blue-50' : 'border-gray-200'}`}>
+                        <div className="flex items-center gap-3 mb-3">
+                          <span className="text-2xl flex-shrink-0">{medal || `#${idx + 1}`}</span>
+                          <div className="w-12 h-12 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center flex-shrink-0">
+                            <span className="text-gray-600 font-semibold">
+                              {(p.display_name || p.email).charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="min-w-0 flex-1 overflow-hidden">
+                            <p className="font-bold text-gray-900 truncate text-sm">
+                              {p.display_name || p.email}
+                              {isCurrentUser && ' (Tú)'}
+                            </p>
+                            <p className="text-xs text-gray-500 truncate">
+                              {p.is_host ? (state?.session?.is_teacher ? '👨‍🏫 Profesor' : '👑 Organizador') : '🎮 Jugador'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">Respondidas</p>
+                            <p className="font-semibold text-gray-900">{p.answered}/{totalQuestions}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">Puntos</p>
+                            <p className={`text-xl font-bold ${isCurrentUser ? 'text-blue-600' : 'text-gray-900'}`}>{p.score}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-gray-500 mb-1">XP</p>
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-purple-100 text-purple-700 font-bold text-sm">
+                              <span>⚡</span>
+                              <span>+{xpEarned}</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -799,6 +909,99 @@ function BlitzSessionPage() {
                     </div>
                   </div>
                 )
+              ) : allAnswered && status === 'active' ? (
+                /* Waiting screen - Player finished but others haven't */
+                <div className="space-y-8 py-8 max-w-4xl mx-auto">
+                  {/* Completion celebration */}
+                  <div className="text-center space-y-6">
+                    {/* Animated Trophy */}
+                    <div className="flex justify-center">
+                      <div className="relative">
+                        <div className="absolute inset-0 bg-green-200 rounded-full blur-2xl opacity-50 animate-pulse"></div>
+                        <div className="relative bg-gradient-to-br from-green-400 to-green-600 rounded-full p-8 shadow-2xl animate-bounce">
+                          <Trophy className="text-white" size={64} />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Success Message */}
+                    <div>
+                      <h2 className="text-4xl font-bold text-gray-900 mb-3 animate-fade-in">
+                        ¡Felicidades, {user?.display_name || 'Jugador'}!
+                      </h2>
+                      <p className="text-xl text-gray-600 mb-2">
+                        Has completado todas las preguntas
+                      </p>
+                      <p className="text-lg text-purple-600 font-semibold">
+                        Esperando a que los demás terminen...
+                      </p>
+                    </div>
+
+                    {/* Animated dots loader */}
+                    <div className="flex justify-center gap-2 py-4">
+                      <div className="w-3 h-3 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                      <div className="w-3 h-3 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                      <div className="w-3 h-3 bg-purple-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                    </div>
+                  </div>
+
+                  {/* Progress of other players */}
+                  <div className="bg-white border-2 border-gray-200 rounded-xl p-6 shadow-lg">
+                    <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <Users size={24} />
+                      Progreso de los Participantes
+                    </h3>
+                    <div className="space-y-4">
+                      {playerProgress.map((p) => {
+                        const progress = p.progress || 0;
+                        const isMe = p.email === user?.email;
+                        const isFinished = p.answered >= totalQuestions;
+
+                        return (
+                          <div key={p.id} className={`border-2 rounded-lg p-4 transition-all ${isMe ? 'border-green-400 bg-green-50' : 'border-gray-200 bg-white'}`}>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isMe ? 'bg-gradient-to-br from-green-400 to-green-600' : 'bg-gradient-to-br from-gray-200 to-gray-300'}`}>
+                                  <span className={`font-bold ${isMe ? 'text-white' : 'text-gray-600'}`}>
+                                    {(p.display_name || p.email).charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                                <div>
+                                  <p className="font-bold text-gray-900">
+                                    {p.display_name || p.email}
+                                    {isMe && ' (Tú)'}
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    {p.answered}/{totalQuestions} preguntas
+                                  </p>
+                                </div>
+                              </div>
+                              {isFinished && (
+                                <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-bold flex items-center gap-1">
+                                  <Trophy size={16} />
+                                  Terminó
+                                </span>
+                              )}
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                              <div
+                                className={`h-3 rounded-full transition-all duration-500 ${isMe ? 'bg-gradient-to-r from-green-400 to-green-600' : 'bg-gradient-to-r from-blue-400 to-blue-600'}`}
+                                style={{ width: `${progress}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Fun fact or motivational message */}
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-200 rounded-xl p-6 text-center">
+                    <p className="text-lg text-purple-800 font-medium">
+                      💡 <strong>¿Sabías que?</strong> Mientras esperas, tu cerebro está consolidando lo que aprendiste. ¡Gran trabajo!
+                    </p>
+                  </div>
+                </div>
               ) : isTeacherHost ? (
                 <div className="space-y-6 py-8">
                   <div className="bg-blue-50 border-2 border-blue-200 text-blue-800 rounded-lg p-6 text-center">

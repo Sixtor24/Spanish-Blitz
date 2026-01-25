@@ -6,6 +6,7 @@ import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition from "@/shared/components/SpeechRecognition";
 import { Trophy, Target, Clock, BookOpen, ArrowRight } from "lucide-react";
 import { api } from "@/config/api";
+import useUser from "@/shared/hooks/useUser";
 import type { DbDeck, DbCard } from "@/types/api.types";
 
 import {
@@ -32,6 +33,7 @@ interface CardQuestion {
 export default function PlaySoloPage() {
   const [searchParams] = useSearchParams();
   const deckId = searchParams.get("deck");
+  const { refetch: refetchUser } = useUser();
   
   const [showSetSelection, setShowSetSelection] = useState(true);
   const [availableSets, setAvailableSets] = useState<DbDeck[]>([]);
@@ -48,6 +50,8 @@ export default function PlaySoloPage() {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [userLocale, setUserLocale] = useState("es-ES");
   const [currentOptions, setCurrentOptions] = useState<string[]>([]);
+  const [xpEarned, setXpEarned] = useState<number>(0);
+  const [xpTotal, setXpTotal] = useState<number>(0);
 
   useEffect(() => {
     // Reset game state when deck changes
@@ -268,6 +272,24 @@ export default function PlaySoloPage() {
     const endTime = Date.now();
     const duration = startTime ? Math.round((endTime - startTime) / 1000) : 0;
     const accuracy = Math.round((score / cards.length) * 100);
+    
+    // Award XP for Solo Blitz (1 XP per correct answer)
+    try {
+      const xpResponse = await api.xp.awardSoloBlitz({
+        setId: deckId || undefined,
+        sessionId: `solo-${Date.now()}`,
+        correctAnswers: score,
+      });
+      setXpEarned(xpResponse.xpEarned || score);
+      setXpTotal(xpResponse.xpTotal || 0);
+      
+      // Refresh user data to update XP in dashboard
+      await refetchUser();
+    } catch (error) {
+      console.error('Error awarding XP:', error);
+      // Still set xpEarned to show at least what they earned
+      setXpEarned(score);
+    }
   };
 
   const restartGame = () => {
@@ -278,6 +300,8 @@ export default function PlaySoloPage() {
     setSelectedOption(null);
     setFeedback(null);
     setStartTime(Date.now());
+    setXpEarned(0);
+    setXpTotal(0);
 
     // Re-shuffle and re-assign question types
     const shuffled = cards.sort(() => Math.random() - 0.5);
@@ -423,7 +447,7 @@ export default function PlaySoloPage() {
               Great job on completing {deck.title}
             </p>
 
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
               <div className="p-6 bg-blue-50 rounded-lg">
                 <Target className="mx-auto mb-2 text-blue-600" size={32} />
                 <p className="text-sm text-gray-600">Score</p>
@@ -443,6 +467,14 @@ export default function PlaySoloPage() {
                 <p className="text-sm text-gray-600">Cards</p>
                 <p className="text-3xl font-bold text-orange-600">
                   {cards.length}
+                </p>
+              </div>
+
+              <div className="p-6 bg-purple-50 rounded-lg border-2 border-purple-300">
+                <div className="text-3xl mb-2 mx-auto text-center">⚡</div>
+                <p className="text-sm text-gray-600">XP Earned</p>
+                <p className="text-3xl font-bold text-purple-600">
+                  +{xpEarned}
                 </p>
               </div>
             </div>

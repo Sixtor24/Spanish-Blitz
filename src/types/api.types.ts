@@ -34,6 +34,7 @@ export interface DbUser {
   is_premium?: boolean | null;
   plan?: 'free' | 'premium' | 'gold' | null;
   has_seen_welcome?: boolean | null;
+  xp_total?: number;
   created_at?: Date;
   updated_at?: Date;
 }

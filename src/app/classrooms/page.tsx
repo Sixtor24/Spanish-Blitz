@@ -9,8 +9,8 @@ interface Assignment {
   id: string;
   title: string;
   description: string | null;
-  deck_id: string;
-  deck_title: string;
+  deck_id: string | null;
+  deck_title: string | null;
   due_date: string | null;
   completed: boolean;
   completed_at: string | null;
@@ -19,6 +19,9 @@ interface Assignment {
   classroom_color?: string;
   required_repetitions: number;
   repetitions_completed: number;
+  xp_goal?: number | null;
+  xp_reward?: number | null;
+  xp_progress?: number;
 }
 
 export default function StudentAssignmentsPage() {
@@ -127,22 +130,15 @@ export default function StudentAssignmentsPage() {
           <div className="space-y-4">
             {assignments.map((assignment) => {
               const dueDate = formatDueDate(assignment.due_date);
+              const cardClassName = `block border-l-4 border-2 rounded-lg p-5 transition-all ${
+                assignment.completed
+                  ? 'border-green-200 bg-green-50' + (assignment.deck_id ? ' hover:border-green-300' : '')
+                  : dueDate?.isOverdue
+                  ? 'border-red-200 bg-red-50' + (assignment.deck_id ? ' hover:border-red-300' : '')
+                  : 'border-gray-200 bg-white' + (assignment.deck_id ? ' hover:shadow-md' : '')
+              } ${!assignment.deck_id ? 'cursor-default' : 'cursor-pointer'}`;
               
-              return (
-                <Link
-                  key={assignment.id}
-                  to={`/study?deck=${assignment.deck_id}&classroom=${assignment.classroom_id}&assignment=${assignment.id}`}
-                  className={`block border-l-4 border-2 rounded-lg p-5 transition-all ${
-                    assignment.completed
-                      ? 'border-green-200 bg-green-50 hover:border-green-300'
-                      : dueDate?.isOverdue
-                      ? 'border-red-200 bg-red-50 hover:border-red-300'
-                      : 'border-gray-200 hover:shadow-md bg-white'
-                  }`}
-                  style={{
-                    borderLeftColor: assignment.classroom_color || '#8B5CF6'
-                  }}
-                >
+              const CardContent = (
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-2">
@@ -199,18 +195,42 @@ export default function StudentAssignmentsPage() {
                       )}
                     </div>
 
-                    <ArrowRight 
-                      className={`flex-shrink-0 ${
-                        assignment.completed
-                          ? 'text-green-600'
-                          : dueDate?.isOverdue
-                          ? 'text-red-600'
-                          : 'text-blue-600'
-                      }`} 
-                      size={24} 
-                    />
+                    {assignment.deck_id && (
+                      <ArrowRight 
+                        className={`flex-shrink-0 ${
+                          assignment.completed
+                            ? 'text-green-600'
+                            : dueDate?.isOverdue
+                            ? 'text-red-600'
+                            : 'text-blue-600'
+                        }`} 
+                        size={24} 
+                      />
+                    )}
                   </div>
+              );
+
+              return assignment.deck_id ? (
+                <Link
+                  key={assignment.id}
+                  to={`/study?deck=${assignment.deck_id}&classroom=${assignment.classroom_id}&assignment=${assignment.id}`}
+                  className={cardClassName}
+                  style={{
+                    borderLeftColor: assignment.classroom_color || '#8B5CF6'
+                  }}
+                >
+                  {CardContent}
                 </Link>
+              ) : (
+                <div
+                  key={assignment.id}
+                  className={cardClassName}
+                  style={{
+                    borderLeftColor: assignment.classroom_color || '#8B5CF6'
+                  }}
+                >
+                  {CardContent}
+                </div>
               );
             })}
           </div>

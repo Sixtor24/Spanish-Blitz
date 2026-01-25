@@ -434,26 +434,28 @@ export const api = {
       }),
     
     /**
-     * Create an assignment in a classroom
+     * Get assignments for a classroom
+     */
+    assignments: (classroomId: string) =>
+      apiFetch(`/api/classrooms/${classroomId}/assignments`),
+    
+    /**
+     * Create an assignment
      */
     createAssignment: (classroomId: string, data: {
-      deck_id: string;
+      deck_id?: string;
       title: string;
       description?: string;
       due_date?: string;
       student_ids?: string[];
       required_repetitions?: number;
+      xp_reward?: number;
+      xp_goal?: number;
     }) =>
       apiFetch(`/api/classrooms/${classroomId}/assignments`, {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-    
-    /**
-     * Get assignments for a classroom
-     */
-    assignments: (classroomId: string) =>
-      apiFetch(`/api/classrooms/${classroomId}/assignments`),
     
     /**
      * Delete an assignment
@@ -504,6 +506,53 @@ export const api = {
      * Get available voices
      */
     voices: () => apiFetch('/api/tts/voices'),
+  },
+
+  // ============================================================================
+  // XP (Experience Points)
+  // ============================================================================
+  xp: {
+    /**
+     * Award XP for completing Solo Blitz
+     */
+    awardSoloBlitz: (data: {
+      setId?: string;
+      sessionId?: string;
+      correctAnswers: number;
+    }) =>
+      apiFetch('/api/xp/solo-blitz/complete', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    
+    /**
+     * Award XP for completing Blitz Challenge (host only)
+     */
+    finalizeBlitzChallenge: (challengeId: string, results: Array<{
+      userId: string;
+      rank: number;
+      participated: boolean;
+    }>) =>
+      apiFetch('/api/xp/blitz-challenge/finalize', {
+        method: 'POST',
+        body: JSON.stringify({ challengeId, results }),
+      }),
+    
+    /**
+     * Get XP leaderboard
+     */
+    leaderboard: (limit?: number) => {
+      const query = limit ? `?limit=${limit}` : '';
+      return apiFetch(`/api/xp/leaderboard${query}`);
+    },
+    
+    /**
+     * Get XP history for current user
+     */
+    history: (limit?: number) => {
+      const query = limit ? `?limit=${limit}` : '';
+      return apiFetch(`/api/xp/history${query}`);
+    },
   },
 
   // ============================================================================

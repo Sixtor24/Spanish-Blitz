@@ -126,7 +126,7 @@ function DashboardPage() {
         </div>
 
         {/* Stats */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -159,6 +159,18 @@ function DashboardPage() {
                   {stats.streak} 🔥
                 </p>
               </div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border-2 border-purple-300 rounded-lg shadow p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-purple-600 font-semibold mb-1">Total XP</p>
+                <p className="text-3xl font-bold text-purple-600">
+                  {user?.xp_total || 0}
+                </p>
+              </div>
+              <div className="text-4xl">⚡</div>
             </div>
           </div>
         </div>

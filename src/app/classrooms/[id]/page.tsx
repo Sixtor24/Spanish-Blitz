@@ -9,13 +9,16 @@ interface Assignment {
   id: string;
   title: string;
   description: string | null;
-  deck_id: string;
-  deck_title: string;
+  deck_id: string | null;
+  deck_title: string | null;
   due_date: string | null;
   completed: boolean;
   completed_at: string | null;
   required_repetitions: number;
   repetitions_completed: number;
+  xp_goal?: number | null;
+  xp_reward?: number | null;
+  xp_progress?: number;
 }
 
 interface Classroom {
@@ -155,32 +158,33 @@ export default function StudentClassroomPage() {
             <div className="space-y-4">
               {assignments.map((assignment) => {
                 const dueDate = formatDueDate(assignment.due_date);
+                const cardClassName = `block border-2 rounded-lg p-5 transition-all ${
+                  assignment.completed
+                    ? 'border-green-200 bg-green-50' + (assignment.deck_id ? ' hover:border-green-300' : '')
+                    : dueDate?.isOverdue
+                    ? 'border-red-200 bg-red-50' + (assignment.deck_id ? ' hover:border-red-300' : '')
+                    : 'border-gray-200' + (assignment.deck_id ? ' hover:border-purple-300 hover:shadow-md' : '')
+                } ${!assignment.deck_id ? 'cursor-default' : 'cursor-pointer'}`;
                 
-                return (
-                  <Link
-                    key={assignment.id}
-                    to={`/study?deck=${assignment.deck_id}&classroom=${id}&assignment=${assignment.id}`}
-                    className={`block border-2 rounded-lg p-5 transition-all ${
-                      assignment.completed
-                        ? 'border-green-200 bg-green-50 hover:border-green-300'
-                        : dueDate?.isOverdue
-                        ? 'border-red-200 bg-red-50 hover:border-red-300'
-                        : 'border-gray-200 hover:border-purple-300 hover:shadow-md'
-                    }`}
-                  >
+                const CardContent = (
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <h3 className="font-bold text-lg text-gray-900">
                             {assignment.title}
                           </h3>
-                          {assignment.required_repetitions > 1 && (
+                          {assignment.required_repetitions > 1 && assignment.deck_id && (
                             <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
                               assignment.completed
                                 ? 'bg-green-100 text-green-700'
                                 : 'bg-blue-100 text-blue-700'
                             }`}>
                               {assignment.repetitions_completed || 0}/{assignment.required_repetitions}
+                            </span>
+                          )}
+                          {assignment.xp_reward && assignment.xp_reward > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-yellow-100 to-orange-100 text-orange-700 text-xs font-semibold rounded">
+                              ⚡ {assignment.xp_reward} XP Reward
                             </span>
                           )}
                           {assignment.completed && (
@@ -191,10 +195,43 @@ export default function StudentClassroomPage() {
                           )}
                         </div>
                         
-                        <p className="text-sm text-gray-600 mb-2">
-                          <BookOpen size={14} className="inline mr-1" />
-                          {assignment.deck_title}
-                        </p>
+                        {assignment.deck_id && assignment.deck_title && (
+                          <p className="text-sm text-gray-600 mb-2">
+                            <BookOpen size={14} className="inline mr-1" />
+                            {assignment.deck_title}
+                          </p>
+                        )}
+
+                        {/* XP Goal Progress */}
+                        {assignment.xp_goal && assignment.xp_goal > 0 && (
+                          <div className="mb-3 mt-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-semibold text-purple-700">
+                                💰 XP Goal: {assignment.xp_progress || 0}/{assignment.xp_goal}
+                              </span>
+                              <span className="text-xs font-semibold text-purple-700">
+                                {Math.min(100, Math.round(((assignment.xp_progress || 0) / assignment.xp_goal) * 100))}%
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                              <div
+                                className={`h-3 rounded-full transition-all duration-500 ${
+                                  assignment.completed
+                                    ? 'bg-gradient-to-r from-green-400 to-green-600'
+                                    : 'bg-gradient-to-r from-purple-400 to-pink-500'
+                                }`}
+                                style={{ 
+                                  width: `${Math.min(100, Math.round(((assignment.xp_progress || 0) / assignment.xp_goal) * 100))}%` 
+                                }}
+                              ></div>
+                            </div>
+                            {!assignment.deck_id && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                Gana XP practicando cualquier set para completar esta meta
+                              </p>
+                            )}
+                          </div>
+                        )}
 
                         {assignment.description && (
                           <p className="text-sm text-gray-600 mb-2">{assignment.description}</p>
@@ -223,18 +260,33 @@ export default function StudentClassroomPage() {
                         )}
                       </div>
 
-                      <ArrowRight 
-                        className={`flex-shrink-0 ${
-                          assignment.completed
-                            ? 'text-green-600'
-                            : dueDate?.isOverdue
-                            ? 'text-red-600'
-                            : 'text-purple-600'
-                        }`} 
-                        size={24} 
-                      />
+                      {assignment.deck_id && (
+                        <ArrowRight 
+                          className={`flex-shrink-0 ${
+                            assignment.completed
+                              ? 'text-green-600'
+                              : dueDate?.isOverdue
+                              ? 'text-red-600'
+                              : 'text-purple-600'
+                          }`} 
+                          size={24} 
+                        />
+                      )}
                     </div>
+                );
+
+                return assignment.deck_id ? (
+                  <Link
+                    key={assignment.id}
+                    to={`/study?deck=${assignment.deck_id}&classroom=${id}&assignment=${assignment.id}`}
+                    className={cardClassName}
+                  >
+                    {CardContent}
                   </Link>
+                ) : (
+                  <div key={assignment.id} className={cardClassName}>
+                    {CardContent}
+                  </div>
                 );
               })}
             </div>
