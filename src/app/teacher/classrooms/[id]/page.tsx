@@ -14,6 +14,7 @@ interface Student {
   id: string;
   email: string;
   display_name: string | null;
+  xp_total: number;
   joined_at: Date;
   is_active: boolean;
 }
@@ -251,8 +252,13 @@ function ClassroomDetailPage() {
               <div className="space-y-2">
                 {students.map((student) => (
                   <div key={student.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <p className="font-medium text-gray-900">{student.display_name || student.email}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <p className="font-medium text-gray-900">{student.display_name || student.email}</p>
+                        <span className="px-2 py-1 text-xs font-semibold text-purple-600 bg-purple-50 rounded">
+                          {student.xp_total || 0} XP
+                        </span>
+                      </div>
                       <p className="text-sm text-gray-500">Joined {new Date(student.joined_at).toLocaleDateString()}</p>
                     </div>
                     {isTeacher && (
@@ -518,9 +524,14 @@ function ClassroomDetailPage() {
                               className="w-4 h-4"
                               disabled={submitting}
                             />
-                            <span className="text-sm text-gray-700">
-                              {student.display_name || student.email}
-                            </span>
+                            <div className="flex-1 flex items-center justify-between">
+                              <span className="text-sm text-gray-700">
+                                {student.display_name || student.email}
+                              </span>
+                              <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                                {student.xp_total || 0} XP
+                              </span>
+                            </div>
                           </label>
                         ))}
                       </div>

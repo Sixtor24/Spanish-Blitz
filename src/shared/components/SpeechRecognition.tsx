@@ -190,9 +190,22 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
           }
         }
         else if (data.type === 'error') {
-          setErrorMessage(data.message || 'Error');
+          // Ignorar errores de silencio - solo mostrar errores críticos
+          const errorMsg = (data.message || '').toLowerCase();
+          const isSilenceError = errorMsg.includes('silence') || 
+                                 errorMsg.includes('no speech') || 
+                                 errorMsg.includes('timeout') ||
+                                 errorMsg.includes('no audio');
+          
+          if (!isSilenceError) {
+            console.error('[Speech] Error:', data.message);
+            setErrorMessage(data.message || 'Error');
+            if (onError) onError('transcription-failed');
+          } else {
+            console.log('[Speech] Silencio detectado - esperando voz del usuario');
+            // No mostrar error, solo continuar esperando
+          }
           setIsProcessing(false);
-          if (onError) onError('transcription-failed');
           stopListening();
         }
       };
@@ -346,12 +359,11 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
         }
       }, STOP_SIGNAL_DELAY);
       
-      // Auto-reset if stuck
+      // Auto-reset if stuck (sin mostrar error al usuario por timeout)
       processingTimeoutRef.current = setTimeout(() => {
-        console.warn('⚠️ [Speech] Processing timeout - resetting');
+        console.warn('⚠️ [Speech] Processing timeout - resetting silently');
         stopListening();
-        setErrorMessage('Processing took too long - please try again');
-        setTimeout(() => setErrorMessage(null), ERROR_DISPLAY_DURATION);
+        // No mostrar error - el usuario simplemente puede intentar de nuevo
       }, PROCESSING_TIMEOUT);
     }
   };
@@ -362,38 +374,38 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
   // UI STATE
   // ============================================
   const buttonColor = errorMessage ? 'bg-orange-500 hover:bg-orange-600' 
-    : isListening ? 'bg-orange-500 hover:bg-orange-600 scale-105 shadow-xl' 
-    : isProcessing ? 'bg-yellow-500 hover:bg-yellow-600 cursor-pointer'
-    : 'bg-green-500 hover:bg-green-600';
+    : isListening ? 'bg-red-500 hover:bg-red-600 scale-110 shadow-2xl ring-4 ring-red-300' 
+    : isProcessing ? 'bg-yellow-500 hover:bg-yellow-600 cursor-pointer animate-pulse'
+    : 'bg-blue-500 hover:bg-blue-600';
   
-  const buttonText = errorMessage ? 'Error - Try Again' 
-    : isListening ? '🎤 Recording...' 
-    : isProcessing ? '⏳ Processing... (tap to cancel)'
-    : '🎙️ Hold to Speak';
+  const instructionText = errorMessage ? 'Error - Try Again' 
+    : isListening ? 'Recording... Release to stop' 
+    : isProcessing ? 'Processing your answer...'
+    : 'Press and hold to speak';
+  
   const ButtonIcon = errorMessage ? MicOff : Mic;
 
   return (
     <div className="flex flex-col items-center gap-4">
+      {/* Botón circular grande solo con icono */}
       <button
         onMouseDown={handlePressStart}
         onMouseUp={handlePressEnd}
         onMouseLeave={handlePressEnd}
         onTouchStart={handlePressStart}
         onTouchEnd={handlePressEnd}
-        className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${buttonColor} text-white shadow-lg active:scale-95 select-none touch-none`}
+        className={`flex items-center justify-center w-24 h-24 rounded-full font-medium transition-all duration-200 ${buttonColor} text-white shadow-2xl active:scale-95 select-none touch-none`}
         style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none', userSelect: 'none' }}
         aria-label={isListening ? 'Recording' : 'Hold to Record'}
         disabled={!!errorMessage}
       >
-        <ButtonIcon className="w-5 h-5" />
-        {buttonText}
+        <ButtonIcon className="w-12 h-12" />
       </button>
       
-      {!isListening && !errorMessage && (
-        <p className="text-xs text-gray-500 text-center max-w-xs">
-          Press and hold the button to record your answer, release to stop
-        </p>
-      )}
+      {/* Texto instructivo debajo del botón */}
+      <p className="text-sm text-gray-600 text-center max-w-xs font-medium">
+        {instructionText}
+      </p>
 
       {showTranscript && finalTranscript && !isListening && (
         <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm max-w-md text-center font-medium">

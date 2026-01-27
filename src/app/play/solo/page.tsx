@@ -178,7 +178,7 @@ export default function PlaySoloPage() {
 
     // Move to next card after 1.5 seconds
     setTimeout(() => {
-      moveToNext();
+      moveToNext(isCorrect);
     }, 1500);
   };
 
@@ -210,7 +210,7 @@ export default function PlaySoloPage() {
 
       // Move to next card after 2 seconds
       setTimeout(() => {
-        moveToNext();
+        moveToNext(isCorrect);
       }, 2000);
     } catch (err) {
       console.error("Error evaluating speech:", err);
@@ -235,14 +235,16 @@ export default function PlaySoloPage() {
       setAnsweredCards(answeredCards + 1);
 
       setTimeout(() => {
-        moveToNext();
+        moveToNext(isCorrect);
       }, 2000);
     }
   };
 
-  const moveToNext = () => {
+  const moveToNext = (wasCorrect?: boolean) => {
     if (currentIndex + 1 >= cardQuestions.length) {
-      endGame();
+      // Calculate final score including this last answer
+      const finalScore = wasCorrect ? score + 1 : score;
+      endGame(finalScore);
     } else {
       setCurrentIndex(currentIndex + 1);
       setSelectedOption(null);
@@ -267,20 +269,21 @@ export default function PlaySoloPage() {
     }
   };
 
-  const endGame = async () => {
+  const endGame = async (finalScore?: number) => {
     setGameEnded(true);
     const endTime = Date.now();
     const duration = startTime ? Math.round((endTime - startTime) / 1000) : 0;
-    const accuracy = Math.round((score / cards.length) * 100);
+    const scoreToUse = finalScore !== undefined ? finalScore : score;
+    const accuracy = Math.round((scoreToUse / cards.length) * 100);
     
     // Award XP for Solo Blitz (1 XP per correct answer)
     try {
       const xpResponse = await api.xp.awardSoloBlitz({
         setId: deckId || undefined,
         sessionId: `solo-${Date.now()}`,
-        correctAnswers: score,
+        correctAnswers: scoreToUse,
       });
-      setXpEarned(xpResponse.xpEarned || score);
+      setXpEarned(xpResponse.xpEarned || scoreToUse);
       setXpTotal(xpResponse.xpTotal || 0);
       
       // Refresh user data to update XP in dashboard
@@ -288,7 +291,7 @@ export default function PlaySoloPage() {
     } catch (error) {
       console.error('Error awarding XP:', error);
       // Still set xpEarned to show at least what they earned
-      setXpEarned(score);
+      setXpEarned(scoreToUse);
     }
   };
 
@@ -472,7 +475,7 @@ export default function PlaySoloPage() {
 
               <div className="p-6 bg-purple-50 rounded-lg border-2 border-purple-300">
                 <div className="text-3xl mb-2 mx-auto text-center">⚡</div>
-                <p className="text-sm text-gray-600">XP Earned</p>
+                <p className="text-sm text-gray-600">XPs Earned</p>
                 <p className="text-3xl font-bold text-purple-600">
                   +{xpEarned}
                 </p>
@@ -509,25 +512,28 @@ export default function PlaySoloPage() {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-md p-6 mb-6 border border-gray-100">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-2xl font-bold text-gray-900">{deck.title}</h1>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Target className="text-blue-600" size={20} />
-                <span className="font-semibold text-blue-600">
+            <div className="flex items-center gap-3">
+              {/* XP Badge */}
+              <div className="flex items-center gap-2 bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-lg px-3 py-2 shadow-sm">
+                <span className="text-sm font-bold text-purple-600">XPs</span>
+                <span className="text-lg font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                   {score}/{cards.length}
                 </span>
               </div>
-              <div className="text-sm text-gray-600">
+              {/* Progress */}
+              <div className="text-sm font-medium text-gray-600 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
                 {currentIndex + 1} / {cards.length}
               </div>
             </div>
           </div>
 
-          <div className="w-full bg-gray-200 rounded-full h-2">
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
             <div
-              className="bg-blue-600 h-2 rounded-full transition-all"
+              className="h-2.5 rounded-full transition-all duration-500 ease-out bg-gradient-to-r from-blue-500 to-purple-600"
               style={{ width: `${((currentIndex + 1) / cards.length) * 100}%` }}
             />
           </div>

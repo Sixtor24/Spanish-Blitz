@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import { User, Globe, LogOut, Users, Plus } from "lucide-react";
 import useAuth from "@/shared/hooks/useAuth";
+import { useAuth as useAuthContext } from "@/lib/auth-context";
 import { api } from "@/config/api";
 import type { DbUser } from "@/types/api.types";
 import { withAuth } from "@/shared/hoc/withAuth";
@@ -29,6 +30,7 @@ function ProfilePage() {
   const [joinMessage, setJoinMessage] = useState("");
   const [classrooms, setClassrooms] = useState<any[]>([]);
   const { signOut } = useAuth();
+  const { refetch: refetchAuthUser } = useAuthContext();
 
   useEffect(() => {
     let mounted = true;
@@ -64,31 +66,43 @@ function ProfilePage() {
     setMessage("");
 
     try {
+      console.log('🔄 [Profile] Updating preferences:', {
+        displayName,
+        locale: preferredLocale,
+        voiceGender: preferredVoiceGender
+      });
+      
       const updated = await api.users.patch({
         display_name: displayName,
         preferred_locale: preferredLocale,
         preferred_voice_gender: preferredVoiceGender,
       } as any);
-      setUser(updated);
       
-      console.log('✅ [Profile] Saved preferences:', {
-        locale: preferredLocale,
-        voiceGender: preferredVoiceGender,
+      console.log('✅ [Profile] Preferences updated in backend:', {
+        locale: updated.preferred_locale,
+        voiceGender: updated.preferred_voice_gender,
         plan: updated.plan,
         isPremium: updated.is_premium
       });
       
-      setMessage("Profile updated successfully!");
+      setUser(updated);
       
-      // Force page reload to refresh user context globally
-      setTimeout(() => window.location.reload(), 500);
+      // Refetch user from AuthContext to update globally
+      console.log('🔄 [Profile] Refetching user from AuthContext...');
+      await refetchAuthUser();
+      console.log('✅ [Profile] User refetched successfully');
+      
+      setMessage("Profile updated successfully! Changes will take effect immediately.");
+      
+      // Clear message after 3 seconds
+      setTimeout(() => setMessage(""), 3000);
     } catch (error) {
-      console.error("Error updating profile:", error);
-      setMessage("Error updating profile");
+      console.error("❌ [Profile] Error updating profile:", error);
+      setMessage("Error updating profile. Please try again.");
     } finally {
       setSaving(false);
     }
-  }, [displayName, preferredLocale, preferredVoiceGender]);
+  }, [displayName, preferredLocale, preferredVoiceGender, refetchAuthUser]);
 
   const handleSignOut = async () => {
     await signOut();
