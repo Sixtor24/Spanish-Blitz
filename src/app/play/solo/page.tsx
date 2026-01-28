@@ -490,6 +490,13 @@ export default function PlaySoloPage() {
                 Play Again
               </button>
               <Link
+                to="/classrooms"
+                className="bg-purple-600 text-white px-8 py-3 rounded-lg hover:bg-purple-700 font-medium flex items-center gap-2"
+              >
+                <Trophy size={20} />
+                View Assignments
+              </Link>
+              <Link
                 to="/play/solo"
                 className="bg-gray-200 text-gray-700 px-8 py-3 rounded-lg hover:bg-gray-300 font-medium"
               >

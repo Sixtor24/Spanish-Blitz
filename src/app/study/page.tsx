@@ -164,15 +164,17 @@ function StudyPage() {
     }
   };
 
-  // Prefetch all audio from cards for instant playback
-  usePrefetchVocabularyAudio(
-    cards.map(card => ({
-      spanish: card.question, // Spanish text
-      definition: card.answer, // English translation
-      example: undefined // No example sentences in current schema
-    })),
-    userLocale
-  );
+  // ⚠️ PREFETCH DESHABILITADO: Causaba rate limiting de Microsoft Edge TTS
+  // El audio ahora se carga on-demand cuando el usuario presiona el botón
+  // Mantiene caché local para reproducción instantánea en segunda vez
+  // usePrefetchVocabularyAudio(
+  //   cards.map(card => ({
+  //     spanish: card.question,
+  //     definition: card.answer,
+  //     example: undefined
+  //   })),
+  //   userLocale
+  // );
 
   const initializeStudySession = (cardsData: DbCard[]) => {
     // Shuffle cards and assign random variants

@@ -130,13 +130,16 @@ export default function StudentAssignmentsPage() {
           <div className="space-y-4">
             {assignments.map((assignment) => {
               const dueDate = formatDueDate(assignment.due_date);
+              // Solo mostrar como overdue si hay fecha Y está caducada (no si la fecha es opcional/null)
+              const isActuallyOverdue = assignment.due_date && dueDate?.isOverdue;
+              
               const cardClassName = `block border-l-4 border-2 rounded-lg p-5 transition-all ${
                 assignment.completed
-                  ? 'border-green-200 bg-green-50' + (assignment.deck_id ? ' hover:border-green-300' : '')
-                  : dueDate?.isOverdue
-                  ? 'border-red-200 bg-red-50' + (assignment.deck_id ? ' hover:border-red-300' : '')
-                  : 'border-gray-200 bg-white' + (assignment.deck_id ? ' hover:shadow-md' : '')
-              } ${!assignment.deck_id ? 'cursor-default' : 'cursor-pointer'}`;
+                  ? 'border-green-200 bg-green-50 hover:border-green-300'
+                  : isActuallyOverdue
+                  ? 'border-red-200 bg-red-50 hover:border-red-300'
+                  : 'border-gray-200 bg-white hover:shadow-md'
+              } cursor-pointer`;
               
               const CardContent = (
                   <div className="flex items-start justify-between">
@@ -152,6 +155,15 @@ export default function StudentAssignmentsPage() {
                               : 'bg-blue-100 text-blue-700'
                           }`}>
                             {assignment.repetitions_completed || 0}/{assignment.required_repetitions}
+                          </span>
+                        )}
+                        {assignment.xp_goal && assignment.xp_goal > 0 && (
+                          <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
+                            assignment.completed
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-purple-100 text-purple-700'
+                          }`}>
+                            ⚡ {assignment.xp_progress || 0}/{assignment.xp_goal} XP
                           </span>
                         )}
                         {assignment.completed && (
@@ -172,15 +184,15 @@ export default function StudentAssignmentsPage() {
                         <p className="text-sm text-gray-600 mb-2">{assignment.description}</p>
                       )}
 
-                      {dueDate && (
+                      {dueDate && assignment.due_date && (
                         <div className={`text-sm flex items-center gap-1 ${
-                          dueDate.isOverdue && !assignment.completed
+                          isActuallyOverdue && !assignment.completed
                             ? 'text-red-600 font-semibold'
                             : 'text-gray-500'
                         }`}>
                           <Clock size={14} />
                           Due: {dueDate.formatted} at {dueDate.time}
-                          {dueDate.isOverdue && !assignment.completed && (
+                          {isActuallyOverdue && !assignment.completed && (
                             <span className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">
                               Overdue
                             </span>
@@ -195,25 +207,28 @@ export default function StudentAssignmentsPage() {
                       )}
                     </div>
 
-                    {assignment.deck_id && (
-                      <ArrowRight 
-                        className={`flex-shrink-0 ${
-                          assignment.completed
-                            ? 'text-green-600'
-                            : dueDate?.isOverdue
-                            ? 'text-red-600'
-                            : 'text-blue-600'
-                        }`} 
-                        size={24} 
-                      />
-                    )}
+                    <ArrowRight 
+                      className={`flex-shrink-0 ${
+                        assignment.completed
+                          ? 'text-green-600'
+                          : isActuallyOverdue
+                          ? 'text-red-600'
+                          : 'text-blue-600'
+                      }`} 
+                      size={24} 
+                    />
                   </div>
               );
 
-              return assignment.deck_id ? (
+              // Determine target URL based on assignment type
+              const targetUrl = assignment.deck_id 
+                ? `/study?deck=${assignment.deck_id}&classroom=${assignment.classroom_id}&assignment=${assignment.id}`
+                : `/play/solo`; // XP Goals redirect to Play Solo where XP is earned
+
+              return (
                 <Link
                   key={assignment.id}
-                  to={`/study?deck=${assignment.deck_id}&classroom=${assignment.classroom_id}&assignment=${assignment.id}`}
+                  to={targetUrl}
                   className={cardClassName}
                   style={{
                     borderLeftColor: assignment.classroom_color || '#8B5CF6'
@@ -221,16 +236,6 @@ export default function StudentAssignmentsPage() {
                 >
                   {CardContent}
                 </Link>
-              ) : (
-                <div
-                  key={assignment.id}
-                  className={cardClassName}
-                  style={{
-                    borderLeftColor: assignment.classroom_color || '#8B5CF6'
-                  }}
-                >
-                  {CardContent}
-                </div>
               );
             })}
           </div>

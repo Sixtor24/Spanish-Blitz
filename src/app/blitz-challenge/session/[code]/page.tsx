@@ -513,7 +513,7 @@ function BlitzSessionPage() {
           )}
         </div>
 
-        {error && (
+        {error && !(status === 'completed' && error.toLowerCase().includes('not active')) && (
           <div className={`rounded-lg p-3 mb-4 ${
             error.includes('finalizado') || error.includes('resultados') 
               ? 'bg-blue-50 border border-blue-200 text-blue-700' 
