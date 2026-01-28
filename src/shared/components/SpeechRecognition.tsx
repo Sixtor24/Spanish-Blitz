@@ -68,43 +68,50 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
    */
   useImperativeHandle(ref, () => ({
     stop: () => {
-      if (isListeningRef.current) {
-        console.log('🛑 [Speech] Stopping via external call');
+      if (isListeningRef.current || isProcessing) {
+        console.log('🛑 [Speech] Stopping via external call (correct answer)');
         stopListening();
       }
     },
     isListening: () => isListeningRef.current,
   }));
 
-  const cleanup = () => {
+  /**
+   * Cleanup only the current recording session
+   * Keeps WebSocket persistent connection alive
+   */
+  const cleanupRecording = () => {
+    // Stop media recorder and tracks
     if (mediaRecorderRef.current?.state !== 'inactive') {
       mediaRecorderRef.current?.stop();
     }
     streamRef.current?.getTracks().forEach(track => track.stop());
     
-    if (wsRef.current && sessionIdRef.current) {
+    // Send stop signal to backend but KEEP WebSocket open
+    if (wsRef.current && sessionIdRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       try {
-        // Solo enviar si la conexión está abierta
-        if (wsRef.current.readyState === WebSocket.OPEN) {
-          wsRef.current.send(JSON.stringify({ type: 'speech:stop', sessionId: sessionIdRef.current }));
-        }
-        wsRef.current.close();
-      } catch {}
+        wsRef.current.send(JSON.stringify({ type: 'speech:stop', sessionId: sessionIdRef.current }));
+      } catch (e) {
+        console.warn('[Speech] Failed to send stop signal:', e);
+      }
     }
     
+    // Clear timeouts
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (startTimerRef.current) clearTimeout(startTimerRef.current);
     if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
     if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
     if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+    
+    // Close audio context
     if (audioContextRef.current) {
       audioContextRef.current.close().catch(() => {});
       audioContextRef.current = null;
     }
     
+    // Reset recording state (but keep WebSocket!)
     mediaRecorderRef.current = null;
     streamRef.current = null;
-    wsRef.current = null;
     sessionIdRef.current = null;
     audioBufferRef.current = [];
     wsReadyRef.current = false;
@@ -115,6 +122,27 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     retryTimeoutRef.current = null;
     analyserRef.current = null;
     animationFrameRef.current = null;
+  };
+
+  /**
+   * Cleanup everything including WebSocket
+   * Only used when unmounting component
+   */
+  const cleanupAll = () => {
+    cleanupRecording();
+    
+    // Close persistent WebSocket
+    if (wsRef.current) {
+      try {
+        wsRef.current.close();
+      } catch (e) {
+        console.warn('[Speech] Failed to close WebSocket:', e);
+      }
+      wsRef.current = null;
+    }
+    
+    wsConnectedRef.current = false;
+    pendingSessionRef.current = null;
   };
 
   /**
@@ -334,7 +362,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       }
       
       if (onError) onError('microphone-denied');
-      cleanup();
+      cleanupRecording();
       setIsListening(false);
       setIsProcessing(false);
     }
@@ -356,7 +384,8 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
   };
 
   const stopListening = () => {
-    cleanup();
+    console.log('📦 [Speech] Stopping listening, cleaning up recording');
+    cleanupRecording();
     setIsListening(false);
     setIsProcessing(false);
     setCurrentTranscript('');
@@ -477,11 +506,8 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     initializeWebSocket();
     
     return () => {
-      console.log('[Speech] Component unmounting, closing WebSocket');
-      cleanup();
-      if (wsRef.current) {
-        wsRef.current.close();
-      }
+      console.log('[Speech] Component unmounting, closing everything');
+      cleanupAll();
     };
   }, []);
 
