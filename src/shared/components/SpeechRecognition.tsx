@@ -50,6 +50,8 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
   const streamRef = useRef<MediaStream | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const sessionIdRef = useRef<string | null>(null);
+  const wsConnectedRef = useRef(false);
+  const pendingSessionRef = useRef<string | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const audioBufferRef = useRef<Blob[]>([]);
   const wsReadyRef = useRef(false);
@@ -116,6 +118,98 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
   };
 
   /**
+   * Initialize persistent WebSocket connection
+   * This eliminates the 2.4s "Stalled" delay by keeping connection alive
+   */
+  const initializeWebSocket = () => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log('[Speech] WebSocket already connected');
+      return;
+    }
+
+    console.log('[Speech] Initializing persistent WebSocket connection...');
+    const ws = createWebSocket();
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('✅ [Speech] Persistent WebSocket CONNECTED');
+      wsConnectedRef.current = true;
+      
+      // If there's a pending session, start it now
+      if (pendingSessionRef.current) {
+        const sessionId = pendingSessionRef.current;
+        pendingSessionRef.current = null;
+        ws.send(JSON.stringify({ type: 'speech:start', sessionId, locale }));
+      }
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      
+      if (data.type === 'stream:started') {
+        wsReadyRef.current = true;
+        console.log('✅ [Speech] Stream ready, sending buffered audio');
+        // Send buffered audio
+        audioBufferRef.current.forEach(blob => sendAudioChunk(blob));
+        audioBufferRef.current = [];
+      } 
+      else if (data.type === 'transcript') {
+        const transcript = data.transcript || '';
+        const isFinal = data.isFinal || false;
+        const confidence = data.confidence || 0;
+        
+        if (isFinal) {
+          console.log(`✅ [Speech] Final: "${transcript}" (${(confidence * 100).toFixed(1)}%)`);
+          const filtered = filterEvaluationKeywords(transcript);
+          setFinalTranscript(filtered);
+          onTranscript(filtered, confidence);
+          
+          if (autoStop) {
+            setTimeout(() => stopListening(), STOP_SIGNAL_DELAY);
+          }
+        } else {
+          setCurrentTranscript(transcript);
+        }
+      } 
+      else if (data.type === 'error') {
+        const errorMsg = (data.message || '').toLowerCase();
+        const isSilenceError = errorMsg.includes('silence') || 
+                               errorMsg.includes('no speech') || 
+                               errorMsg.includes('timeout') ||
+                               errorMsg.includes('no audio');
+        
+        if (!isSilenceError) {
+          setErrorMessage(data.message || 'Error');
+          if (onError) onError('transcription-failed');
+        } else {
+          console.log('[Speech] Silence detected - waiting for user voice');
+        }
+        setIsProcessing(false);
+        stopListening();
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error('[Speech] Persistent WebSocket error:', error);
+      wsConnectedRef.current = false;
+      
+      // Auto-reconnect after delay
+      setTimeout(() => {
+        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+          console.log('🔄 [Speech] Auto-reconnecting WebSocket...');
+          initializeWebSocket();
+        }
+      }, 1000);
+    };
+
+    ws.onclose = () => {
+      console.log('[Speech] Persistent WebSocket closed');
+      wsConnectedRef.current = false;
+      wsReadyRef.current = false;
+    };
+  };
+
+  /**
    * Setup audio visualizer for feedback (like Duolingo)
    */
   const setupAudioVisualizer = (stream: MediaStream) => {
@@ -178,6 +272,25 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       audioBufferRef.current = [];
       wsReadyRef.current = false;
       
+      // Ensure WebSocket is connected
+      if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+        console.log('[Speech] WebSocket not ready, initializing...');
+        initializeWebSocket();
+      }
+      
+      // Create new session ID
+      const sessionId = `speech-${Date.now()}`;
+      sessionIdRef.current = sessionId;
+      
+      // Start speech session on existing WebSocket
+      if (wsConnectedRef.current && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        console.log('[Speech] Starting session on persistent WebSocket:', sessionId);
+        wsRef.current.send(JSON.stringify({ type: 'speech:start', sessionId, locale }));
+      } else {
+        console.log('[Speech] WebSocket connecting, session pending:', sessionId);
+        pendingSessionRef.current = sessionId;
+      }
+      
       // Start recording IMMEDIATELY
       const mediaRecorder = new MediaRecorder(stream, { 
         mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : undefined 
@@ -201,108 +314,6 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       };
       
       mediaRecorder.start(AUDIO_CHUNK_INTERVAL);
-      
-      // Setup WebSocket in parallel
-      const ws = createWebSocket();
-      const sessionId = `speech-${Date.now()}`;
-      wsRef.current = ws;
-      sessionIdRef.current = sessionId;
-      
-      ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'speech:start', sessionId, locale }));
-      };
-      
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'stream:started') {
-          wsReadyRef.current = true;
-          // Flush buffer
-          audioBufferRef.current.forEach(blob => sendAudioChunk(blob));
-          audioBufferRef.current = [];
-        }
-        else if (data.type === 'transcript') {
-          const { transcript, isFinal, confidence } = data;
-          if (transcript?.trim()) {
-            // Filter evaluation keywords
-            const shouldShowTranscript = filterEvaluationKeywords(transcript);
-            
-            if (!isFinal) {
-              // Show interim results for immediate feedback
-              if (shouldShowTranscript) {
-                setCurrentTranscript(transcript);
-              }
-            } else {
-              // Final transcript - evaluate immediately
-              if (shouldShowTranscript) {
-                setFinalTranscript(transcript);
-              }
-              setCurrentTranscript('');
-              onTranscript(transcript, confidence);
-              // Cleanup after processing
-              setIsProcessing(false);
-              setTimeout(() => stopListening(), 100); // Reduced from 300ms
-            }
-          }
-        }
-        else if (data.type === 'error') {
-          // Ignorar errores de silencio - solo mostrar errores críticos
-          const errorMsg = (data.message || '').toLowerCase();
-          const isSilenceError = errorMsg.includes('silence') || 
-                                 errorMsg.includes('no speech') || 
-                                 errorMsg.includes('timeout') ||
-                                 errorMsg.includes('no audio');
-          
-          if (!isSilenceError) {
-            console.error('[Speech] Error:', data.message);
-            setErrorMessage(data.message || 'Error');
-            if (onError) onError('transcription-failed');
-          } else {
-            console.log('[Speech] Silencio detectado - esperando voz del usuario');
-            // No mostrar error, solo continuar esperando
-          }
-          setIsProcessing(false);
-          stopListening();
-        }
-      };
-      
-      ws.onerror = (error) => {
-        console.error('[Speech] WebSocket error:', error);
-        
-        // Retry automatically for transient errors
-        if (retryCount < MAX_RETRY_ATTEMPTS) {
-          console.log(`🔄 [Speech] Retrying connection (${retryCount + 1}/${MAX_RETRY_ATTEMPTS})`);
-          setRetryCount(prev => prev + 1);
-          
-          retryTimeoutRef.current = setTimeout(() => {
-            if (isListeningRef.current) {
-              // Restart connection without stopping recording
-              const ws = createWebSocket();
-              const sessionId = `speech-${Date.now()}`;
-              wsRef.current = ws;
-              sessionIdRef.current = sessionId;
-              
-              ws.onopen = () => {
-                ws.send(JSON.stringify({ type: 'speech:start', sessionId, locale }));
-              };
-              
-              // Re-attach all handlers
-              ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                if (data.type === 'stream:started') {
-                  wsReadyRef.current = true;
-                  audioBufferRef.current.forEach(blob => sendAudioChunk(blob));
-                  audioBufferRef.current = [];
-                }
-              };
-            }
-          }, RETRY_DELAY);
-        } else {
-          setErrorMessage('Connection failed - please try again');
-          if (onError) onError('connection-failed');
-          stopListening();
-        }
-      };
       
       // Safety timeout
       timeoutRef.current = setTimeout(() => {
@@ -355,26 +366,26 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
   /**
    * Filter evaluation keywords from display
    * Rules:
-   * - "bien" → Don't show
-   * - "regular" or "medio correcta" → Don't show
+   * - "bien" → Don't show (return empty)
+   * - "regular" or "medio correcta" → Don't show (return empty)
    * - "incorrecta" → Show the exact word
    * - Other words → Show normally
    */
-  const filterEvaluationKeywords = (transcript: string): boolean => {
+  const filterEvaluationKeywords = (transcript: string): string => {
     const normalized = transcript.toLowerCase().trim();
     
     // Don't show "bien" or variations
     if (normalized === 'bien' || normalized === 'muy bien') {
-      return false;
+      return '';
     }
     
     // Don't show "regular" or "medio correcta"
     if (normalized === 'regular' || normalized === 'medio correcta' || normalized === 'medio') {
-      return false;
+      return '';
     }
     
     // Show everything else (including "incorrecta")
-    return true;
+    return transcript;
   };
 
   // ============================================
@@ -460,7 +471,19 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     }
   };
 
-  useEffect(() => () => cleanup(), []);
+  // Initialize persistent WebSocket on mount
+  useEffect(() => {
+    console.log('[Speech] Component mounted, initializing persistent WebSocket');
+    initializeWebSocket();
+    
+    return () => {
+      console.log('[Speech] Component unmounting, closing WebSocket');
+      cleanup();
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
 
   // ============================================
   // UI STATE
