@@ -31,7 +31,6 @@ export interface DbUser {
   role?: 'user' | 'teacher' | 'admin' | null;
   preferred_locale?: string | null;
   preferred_voice_gender?: 'male' | 'female' | null;
-  tts_provider?: 'edge' | 'google' | null;
   tts_voice_id?: string | null;
   is_premium?: boolean | null;
   plan?: 'free' | 'premium' | 'gold' | null;

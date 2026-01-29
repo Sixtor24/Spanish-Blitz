@@ -480,9 +480,9 @@ export const api = {
   // ============================================================================
   tts: {
     /**
-     * Get list of available Edge TTS voices
+     * Get list of available Google Cloud TTS voices
      */
-    listEdgeVoices: async () => {
+    listVoices: async () => {
       const response = await fetch(`${API_BASE_URL}/api/tts/voices`, {
         method: 'GET',
         credentials: 'include',
@@ -492,19 +492,7 @@ export const api = {
     },
     
     /**
-     * Get list of available Google Cloud TTS voices
-     */
-    listGoogleVoices: async () => {
-      const response = await fetch(`${API_BASE_URL}/api/tts/google/voices`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (!response.ok) throw new Error('Failed to fetch Google voices');
-      return response.json();
-    },
-    
-    /**
-     * Check TTS providers configuration
+     * Check if Google Cloud TTS is configured
      */
     checkConfig: async () => {
       const response = await fetch(`${API_BASE_URL}/api/tts/config/check`, {
