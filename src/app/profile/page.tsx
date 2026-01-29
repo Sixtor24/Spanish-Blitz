@@ -17,6 +17,10 @@ function ProfilePage() {
   const [displayName, setDisplayName] = useState("");
   const [preferredLocale, setPreferredLocale] = useState("es-ES");
   const [preferredVoiceGender, setPreferredVoiceGender] = useState<'male' | 'female'>('female');
+  const [ttsProvider, setTtsProvider] = useState<'edge' | 'google'>('edge');
+  const [ttsVoiceId, setTtsVoiceId] = useState<string>('');
+  const [googleVoices, setGoogleVoices] = useState<any[]>([]);
+  const [googleTTSAvailable, setGoogleTTSAvailable] = useState(false);
   const [stats, setStats] = useState({
     cardsStudied: 0,
     accuracy: 0,
@@ -48,8 +52,24 @@ function ProfilePage() {
         setDisplayName(userData.display_name || '');
         setPreferredLocale(userData.preferred_locale || 'es-ES');
         setPreferredVoiceGender((userData as any).preferred_voice_gender || 'female');
+        setTtsProvider((userData as any).tts_provider || 'edge');
+        setTtsVoiceId((userData as any).tts_voice_id || '');
         setStats(statsData);
         setClassrooms(classroomsData);
+        
+        // Check Google TTS availability and load voices
+        try {
+          const config = await api.tts.checkConfig();
+          setGoogleTTSAvailable(config.googleTTS);
+          
+          if (config.googleTTS) {
+            const voicesData = await api.tts.listGoogleVoices();
+            setGoogleVoices(voicesData.voices || []);
+          }
+        } catch (error) {
+          console.log('Google TTS not available');
+          setGoogleTTSAvailable(false);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -69,13 +89,17 @@ function ProfilePage() {
       console.log('🔄 [Profile] Updating preferences:', {
         displayName,
         locale: preferredLocale,
-        voiceGender: preferredVoiceGender
+        voiceGender: preferredVoiceGender,
+        ttsProvider,
+        ttsVoiceId
       });
       
       const updated = await api.users.patch({
         display_name: displayName,
         preferred_locale: preferredLocale,
         preferred_voice_gender: preferredVoiceGender,
+        tts_provider: ttsProvider,
+        tts_voice_id: ttsVoiceId,
       } as any);
       
       console.log('✅ [Profile] Preferences updated in backend:', {
@@ -102,7 +126,7 @@ function ProfilePage() {
     } finally {
       setSaving(false);
     }
-  }, [displayName, preferredLocale, preferredVoiceGender, refetchAuthUser]);
+  }, [displayName, preferredLocale, preferredVoiceGender, ttsProvider, ttsVoiceId, refetchAuthUser]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -220,20 +244,68 @@ function ProfilePage() {
               <div>
                 <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-2">
                   <User size={16} />
-                  Preferred Voice Gender
+                  TTS Provider
                 </label>
                 <select
-                  value={preferredVoiceGender}
-                  onChange={(e) => setPreferredVoiceGender(e.target.value as 'male' | 'female')}
+                  value={ttsProvider}
+                  onChange={(e) => setTtsProvider(e.target.value as 'edge' | 'google')}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="female">👩 Female Voice</option>
-                  <option value="male">👨 Male Voice</option>
+                  <option value="edge">🌐 Microsoft Edge TTS (Default)</option>
+                  <option value="google" disabled={!googleTTSAvailable}>
+                    ☁️ Google Cloud TTS {!googleTTSAvailable && '(Not Configured)'}
+                  </option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Choose between male and female voices for text-to-speech
+                  Choose your preferred text-to-speech provider
                 </p>
               </div>
+
+              {ttsProvider === 'edge' && (
+                <div>
+                  <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-2">
+                    <User size={16} />
+                    Voice Gender
+                  </label>
+                  <select
+                    value={preferredVoiceGender}
+                    onChange={(e) => setPreferredVoiceGender(e.target.value as 'male' | 'female')}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="female">👩 Female Voice</option>
+                    <option value="male">👨 Male Voice</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Choose between male and female voices
+                  </p>
+                </div>
+              )}
+
+              {ttsProvider === 'google' && googleTTSAvailable && (
+                <div>
+                  <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-2">
+                    <User size={16} />
+                    Google Cloud Voice
+                  </label>
+                  <select
+                    value={ttsVoiceId}
+                    onChange={(e) => setTtsVoiceId(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Auto (Neural2 - Recommended)</option>
+                    {googleVoices
+                      .filter(v => v.locale === preferredLocale)
+                      .map(voice => (
+                        <option key={voice.name} value={voice.name}>
+                          {voice.name} ({voice.gender})
+                        </option>
+                      ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Select a specific Google Cloud voice or use auto-selection
+                  </p>
+                </div>
+              )}
 
               <button
                 type="submit"

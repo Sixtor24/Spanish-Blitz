@@ -480,6 +480,42 @@ export const api = {
   // ============================================================================
   tts: {
     /**
+     * Get list of available Edge TTS voices
+     */
+    listEdgeVoices: async () => {
+      const response = await fetch(`${API_BASE_URL}/api/tts/voices`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch voices');
+      return response.json();
+    },
+    
+    /**
+     * Get list of available Google Cloud TTS voices
+     */
+    listGoogleVoices: async () => {
+      const response = await fetch(`${API_BASE_URL}/api/tts/google/voices`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to fetch Google voices');
+      return response.json();
+    },
+    
+    /**
+     * Check TTS providers configuration
+     */
+    checkConfig: async () => {
+      const response = await fetch(`${API_BASE_URL}/api/tts/config/check`, {
+        method: 'GET',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to check TTS config');
+      return response.json();
+    },
+    
+    /**
      * Synthesize speech from text using edge-tts
      */
     synthesize: async (text: string, locale: string = 'es-ES', voice?: 'male' | 'female', rate?: string) => {
