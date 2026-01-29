@@ -110,7 +110,7 @@ export const api = {
     /**
      * Update current user profile
      */
-    patch: (data: { display_name?: string; preferred_locale?: string }) => 
+    patch: (data: { display_name?: string; preferred_locale?: string; preferred_voice_gender?: 'male' | 'female' }) => 
       apiFetch('/api/users/current', {
         method: 'PATCH',
         body: JSON.stringify(data),

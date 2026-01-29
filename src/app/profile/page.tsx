@@ -17,8 +17,6 @@ function ProfilePage() {
   const [displayName, setDisplayName] = useState("");
   const [preferredLocale, setPreferredLocale] = useState("es-ES");
   const [preferredVoiceGender, setPreferredVoiceGender] = useState<'male' | 'female'>('female');
-  const [ttsVoiceId, setTtsVoiceId] = useState<string>('');
-  const [voices, setVoices] = useState<any[]>([]);
   const [ttsConfigured, setTtsConfigured] = useState(false);
   const [stats, setStats] = useState({
     cardsStudied: 0,
@@ -51,21 +49,15 @@ function ProfilePage() {
         setDisplayName(userData.display_name || '');
         setPreferredLocale(userData.preferred_locale || 'es-ES');
         setPreferredVoiceGender((userData as any).preferred_voice_gender || 'female');
-        setTtsVoiceId((userData as any).tts_voice_id || '');
         setStats(statsData);
         setClassrooms(classroomsData);
         
-        // Load Google Cloud TTS voices
+        // Check if Google Cloud TTS is configured
         try {
           const config = await api.tts.checkConfig();
           setTtsConfigured(config.configured);
-          
-          if (config.configured) {
-            const voicesData = await api.tts.listVoices();
-            setVoices(voicesData.voices || []);
-          }
         } catch (error) {
-          console.log('Google Cloud TTS not available');
+          console.error('Failed to load TTS config:', error);
           setTtsConfigured(false);
         }
       } catch (error) {
@@ -88,15 +80,13 @@ function ProfilePage() {
         displayName,
         locale: preferredLocale,
         voiceGender: preferredVoiceGender,
-        ttsVoiceId
       });
       
       const updated = await api.users.patch({
         display_name: displayName,
         preferred_locale: preferredLocale,
         preferred_voice_gender: preferredVoiceGender,
-        tts_voice_id: ttsVoiceId,
-      } as any);
+      });
       
       console.log('✅ [Profile] Preferences updated in backend:', {
         locale: updated.preferred_locale,
@@ -122,7 +112,7 @@ function ProfilePage() {
     } finally {
       setSaving(false);
     }
-  }, [displayName, preferredLocale, preferredVoiceGender, ttsVoiceId, refetchAuthUser]);
+  }, [displayName, preferredLocale, preferredVoiceGender, refetchAuthUser]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -240,42 +230,21 @@ function ProfilePage() {
               <div>
                 <label className="flex text-sm font-medium text-gray-700 mb-2 items-center gap-2">
                   <User size={16} />
-                  Voice Selection
+                  Voice Gender
                 </label>
-                {ttsConfigured ? (
-                  <select
-                    value={ttsVoiceId}
-                    onChange={(e) => setTtsVoiceId(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">� Auto-select (Neural2 - Recommended)</option>
-                    <optgroup label="Male Voices">
-                      {voices
-                        .filter(v => v.locale === preferredLocale && (v.gender === 'male' || v.gender.includes('male')))
-                        .map(voice => (
-                          <option key={voice.name} value={voice.name}>
-                            {voice.name.split('-').pop()} - {voice.locale}
-                          </option>
-                        ))}
-                    </optgroup>
-                    <optgroup label="Female Voices">
-                      {voices
-                        .filter(v => v.locale === preferredLocale && (v.gender === 'female' || v.gender.includes('female')))
-                        .map(voice => (
-                          <option key={voice.name} value={voice.name}>
-                            {voice.name.split('-').pop()} - {voice.locale}
-                          </option>
-                        ))}
-                    </optgroup>
-                  </select>
-                ) : (
-                  <div className="w-full px-4 py-3 border-2 border-orange-200 bg-orange-50 rounded-lg">
-                    <p className="text-sm text-orange-800 font-medium">⚠️ Google Cloud TTS not configured</p>
-                    <p className="text-xs text-orange-600 mt-1">Contact support to enable high-quality text-to-speech</p>
-                  </div>
-                )}
+                <select
+                  value={preferredVoiceGender}
+                  onChange={(e) => setPreferredVoiceGender(e.target.value as 'male' | 'female')}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="female">🎤 Female Voice (Voz Femenina)</option>
+                  <option value="male">🎤 Male Voice (Voz Masculina)</option>
+                </select>
                 <p className="text-xs text-gray-500 mt-1">
                   ☁️ Powered by Google Cloud Text-to-Speech (Neural2)
+                  {!ttsConfigured && (
+                    <span className="block text-orange-600 mt-1">⚠️ TTS not configured - contact support</span>
+                  )}
                 </p>
               </div>
 
