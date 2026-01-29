@@ -212,11 +212,8 @@ function ProfilePage() {
                     disabled={!isDialectSelectionEnabled}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-600"
                   >
-                    <option value="es-ES">Spanish (Spain)</option>
-                    <option value="es-MX">Spanish (Mexico)</option>
-                    <option value="es-AR">Spanish (Argentina)</option>
-                    <option value="es-CO">Spanish (Colombia)</option>
-                    <option value="es-CL">Spanish (Chile)</option>
+                    <option value="es-ES">🇪🇸 Spanish (Spain)</option>
+                    <option value="es-US">🌎 Spanish (Latin America)</option>
                   </select>
                 </div>
                 {!isDialectSelectionEnabled && (
@@ -225,6 +222,9 @@ function ProfilePage() {
                     Upgrade to customize your learning experience with regional accents!
                   </p>
                 )}
+                <p className="text-xs text-gray-500 mt-1">
+                  💡 Powered by Google Cloud Neural2 voices
+                </p>
               </div>
 
               <div>
