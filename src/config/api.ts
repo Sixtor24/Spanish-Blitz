@@ -641,7 +641,6 @@ export function createWebSocket(path: string = '') {
     throw new Error('WebSocket can only be created in the browser');
   }
   const wsUrl = WS_URL + path;
-  console.log(`🔌 [WebSocket] Creating connection to: ${wsUrl}`);
   return new WebSocket(wsUrl);
 }
 

@@ -26,16 +26,13 @@ export function useWebSocketConnection({
 
   const initializeWebSocket = useCallback(() => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      console.log('[Speech] WebSocket already connected');
       return;
     }
 
-    console.log('[Speech] Initializing persistent WebSocket connection...');
     const ws = createWebSocket();
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log('✅ [Speech] Persistent WebSocket CONNECTED');
       wsConnectedRef.current = true;
 
       // Start pending session if exists
@@ -66,14 +63,12 @@ export function useWebSocketConnection({
       // Auto-reconnect
       setTimeout(() => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-          console.log('🔄 [Speech] Auto-reconnecting WebSocket...');
           initializeWebSocket();
         }
       }, TIMING.RECONNECT_DELAY);
     };
 
     ws.onclose = () => {
-      console.log('[Speech] Persistent WebSocket closed');
       wsConnectedRef.current = false;
       wsReadyRef.current = false;
     };
@@ -89,10 +84,8 @@ export function useWebSocketConnection({
 
   const startSession = useCallback((sessionId: string) => {
     if (wsConnectedRef.current && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      console.log('[Speech] Starting session on persistent WebSocket:', sessionId);
       wsRef.current.send(JSON.stringify({ type: 'speech:start', sessionId, locale }));
     } else {
-      console.log('[Speech] WebSocket connecting, session pending:', sessionId);
       pendingSessionRef.current = sessionId;
       initializeWebSocket();
     }
@@ -117,11 +110,9 @@ export function useWebSocketConnection({
 
   // Initialize on mount
   useEffect(() => {
-    console.log('[Speech] Initializing WebSocket connection');
     initializeWebSocket();
 
     return () => {
-      console.log('[Speech] Closing WebSocket connection');
       closeConnection();
     };
   }, [initializeWebSocket, closeConnection]);
