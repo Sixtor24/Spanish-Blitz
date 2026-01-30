@@ -36,5 +36,5 @@ redirects:
     status: 200
 env:
   variables:
-    VITE_API_URL: https://thespanishblitz.com
+    VITE_API_URL: https://spanish-blitz-back-production.up.railway.app
     VITE_WS_URL: wss://spanish-blitz-back-production.up.railway.app
