@@ -32,6 +32,7 @@ function GameView({
   onAnswer,
   isTeacher,
   userLocale,
+  userId,
 }: {
   question: any;
   questions: any[];
@@ -42,6 +43,7 @@ function GameView({
   onAnswer: (isCorrect: boolean, answerText?: string | null) => void;
   isTeacher: boolean;
   userLocale: string;
+  userId?: string;
 }) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<"correct" | "incorrect" | null>(null);
@@ -192,7 +194,7 @@ function GameView({
                 locale={userLocale}
                 onError={(err) => console.error("Speech error:", err)}
                 autoStop={true} // Close mic automatically after answer
-                userId={user?.id} // Isolate speech session per student
+                userId={userId} // Isolate speech session per student
               />
             </div>
             <p className="text-center text-xs text-gray-500">Click the mic and say the Spanish translation</p>
@@ -1038,6 +1040,7 @@ function BlitzSessionPage() {
                   onAnswer={handleAnswer}
                   isTeacher={isTeacherHost}
                   userLocale={user?.preferred_locale || "es-ES"}
+                  userId={user?.id}
                 />
               ) : (
                 <div className="text-center py-12 text-gray-600">
