@@ -108,14 +108,15 @@ export function useWebSocketConnection({
     pendingSessionRef.current = null;
   }, []);
 
-  // Initialize on mount
+  // Initialize on mount - ONLY once
   useEffect(() => {
     initializeWebSocket();
 
     return () => {
       closeConnection();
     };
-  }, [initializeWebSocket, closeConnection]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run once on mount
 
   return {
     sendMessage,
