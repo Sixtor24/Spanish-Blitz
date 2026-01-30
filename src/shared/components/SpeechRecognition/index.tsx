@@ -13,7 +13,7 @@ import { TIMING } from './constants';
 import type { SpeechRecognitionHandle, SpeechRecognitionProps, TranscriptMessage, ErrorMessage } from './types';
 
 const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionProps>(
-  ({ onTranscript, locale = 'es-ES', onError, autoStop = true, showTranscript = true }, ref) => {
+  ({ onTranscript, locale = 'es-ES', onError, autoStop = true, showTranscript = true, userId }, ref) => {
     // UI State
     const [isListening, setIsListening] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -137,8 +137,11 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
 
     // Core functions
     const startListening = useCallback(async () => {
-      // Create new session
-      const sessionId = `speech-${Date.now()}`;
+      // Create new session with userId to prevent collisions between students
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substr(2, 9);
+      const userPrefix = userId ? `${userId.substr(0, 8)}-` : '';
+      const sessionId = `speech-${userPrefix}${timestamp}-${randomId}`;
       sessionIdRef.current = sessionId;
 
       // Start WebSocket session

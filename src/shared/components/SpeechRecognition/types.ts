@@ -47,6 +47,7 @@ export interface SpeechRecognitionProps {
   autoStop?: boolean;
   stopOnCorrect?: boolean;
   showTranscript?: boolean;
+  userId?: string; // User ID to isolate sessions per student (critical for multi-user scenarios)
 }
 
 export interface AudioVisualizerState {
