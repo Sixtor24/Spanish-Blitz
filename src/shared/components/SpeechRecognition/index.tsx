@@ -28,6 +28,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     const processingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isStartingRef = useRef(false);
+    const hasAttemptedRecordingRef = useRef(false);
 
     // Custom Hooks
     const { audioLevel, setupVisualizer, stopVisualizer } = useAudioVisualizer();
@@ -107,6 +108,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     );
 
     const handleRecordingStart = useCallback(() => {
+      hasAttemptedRecordingRef.current = true; // Mark that user tried to record
       setIsListening(true);
       setCurrentTranscript('Speak Now');
       setFinalTranscript('');
@@ -238,8 +240,11 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
         processingTimeoutRef.current = setTimeout(() => {
           console.warn('⚠️ [Speech] Processing timeout');
           stopListening();
-          setErrorMessage('Oops! I didn\'t hear anything.\nPlease try again.');
-          setTimeout(() => setErrorMessage(null), TIMING.ERROR_DISPLAY_DURATION);
+          // Only show error if user actually attempted to record
+          if (hasAttemptedRecordingRef.current) {
+            setErrorMessage('Oops! I didn\'t hear anything.\nPlease try again.');
+            setTimeout(() => setErrorMessage(null), TIMING.ERROR_DISPLAY_DURATION);
+          }
         }, TIMING.PROCESSING_TIMEOUT);
       }
     }, [isListening, stopRecording, stopSession, stopListening]);
