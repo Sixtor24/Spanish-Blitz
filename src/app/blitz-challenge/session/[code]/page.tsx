@@ -203,21 +203,21 @@ function GameView({
 
         {isSpeechQuestion(questionType) && selectedOption && (
           <div className="space-y-3 mt-4">
-            <div
-              className={`p-3 rounded-lg ${feedback === "correct"
-                  ? "bg-green-100 border-2 border-green-500"
-                  : "bg-red-100 border-2 border-red-500"
-                }`}
-            >
-              <p className="text-xs text-gray-600 mb-1">You said:</p>
-              <p className="font-medium text-gray-900">{selectedOption}</p>
-            </div>
-
-            {feedback === "incorrect" && (
-              <div className="p-3 bg-blue-50 rounded-lg">
-                <p className="text-xs text-gray-600 mb-1">Correct answer:</p>
-                <p className="font-medium text-gray-900">{getSpanishAnswer(question)}</p>
+            {feedback === "correct" ? (
+              <div className="p-3 rounded-lg bg-green-100 border-2 border-green-500">
+                <p className="font-medium text-green-800">✓ Correct!</p>
               </div>
+            ) : (
+              <>
+                <div className="p-3 rounded-lg bg-red-100 border-2 border-red-500">
+                  <p className="text-xs text-gray-600 mb-1">You said:</p>
+                  <p className="font-medium text-gray-900">{selectedOption}</p>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-1">Correct answer:</p>
+                  <p className="font-medium text-gray-900">{getSpanishAnswer(question)}</p>
+                </div>
+              </>
             )}
           </div>
         )}

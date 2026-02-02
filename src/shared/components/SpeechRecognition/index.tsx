@@ -234,7 +234,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
         processingTimeoutRef.current = setTimeout(() => {
           console.warn('⚠️ [Speech] Processing timeout');
           stopListening();
-          setErrorMessage('No response - try again');
+          setErrorMessage('Oops! I didn\'t hear anything.\nPlease try again.');
           setTimeout(() => setErrorMessage(null), TIMING.ERROR_DISPLAY_DURATION);
         }, TIMING.PROCESSING_TIMEOUT);
       }
@@ -261,7 +261,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       : 'bg-blue-500 hover:bg-blue-600';
 
     const instructionText = errorMessage
-      ? 'Error - Try Again'
+      ? errorMessage
       : isListening
       ? 'Recording... Release to stop'
       : isProcessing
