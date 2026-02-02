@@ -57,15 +57,9 @@ export function useWebSocketConnection({
     };
 
     ws.onerror = (error: Event) => {
-      console.error('[Speech] Persistent WebSocket error:', error);
+      console.error('[Speech] WebSocket error:', error);
       wsConnectedRef.current = false;
-
-      // Auto-reconnect
-      setTimeout(() => {
-        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-          initializeWebSocket();
-        }
-      }, TIMING.RECONNECT_DELAY);
+      // Don't auto-reconnect - let user retry by pressing button
     };
 
     ws.onclose = () => {
@@ -108,15 +102,13 @@ export function useWebSocketConnection({
     pendingSessionRef.current = null;
   }, []);
 
-  // Initialize on mount - ONLY once
+  // Cleanup on unmount only - no auto-initialization
   useEffect(() => {
-    initializeWebSocket();
-
     return () => {
       closeConnection();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - only run once on mount
+  }, []); // Empty deps - cleanup only on unmount
 
   return {
     sendMessage,
