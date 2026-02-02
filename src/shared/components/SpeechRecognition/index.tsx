@@ -261,7 +261,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       : 'bg-blue-500 hover:bg-blue-600';
 
     const instructionText = errorMessage
-      ? errorMessage
+      ? 'Try again'
       : isListening
       ? 'Recording... Release to stop'
       : isProcessing
