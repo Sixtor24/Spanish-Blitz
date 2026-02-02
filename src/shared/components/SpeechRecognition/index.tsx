@@ -185,14 +185,18 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
 
     // Event handlers
     const handlePressStart = useCallback(() => {
+      // Clear any previous error message immediately
+      if (errorMessage) {
+        setErrorMessage(null);
+      }
+
       if (isProcessing) {
         console.log('🔄 [Speech] Resetting stuck processing');
         stopListening();
-        setErrorMessage(null);
         return;
       }
 
-      if (!isListening && !isStartingRef.current && !errorMessage) {
+      if (!isListening && !isStartingRef.current) {
         isStartingRef.current = true;
         debounceTimerRef.current = setTimeout(() => {
           if (isStartingRef.current) {
@@ -261,7 +265,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       : 'bg-blue-500 hover:bg-blue-600';
 
     const instructionText = errorMessage
-      ? 'Try again'
+      ? ''
       : isListening
       ? 'Recording... Release to stop'
       : isProcessing
