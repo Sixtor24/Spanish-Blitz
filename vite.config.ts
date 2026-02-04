@@ -34,6 +34,9 @@ export default defineConfig({
     cssMinify: true,
     rollupOptions: {
       output: {
+        entryFileNames: `assets/[name].[hash].js`,
+        chunkFileNames: `assets/[name].[hash].js`,
+        assetFileNames: `assets/[name].[hash].[ext]`,
         manualChunks(id) {
           // Only chunk vendor modules for client build
           if (id.includes('node_modules')) {
