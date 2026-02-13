@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import useUser from "@/shared/hooks/useUser";
-import { ArrowLeft, Clock, HelpCircle, Users } from "lucide-react";
+import { ArrowLeft, Clock, HelpCircle, Users, Mic, Keyboard } from "lucide-react";
 import { api } from "@/config/api";
 import type { DbDeck } from "@/types/api.types";
 
@@ -16,6 +16,7 @@ export default function CreateBlitzChallengePage() {
   const [numQuestions, setNumQuestions] = useState("10");
   const [timeLimit, setTimeLimit] = useState("5");
   const [isHost, setIsHost] = useState(false);
+  const [requireMic, setRequireMic] = useState(false);
   const [creating, setCreating] = useState(false);
   const [challengeCode, setChallengeCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,11 +52,13 @@ export default function CreateBlitzChallengePage() {
     setChallengeCode(null);
     try {
       setCreating(true);
+      console.log('[CREATE CHALLENGE] requireMic state:', requireMic);
       const result = await api.playSessions.create({
         deckId,
         questionCount: Number(numQuestions),
         timeLimitMinutes: Number(timeLimit),
         isTeacher: isHost,
+        requireMic,
       });
       setChallengeCode(result.code);
     } catch (err) {
@@ -233,6 +236,44 @@ export default function CreateBlitzChallengePage() {
                     </p>
                   </div>
                 </label>
+              </div>
+
+              {/* Answer Mode */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Answer Mode
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRequireMic(true)}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold transition-colors border-2 ${
+                      requireMic
+                        ? "bg-purple-600 text-white border-purple-600"
+                        : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Mic size={20} />
+                    Voice answers
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRequireMic(false)}
+                    className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-semibold transition-colors border-2 ${
+                      !requireMic
+                        ? "bg-purple-600 text-white border-purple-600"
+                        : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                    }`}
+                  >
+                    <Keyboard size={20} />
+                    No voice answers
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  {requireMic
+                    ? "Everyone speaks — students must enable their microphone to join."
+                    : "Text & listening only — students can join without a microphone."}
+                </p>
               </div>
 
               {/* Action Buttons */}

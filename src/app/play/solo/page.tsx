@@ -4,9 +4,11 @@ import Navigation from "@/shared/components/Navigation";
 import AdPlaceholder from "@/shared/components/AdPlaceholder";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition from "@/shared/components/SpeechRecognition";
+import MicPermissionModal from "@/shared/components/MicPermissionModal";
 import { Trophy, Target, Clock, BookOpen, ArrowRight } from "lucide-react";
 import { api } from "@/config/api";
 import useUser from "@/shared/hooks/useUser";
+import { useMicrophone } from "@/lib/microphone-context";
 import type { DbDeck, DbCard } from "@/types/api.types";
 
 import {
@@ -34,6 +36,8 @@ export default function PlaySoloPage() {
   const [searchParams] = useSearchParams();
   const deckId = searchParams.get("deck");
   const { refetch: refetchUser } = useUser();
+  const { micEnabled, resetMic } = useMicrophone();
+  const [showVoicePrompt, setShowVoicePrompt] = useState(true);
   
   const [showSetSelection, setShowSetSelection] = useState(true);
   const [availableSets, setAvailableSets] = useState<DbDeck[]>([]);
@@ -52,6 +56,12 @@ export default function PlaySoloPage() {
   const [currentOptions, setCurrentOptions] = useState<string[]>([]);
   const [xpEarned, setXpEarned] = useState<number>(0);
   const [xpTotal, setXpTotal] = useState<number>(0);
+
+  // Reset mic state on mount so the prompt always shows when entering solo mode
+  useEffect(() => {
+    resetMic();
+    setShowVoicePrompt(true);
+  }, []);
 
   useEffect(() => {
     // Reset game state when deck changes
@@ -104,6 +114,11 @@ export default function PlaySoloPage() {
     }
   };
 
+  // Filter question types based on mic availability
+  const availableQuestionTypes = micEnabled
+    ? QUESTION_TYPE_LIST
+    : QUESTION_TYPE_LIST.filter((qt) => !isSpeechQuestion(qt));
+
   const fetchCards = async (deckId: string) => {
     try {
       const cardsData = await api.cards.list(deckId);
@@ -111,12 +126,15 @@ export default function PlaySoloPage() {
       const shuffled = cardsData.sort(() => Math.random() - 0.5);
       setCards(shuffled);
 
-      // Assign random question type to each card
+      // Assign random question type to each card (filter speech types if no mic)
+      const typesToUse = micEnabled
+        ? QUESTION_TYPE_LIST
+        : QUESTION_TYPE_LIST.filter((qt) => !isSpeechQuestion(qt));
       const questions = shuffled.map((card: DbCard) => ({
         card,
         questionType:
-          QUESTION_TYPE_LIST[
-            Math.floor(Math.random() * QUESTION_TYPE_LIST.length)
+          typesToUse[
+            Math.floor(Math.random() * typesToUse.length)
           ],
       }));
       setCardQuestions(questions);
@@ -126,6 +144,27 @@ export default function PlaySoloPage() {
       setLoading(false);
     }
   };
+
+  // Re-assign question types after voice prompt is dismissed (mic choice is now final)
+  useEffect(() => {
+    if (!showVoicePrompt && cards.length > 0) {
+      const typesToUse = micEnabled
+        ? QUESTION_TYPE_LIST
+        : QUESTION_TYPE_LIST.filter((qt) => !isSpeechQuestion(qt));
+      const questions = cards.map((card: DbCard) => ({
+        card,
+        questionType:
+          typesToUse[Math.floor(Math.random() * typesToUse.length)],
+      }));
+      setCardQuestions(questions);
+      setCurrentIndex(0);
+      setScore(0);
+      setAnsweredCards(0);
+      setSelectedOption(null);
+      setFeedback(null);
+      setStartTime(Date.now());
+    }
+  }, [showVoicePrompt]);
 
   const currentQuestion = cardQuestions[currentIndex];
   const currentCard = currentQuestion?.card;
@@ -306,14 +345,17 @@ export default function PlaySoloPage() {
     setXpEarned(0);
     setXpTotal(0);
 
-    // Re-shuffle and re-assign question types
+    // Re-shuffle and re-assign question types (filter speech types if no mic)
+    const typesToUse = micEnabled
+      ? QUESTION_TYPE_LIST
+      : QUESTION_TYPE_LIST.filter((qt) => !isSpeechQuestion(qt));
     const shuffled = cards.sort(() => Math.random() - 0.5);
     setCards(shuffled);
     const questions = shuffled.map((card: DbCard) => ({
       card,
       questionType:
-        QUESTION_TYPE_LIST[
-          Math.floor(Math.random() * QUESTION_TYPE_LIST.length)
+        typesToUse[
+          Math.floor(Math.random() * typesToUse.length)
         ],
     }));
     setCardQuestions(questions);
@@ -396,6 +438,16 @@ export default function PlaySoloPage() {
             <AdPlaceholder />
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // Show voice mode prompt before game (always on mode entry when a deck is selected)
+  if (deckId && showVoicePrompt && !loading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <MicPermissionModal onComplete={() => setShowVoicePrompt(false)} />
       </div>
     );
   }
@@ -623,15 +675,15 @@ export default function PlaySoloPage() {
             </div>
           )}
 
-          {/* Speech Questions */}
-          {isSpeechQuestion(questionType) && !selectedOption && (
+          {/* Speech Questions (only when mic is enabled) */}
+          {micEnabled && isSpeechQuestion(questionType) && !selectedOption && (
             <div className="space-y-6">
               <div className="flex justify-center">
                 <SpeechRecognition
                   onTranscript={handleSpeechAnswer}
                   locale={userLocale}
                   onError={(error) => console.error("Speech error:", error)}
-                  autoStop={true} // Close mic automatically after answer
+                  autoStop={true}
                 />
               </div>
 
@@ -641,8 +693,8 @@ export default function PlaySoloPage() {
             </div>
           )}
 
-          {/* Speech Feedback */}
-          {isSpeechQuestion(questionType) && selectedOption && (
+          {/* Speech Feedback (only when mic is enabled) */}
+          {micEnabled && isSpeechQuestion(questionType) && selectedOption && (
             <div className="space-y-4">
               {feedback === "correct" ? (
                 <div className="p-4 rounded-lg bg-green-100 border-2 border-green-500">

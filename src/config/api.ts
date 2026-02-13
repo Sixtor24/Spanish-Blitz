@@ -2,9 +2,10 @@
  * API Configuration for Spanish Blitz
  * Central configuration for all backend API calls
  */
-import { WS_URL } from './env';
+import { WS_URL, API_BASE_URL } from './env';
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// Re-export for consumers that import from this module
+export { API_BASE_URL };
 
 /**
  * Fetch wrapper with authentication and error handling
@@ -159,15 +160,6 @@ export const api = {
       }),
     
     /**
-     * Update a deck (alias for update)
-     */
-    patch: (id: string, data: { title?: string; description?: string; is_public?: boolean; primary_color_hex?: string }) =>
-      apiFetch(`/api/decks/${id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(data),
-      }),
-    
-    /**
      * Delete a deck
      */
     delete: (id: string) =>
@@ -256,6 +248,7 @@ export const api = {
       questionCount?: number;
       timeLimitMinutes?: number;
       isTeacher?: boolean;
+      requireMic?: boolean;
     }) =>
       apiFetch('/api/play-sessions', {
         method: 'POST',
@@ -482,54 +475,24 @@ export const api = {
     /**
      * Get list of available Google Cloud TTS voices
      */
-    listVoices: async () => {
-      const response = await fetch(`${API_BASE_URL}/api/tts/voices`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (!response.ok) throw new Error('Failed to fetch voices');
-      return response.json();
-    },
+    listVoices: () => apiFetch('/api/tts/voices'),
     
     /**
      * Check if Google Cloud TTS is configured
      */
-    checkConfig: async () => {
-      const response = await fetch(`${API_BASE_URL}/api/tts/config/check`, {
-        method: 'GET',
-        credentials: 'include',
-      });
-      if (!response.ok) throw new Error('Failed to check TTS config');
-      return response.json();
-    },
+    checkConfig: () => apiFetch('/api/tts/config/check'),
     
     /**
-     * Synthesize speech from text using edge-tts
+     * Synthesize speech from text using Google Cloud TTS
      */
-    synthesize: async (text: string, locale: string = 'es-ES', voice?: 'male' | 'female', rate?: string) => {
-      const body: any = { text, locale, voice };
+    synthesize: (text: string, locale: string = 'es-ES', voice?: 'male' | 'female', rate?: string) => {
+      const body: Record<string, unknown> = { text, locale, voice };
       if (rate) body.rate = rate;
-      
-      const response = await fetch(`${API_BASE_URL}/api/tts/synthesize`, {
+      return apiFetch('/api/tts/synthesize', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
         body: JSON.stringify(body),
       });
-      
-      if (!response.ok) {
-        throw new Error(`TTS error: ${response.statusText}`);
-      }
-      
-      return response.json();
     },
-    
-    /**
-     * Get available voices
-     */
-    voices: () => apiFetch('/api/tts/voices'),
   },
 
   // ============================================================================

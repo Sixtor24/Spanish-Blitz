@@ -1,4 +1,5 @@
-import React, { useEffect, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 
 type ProtectedRouteProps = {
@@ -7,12 +8,13 @@ type ProtectedRouteProps = {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!loading && !user) {
-      window.location.href = '/account/signin';
+      navigate('/account/signin', { replace: true });
     }
-  }, [user, loading]);
+  }, [user, loading, navigate]);
 
   if (loading) {
     return (

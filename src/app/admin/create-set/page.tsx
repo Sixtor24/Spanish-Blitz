@@ -245,7 +245,7 @@ export default function CreateSetPage() {
       let deckId = setId;
 
       if (isEditMode) {
-        await api.decks.patch(setId, {
+        await api.decks.update(setId, {
           title: setTitle,
           description: setDescription,
           primary_color_hex: setColor,

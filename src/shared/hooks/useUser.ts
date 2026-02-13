@@ -5,7 +5,7 @@ interface UseUserReturn {
   user: DbUser | null;
   data: DbUser | null;
   loading: boolean;
-  refetch: () => Promise<void>;
+  refetch: () => Promise<boolean>;
 }
 
 const useUser = (): UseUserReturn => {

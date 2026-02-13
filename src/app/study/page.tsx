@@ -3,10 +3,12 @@ import { useNavigate, Link } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition, { type SpeechRecognitionHandle } from "@/shared/components/SpeechRecognition";
+import MicPermissionModal from "@/shared/components/MicPermissionModal";
 import { ArrowLeft, Check, X, Zap, Trophy, RefreshCw, RotateCw } from "lucide-react";
 import { api } from "@/config/api";
 import { withAuth } from "@/shared/hoc/withAuth";
 import useUser from "@/shared/hooks/useUser";
+import { useMicrophone } from "@/lib/microphone-context";
 import { usePrefetchVocabularyAudio } from "@/shared/hooks/usePrefetchAudio";
 import type { DbDeck, DbCard } from "@/types/api.types";
 
@@ -51,6 +53,8 @@ function shuffleArray<T>(array: T[]): T[] {
 function StudyPage() {
   const navigate = useNavigate();
   const { user } = useUser();
+  const { micEnabled, resetMic } = useMicrophone();
+  const [showMicPrompt, setShowMicPrompt] = useState(true);
   const userLocale = user?.preferred_locale || 'es-ES';
   
   const [deckId, setDeckId] = useState<string | null>(null);
@@ -84,6 +88,11 @@ function StudyPage() {
 
   // Random completion phrase (set once on mount)
   const [completionPhrase, setCompletionPhrase] = useState("");
+
+  // Reset mic state on mount so the prompt always shows when entering study mode
+  useEffect(() => {
+    resetMic();
+  }, []);
 
   useEffect(() => {
     // Set random completion phrase on mount
@@ -176,11 +185,25 @@ function StudyPage() {
   //   userLocale
   // );
 
+  // Re-assign variants after mic prompt is dismissed (mic choice is now final)
+  useEffect(() => {
+    if (!showMicPrompt && cards.length > 0) {
+      const variants: Variant[] = cards.map(() =>
+        micEnabled ? (Math.random() < 0.5 ? VARIANT_A : VARIANT_B) : VARIANT_A,
+      );
+      setCardVariants(variants);
+      setCurrentCardIndex(0);
+      setIsFlipped(false);
+      setSpeechFeedback(null);
+    }
+  }, [showMicPrompt]);
+
   const initializeStudySession = (cardsData: DbCard[]) => {
     // Shuffle cards and assign random variants
+    // When mic is disabled, force only Variant A (Listening) — Variant B requires speaking
     const shuffled = shuffleArray(cardsData);
     const variants: Variant[] = shuffled.map(() =>
-      Math.random() < 0.5 ? VARIANT_A : VARIANT_B,
+      micEnabled ? (Math.random() < 0.5 ? VARIANT_A : VARIANT_B) : VARIANT_A,
     );
 
     setCards(shuffled);
@@ -364,6 +387,16 @@ function StudyPage() {
         background: `linear-gradient(to bottom right, ${deck.primary_color_hex}, ${deck.primary_color_hex}dd, ${deck.primary_color_hex}bb)`,
       }
     : {};
+
+  // Show mic permission modal before loading content (always on mode entry)
+  if (showMicPrompt) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <MicPermissionModal onComplete={() => setShowMicPrompt(false)} />
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -646,23 +679,25 @@ function StudyPage() {
                 // Variant B Answer: Spanish text + mic
                 <>
                   <p className="text-sm text-gray-500 mb-4">
-                    Spanish answer - Try saying it!
+                    {micEnabled ? 'Spanish answer - Try saying it!' : 'Spanish answer'}
                   </p>
                   <p className="text-4xl font-bold text-gray-900 mb-6">
                     {currentCard.prompt_es}
                   </p>
 
-                  <div className="flex justify-center mt-6">
-                    <SpeechRecognition
-                      ref={speechRecognitionRef}
-                      onTranscript={handleSpeechResult}
-                      locale={userLocale}
-                      autoStop={false} // Keep mic open for practice, but will stop on correct answer
-                      showTranscript={false} // Don't show transcript here, only in feedback below
-                    />
-                  </div>
+                  {micEnabled && (
+                    <div className="flex justify-center mt-6">
+                      <SpeechRecognition
+                        ref={speechRecognitionRef}
+                        onTranscript={handleSpeechResult}
+                        locale={userLocale}
+                        autoStop={false}
+                        showTranscript={false}
+                      />
+                    </div>
+                  )}
 
-                  {speechFeedback && (
+                  {micEnabled && speechFeedback && (
                     <div
                       className={`mt-4 p-4 rounded-lg ${
                         speechFeedback.isCorrect

@@ -3,11 +3,13 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import Navigation from "@/shared/components/Navigation";
 import useUser from "@/shared/hooks/useUser";
-import { Trophy, Crown, Medal, Zap, Users, Clock, ArrowLeft, Timer, Play } from "lucide-react";
+import { Trophy, Crown, Medal, Zap, Users, Clock, ArrowLeft, Timer, Play, Mic } from "lucide-react";
 import { api, API_BASE_URL } from "@/config/api";
 import { withAuth } from "@/shared/hoc/withAuth";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition from "@/shared/components/SpeechRecognition";
+import BlitzMicModal from "@/shared/components/BlitzMicModal";
+import { useMicrophone } from "@/lib/microphone-context";
 import {
   QUESTION_TYPES,
   getSpanishPrompt,
@@ -33,6 +35,7 @@ function GameView({
   isTeacher,
   userLocale,
   userId,
+  micEnabled,
 }: {
   question: any;
   questions: any[];
@@ -44,6 +47,7 @@ function GameView({
   isTeacher: boolean;
   userLocale: string;
   userId?: string;
+  micEnabled: boolean;
 }) {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<"correct" | "incorrect" | null>(null);
@@ -186,22 +190,22 @@ function GameView({
           </div>
         )}
 
-        {isSpeechQuestion(questionType) && !selectedOption && (
+        {micEnabled && isSpeechQuestion(questionType) && !selectedOption && (
           <div className="space-y-4 mt-4">
             <div className="flex justify-center">
               <SpeechRecognition
                 onTranscript={handleSpeechAnswer}
                 locale={userLocale}
                 onError={(err) => console.error("Speech error:", err)}
-                autoStop={true} // Close mic automatically after answer
-                userId={userId} // Isolate speech session per student
+                autoStop={true}
+                userId={userId}
               />
             </div>
             <p className="text-center text-xs text-gray-500">Click the mic and say the Spanish translation</p>
           </div>
         )}
 
-        {isSpeechQuestion(questionType) && selectedOption && (
+        {micEnabled && isSpeechQuestion(questionType) && selectedOption && (
           <div className="space-y-3 mt-4">
             {feedback === "correct" ? (
               <div className="p-3 rounded-lg bg-green-100 border-2 border-green-500">
@@ -230,6 +234,8 @@ function BlitzSessionPage() {
   const { code: codeParam } = useParams<{ code: string }>();
   const code = codeParam?.toUpperCase();
   const { data: user, refetch: refetchUser } = useUser();
+  const { micEnabled, resetMic } = useMicrophone();
+  const [showMicGate, setShowMicGate] = useState(true);
   const [state, setState] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -250,7 +256,14 @@ function BlitzSessionPage() {
   const canSeeRanking = isAdmin || isHost;
 
   // Derive question types consistently by position to ensure same experience for all players
-  const deriveQuestionType = (question) => deriveQuestionTypeByPosition(question);
+  // When mic is not enabled, fallback speech questions to a text-based type
+  const deriveQuestionType = (question) => {
+    const qt = deriveQuestionTypeByPosition(question);
+    if (!micEnabled && isSpeechQuestion(qt)) {
+      return QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_TEXT;
+    }
+    return qt;
+  };
 
   const currentAnswers = state?.currentPlayerAnswers ?? [];
   const currentQuestion = useMemo(() => {
@@ -258,6 +271,11 @@ function BlitzSessionPage() {
     const answeredIds = new Set(currentAnswers.map((a) => a.question_id));
     return state.questions.find((q) => !answeredIds.has(q.id)) ?? null;
   }, [state, currentAnswers]);
+
+  // Reset mic state on mount so the prompt always shows when entering a blitz session
+  useEffect(() => {
+    resetMic();
+  }, []);
 
   // Calculate initial time left
   useEffect(() => {
@@ -465,6 +483,18 @@ function BlitzSessionPage() {
       // Don't show error to user, XP is not critical for game completion
     }
   };
+
+  // Show mandatory mic popup only when teacher enabled require_mic
+  // Teacher-spectators (isTeacherHost) skip it since they don't play
+  // When require_mic is false: no popup, text-only cards (no speech questions)
+  if (!loading && state?.session && showMicGate && !isTeacherHost && state.session.require_mic) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <BlitzMicModal onComplete={() => setShowMicGate(false)} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -1041,6 +1071,7 @@ function BlitzSessionPage() {
                   isTeacher={isTeacherHost}
                   userLocale={user?.preferred_locale || "es-ES"}
                   userId={user?.id}
+                  micEnabled={micEnabled}
                 />
               ) : (
                 <div className="text-center py-12 text-gray-600">

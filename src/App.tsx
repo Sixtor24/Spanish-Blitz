@@ -1,6 +1,7 @@
 import { Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './lib/auth-context';
+import { MicrophoneProvider } from './lib/microphone-context';
 import './app/global.css';
 
 // Pages
@@ -31,6 +32,7 @@ import NotFoundPage from './app/__create/not-found';
 export default function App() {
   return (
     <AuthProvider>
+      <MicrophoneProvider>
       <Toaster position="bottom-right" />
       <Routes>
         {/* Public routes */}
@@ -72,7 +74,7 @@ export default function App() {
         {/* 404 catch-all */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
-      <script src="https://kit.fontawesome.com/2c15cc0cc7.js" crossOrigin="anonymous" async />
+      </MicrophoneProvider>
     </AuthProvider>
   );
 }
