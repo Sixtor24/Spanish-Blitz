@@ -52,7 +52,6 @@ export default function CreateBlitzChallengePage() {
     setChallengeCode(null);
     try {
       setCreating(true);
-      console.log('[CREATE CHALLENGE] requireMic state:', requireMic);
       const result = await api.playSessions.create({
         deckId,
         questionCount: Number(numQuestions),

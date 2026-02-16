@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Mic, Volume2 } from 'lucide-react';
-import { useMicrophone } from '@/lib/microphone-context';
+import { useMicrophone } from '../../lib/microphone-context';
 
 interface VoiceModeBannerProps {
   onComplete: () => void;

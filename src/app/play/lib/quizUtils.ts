@@ -6,6 +6,7 @@ export const QUESTION_TYPES = {
   SPANISH_AUDIO_TO_ENGLISH_TEXT: "spanish_audio_to_english_text",
   ENGLISH_TEXT_TO_SPANISH_TEXT: "english_text_to_spanish_text",
   ENGLISH_TEXT_TO_SPANISH_SPEECH: "english_text_to_spanish_speech",
+  ENGLISH_TEXT_TO_SPANISH_WRITTEN: "english_text_to_spanish_written",
 } as const;
 
 export const QUESTION_TYPE_LIST = Object.values(QUESTION_TYPES);
@@ -73,6 +74,7 @@ export function buildOptions({ question, questions, questionType }: BuildOptions
       break;
     case QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_TEXT:
     case QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_SPEECH:
+    case QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_WRITTEN:
       correctAnswer = getSpanishAnswer(question);
       distractorType = "spanish";
       break;
@@ -130,6 +132,8 @@ export function getQuestionPrompt(question: Card, questionType: QuestionType | n
       return getEnglishAnswer(question) || getSpanishPrompt(question);
     case QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_SPEECH:
       return getEnglishAnswer(question) || getSpanishPrompt(question) || "Translate to Spanish";
+    case QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_WRITTEN:
+      return getEnglishAnswer(question) || getSpanishPrompt(question);
     default:
       return "";
   }
@@ -145,6 +149,8 @@ export function getQuestionTypeLabel(questionType: QuestionType | null) {
       return "English → Spanish (Text)";
     case QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_SPEECH:
       return "English → Spanish (Speak)";
+    case QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_WRITTEN:
+      return "English → Spanish (Write)";
     default:
       return "";
   }
@@ -152,3 +158,4 @@ export function getQuestionTypeLabel(questionType: QuestionType | null) {
 
 export const isSpeechQuestion = (qt: QuestionType | null) => qt === QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_SPEECH;
 export const isAudioQuestion = (qt: QuestionType | null) => qt === QUESTION_TYPES.SPANISH_AUDIO_TO_ENGLISH_TEXT;
+export const isWrittenQuestion = (qt: QuestionType | null) => qt === QUESTION_TYPES.ENGLISH_TEXT_TO_SPANISH_WRITTEN;

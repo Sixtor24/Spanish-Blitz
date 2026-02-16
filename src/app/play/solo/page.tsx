@@ -5,6 +5,7 @@ import AdPlaceholder from "@/shared/components/AdPlaceholder";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition from "@/shared/components/SpeechRecognition";
 import MicPermissionModal from "@/shared/components/MicPermissionModal";
+import WrittenAnswer, { type WrittenResult } from "@/shared/components/WrittenAnswer";
 import { Trophy, Target, Clock, BookOpen, ArrowRight } from "lucide-react";
 import { api } from "@/config/api";
 import useUser from "@/shared/hooks/useUser";
@@ -23,6 +24,7 @@ import {
   getQuestionTypeLabel,
   isSpeechQuestion,
   isAudioQuestion,
+  isWrittenQuestion,
   type QuestionType,
 } from "../lib/quizUtils";
 
@@ -170,9 +172,9 @@ export default function PlaySoloPage() {
   const currentCard = currentQuestion?.card;
   const questionType = currentQuestion?.questionType;
 
-  // Generate options when card changes
+  // Generate options when card changes (skip speech and written questions)
   useEffect(() => {
-    if (currentCard && questionType && !isSpeechQuestion(questionType)) {
+    if (currentCard && questionType && !isSpeechQuestion(questionType) && !isWrittenQuestion(questionType)) {
       const newOptions = buildOptions({
         question: currentCard,
         questions: cards,
@@ -219,6 +221,30 @@ export default function PlaySoloPage() {
     setTimeout(() => {
       moveToNext(isCorrect);
     }, 1500);
+  };
+
+  const handleWrittenAnswer = async (result: WrittenResult) => {
+    if (!currentCard || !deck) return;
+
+    const isCorrect = result.isCorrect;
+    setFeedback(isCorrect ? "correct" : "incorrect");
+    setSelectedOption(result.userAnswer);
+
+    if (isCorrect) {
+      setScore(score + 1);
+    }
+
+    await saveStudyEvent(
+      isCorrect ? "correct" : "incorrect",
+      "written",
+      result.userAnswer,
+    );
+
+    setAnsweredCards(answeredCards + 1);
+
+    setTimeout(() => {
+      moveToNext(isCorrect);
+    }, isCorrect ? 1500 : 2500);
   };
 
   const handleSpeechAnswer = async (transcript: string, confidence?: number) => {
@@ -627,7 +653,7 @@ export default function PlaySoloPage() {
           </div>
 
           {/* Multiple Choice Questions */}
-          {!isSpeechQuestion(questionType) && (
+          {!isSpeechQuestion(questionType) && !isWrittenQuestion(questionType) && (
             <div className="space-y-3 min-h-[300px]">
               {currentOptions.map((option, index) => {
                 const isSelected = selectedOption === option;
@@ -690,6 +716,40 @@ export default function PlaySoloPage() {
               <div className="text-center text-sm text-gray-500">
                 <p>Click the microphone and say the Spanish translation</p>
               </div>
+            </div>
+          )}
+
+          {/* Written Answer Questions */}
+          {isWrittenQuestion(questionType) && !selectedOption && (
+            <div className="space-y-4">
+              <WrittenAnswer
+                correctAnswer={getSpanishAnswer(currentCard)}
+                onResult={handleWrittenAnswer}
+              />
+            </div>
+          )}
+
+          {/* Written Answer Feedback */}
+          {isWrittenQuestion(questionType) && selectedOption && feedback && (
+            <div className="space-y-4">
+              {feedback === "correct" ? (
+                <div className="p-4 rounded-lg bg-green-100 border-2 border-green-500">
+                  <p className="font-medium text-green-800">✓ Correct!</p>
+                </div>
+              ) : (
+                <>
+                  <div className="p-4 rounded-lg bg-red-100 border-2 border-red-500">
+                    <p className="text-sm text-gray-600 mb-1">You typed:</p>
+                    <p className="font-medium text-gray-900">{selectedOption}</p>
+                  </div>
+                  <div className="p-4 bg-blue-50 rounded-lg">
+                    <p className="text-sm text-gray-600 mb-1">Correct answer:</p>
+                    <p className="font-medium text-gray-900">
+                      {getSpanishAnswer(currentCard)}
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

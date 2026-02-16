@@ -9,6 +9,7 @@ import { withAuth } from "@/shared/hoc/withAuth";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition from "@/shared/components/SpeechRecognition";
 import BlitzMicModal from "@/shared/components/BlitzMicModal";
+import WrittenAnswer, { type WrittenResult, evaluateWrittenAnswer } from "@/shared/components/WrittenAnswer";
 import { useMicrophone } from "@/lib/microphone-context";
 import {
   QUESTION_TYPES,
@@ -21,6 +22,7 @@ import {
   normalizeSpanish,
   isSpeechQuestion,
   isAudioQuestion,
+  isWrittenQuestion,
   deriveQuestionTypeByPosition,
 } from "../../../play/lib/quizUtils";
 
@@ -56,7 +58,7 @@ function GameView({
   useEffect(() => {
     setSelectedOption(null);
     setFeedback(null);
-    if (!isSpeechQuestion(questionType) && question && questionType) {
+    if (!isSpeechQuestion(questionType) && !isWrittenQuestion(questionType) && question && questionType) {
       setCurrentOptions(
         buildOptions({
           question,
@@ -113,6 +115,12 @@ function GameView({
     }
   };
 
+  const handleWrittenAnswer = (result: WrittenResult) => {
+    setSelectedOption(result.userAnswer);
+    setFeedback(result.isCorrect ? "correct" : "incorrect");
+    onAnswer(result.isCorrect, result.userAnswer);
+  };
+
   const getQuestionPromptText = () => computeQuestionPrompt(question, questionType);
 
   const getQuestionTypeLabelText = () => computeQuestionTypeLabel(questionType);
@@ -146,7 +154,7 @@ function GameView({
           </div>
         )}
 
-        {!isSpeechQuestion(questionType) && (
+        {!isSpeechQuestion(questionType) && !isWrittenQuestion(questionType) && (
           <div className="space-y-3">
             {currentOptions.map((option, index) => {
               const isSelected = selectedOption === option;
@@ -202,6 +210,36 @@ function GameView({
               />
             </div>
             <p className="text-center text-xs text-gray-500">Click the mic and say the Spanish translation</p>
+          </div>
+        )}
+
+        {isWrittenQuestion(questionType) && !selectedOption && (
+          <div className="space-y-4 mt-4">
+            <WrittenAnswer
+              correctAnswer={getSpanishAnswer(question)}
+              onResult={handleWrittenAnswer}
+            />
+          </div>
+        )}
+
+        {isWrittenQuestion(questionType) && selectedOption && (
+          <div className="space-y-3 mt-4">
+            {feedback === "correct" ? (
+              <div className="p-3 rounded-lg bg-green-100 border-2 border-green-500">
+                <p className="font-medium text-green-800">✓ Correct!</p>
+              </div>
+            ) : (
+              <>
+                <div className="p-3 rounded-lg bg-red-100 border-2 border-red-500">
+                  <p className="text-xs text-gray-600 mb-1">You typed:</p>
+                  <p className="font-medium text-gray-900">{selectedOption}</p>
+                </div>
+                <div className="p-3 bg-blue-50 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-1">Correct answer:</p>
+                  <p className="font-medium text-gray-900">{getSpanishAnswer(question)}</p>
+                </div>
+              </>
+            )}
           </div>
         )}
 

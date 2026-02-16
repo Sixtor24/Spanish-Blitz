@@ -4,6 +4,7 @@ import Navigation from "@/shared/components/Navigation";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition, { type SpeechRecognitionHandle } from "@/shared/components/SpeechRecognition";
 import MicPermissionModal from "@/shared/components/MicPermissionModal";
+import WrittenAnswer, { type WrittenResult } from "@/shared/components/WrittenAnswer";
 import { ArrowLeft, Check, X, Zap, Trophy, RefreshCw, RotateCw } from "lucide-react";
 import { api } from "@/config/api";
 import { withAuth } from "@/shared/hoc/withAuth";
@@ -15,8 +16,9 @@ import type { DbDeck, DbCard } from "@/types/api.types";
 // Variant types
 const VARIANT_A = "spanish_to_english"; // Listening + Meaning
 const VARIANT_B = "english_to_spanish"; // Recall + Pronunciation
+const VARIANT_C = "english_to_spanish_written"; // Written Recall
 
-type Variant = "spanish_to_english" | "english_to_spanish";
+type Variant = "spanish_to_english" | "english_to_spanish" | "english_to_spanish_written";
 
 // Completion phrases
 const COMPLETION_PHRASES = [
@@ -71,6 +73,7 @@ function StudyPage() {
     transcript: string;
     isCorrect: boolean;
   } | null>(null);
+  const [writtenFeedback, setWrittenFeedback] = useState<WrittenResult | null>(null);
   const [isCompleted, setIsCompleted] = useState(false);
 
   // Variant assignment for each card
@@ -188,13 +191,18 @@ function StudyPage() {
   // Re-assign variants after mic prompt is dismissed (mic choice is now final)
   useEffect(() => {
     if (!showMicPrompt && cards.length > 0) {
-      const variants: Variant[] = cards.map(() =>
-        micEnabled ? (Math.random() < 0.5 ? VARIANT_A : VARIANT_B) : VARIANT_A,
-      );
+      const variants: Variant[] = cards.map(() => {
+        const rand = Math.random();
+        if (micEnabled) {
+          return rand < 0.33 ? VARIANT_A : rand < 0.66 ? VARIANT_B : VARIANT_C;
+        }
+        return rand < 0.5 ? VARIANT_A : VARIANT_C;
+      });
       setCardVariants(variants);
       setCurrentCardIndex(0);
       setIsFlipped(false);
       setSpeechFeedback(null);
+      setWrittenFeedback(null);
     }
   }, [showMicPrompt]);
 
@@ -202,9 +210,13 @@ function StudyPage() {
     // Shuffle cards and assign random variants
     // When mic is disabled, force only Variant A (Listening) — Variant B requires speaking
     const shuffled = shuffleArray(cardsData);
-    const variants: Variant[] = shuffled.map(() =>
-      micEnabled ? (Math.random() < 0.5 ? VARIANT_A : VARIANT_B) : VARIANT_A,
-    );
+    const variants: Variant[] = shuffled.map(() => {
+      const rand = Math.random();
+      if (micEnabled) {
+        return rand < 0.33 ? VARIANT_A : rand < 0.66 ? VARIANT_B : VARIANT_C;
+      }
+      return rand < 0.5 ? VARIANT_A : VARIANT_C;
+    });
 
     setCards(shuffled);
     setCardVariants(variants);
@@ -212,6 +224,7 @@ function StudyPage() {
     setIsFlipped(false);
     setIsCompleted(false);
     setSpeechFeedback(null);
+    setWrittenFeedback(null);
     setHardCardRepetitions({});
     setHardCardsCount(0); // Reset hard cards count
     // Stop microphone when resetting study
@@ -242,6 +255,7 @@ function StudyPage() {
   const handleFlip = () => {
     setIsFlipped(!isFlipped);
     setSpeechFeedback(null);
+    setWrittenFeedback(null);
     // Stop microphone when flipping card
     if (speechRecognitionRef.current?.isListening()) {
       speechRecognitionRef.current.stop();
@@ -312,6 +326,7 @@ function StudyPage() {
       setCurrentCardIndex(currentCardIndex + 1);
       setIsFlipped(false);
       setSpeechFeedback(null);
+      setWrittenFeedback(null);
       // Stop microphone when moving to next card
       if (speechRecognitionRef.current?.isListening()) {
         speechRecognitionRef.current.stop();
@@ -368,6 +383,35 @@ function StudyPage() {
         transcript,
         isCorrect,
       });
+    }
+  };
+
+  const handleWrittenResult = async (result: WrittenResult) => {
+    if (!currentCard || !deckId) return;
+
+    setWrittenFeedback(result);
+
+    // Record study event with written answer
+    if (userId) {
+      try {
+        await api.studyEvents.create({
+          deck_id: deckId,
+          card_id: currentCard.id,
+          result: result.isCorrect ? "correct" : "incorrect",
+          mode: "study",
+          response_type: "written",
+          transcript_es: result.userAnswer,
+        });
+      } catch (err) {
+        console.error("Error recording written event:", err);
+      }
+    }
+
+    // Auto-flip to answer side after a short delay if correct
+    if (result.isCorrect) {
+      setTimeout(() => {
+        setIsFlipped(true);
+      }, 1200);
     }
   };
 
@@ -611,7 +655,9 @@ function StudyPage() {
               <span className="text-sm">
                 {currentVariant === VARIANT_A
                   ? "🎧 Listening + Meaning"
-                  : "💬 Recall + Pronunciation"}
+                  : currentVariant === VARIANT_C
+                    ? "✏️ Written Recall"
+                    : "💬 Recall + Pronunciation"}
               </span>
             </div>
           </div>
@@ -649,6 +695,22 @@ function StudyPage() {
                     />
                   </div>
                 </>
+              ) : currentVariant === VARIANT_C ? (
+                // Variant C: English → Spanish (Written)
+                <>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Write the Spanish translation
+                  </p>
+                  <p className="text-4xl font-bold text-gray-900 mb-6">
+                    {currentCard.translation_en || currentCard.prompt_es}
+                  </p>
+                  <div className="mt-6 max-w-md mx-auto">
+                    <WrittenAnswer
+                      correctAnswer={currentCard.prompt_es || currentCard.question}
+                      onResult={handleWrittenResult}
+                    />
+                  </div>
+                </>
               ) : (
                 // Variant B: English → Spanish (Recall)
                 <>
@@ -674,6 +736,36 @@ function StudyPage() {
                   <p className="text-4xl font-bold text-gray-900 mb-6">
                     {currentCard.translation_en || currentCard.prompt_es}
                   </p>
+                </>
+              ) : currentVariant === VARIANT_C ? (
+                // Variant C Answer: Show the Spanish answer
+                <>
+                  <p className="text-sm text-gray-500 mb-4">Spanish answer</p>
+                  <p className="text-4xl font-bold text-gray-900 mb-6">
+                    {currentCard.prompt_es}
+                  </p>
+                  {writtenFeedback && (
+                    <div className={`mt-4 p-4 rounded-lg ${
+                      writtenFeedback.isCorrect
+                        ? 'bg-green-50 border border-green-200'
+                        : 'bg-yellow-50 border border-yellow-200'
+                    }`}>
+                      <p className={`font-medium ${
+                        writtenFeedback.isCorrect ? 'text-green-800' : 'text-yellow-800'
+                      }`}>
+                        {writtenFeedback.isCorrect
+                          ? writtenFeedback.isAlmostCorrect
+                            ? '👍 Almost correct! Check the spelling above.'
+                            : '✓ Correct!'
+                          : '💡 Review the correct answer above'}
+                      </p>
+                      {!writtenFeedback.isCorrect && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          You wrote: "{writtenFeedback.userAnswer}"
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </>
               ) : (
                 // Variant B Answer: Spanish text + mic
