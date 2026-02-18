@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import useUser from '@/shared/hooks/useUser';
 import heroImg from '@/assets/hero-image.avif';
@@ -33,6 +34,7 @@ function BenefitList({ items }: { items: BenefitItem[] }) {
 
 export default function HomePage() {
   const { data: user, loading } = useUser();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: "'Quicksand', sans-serif" }}>
@@ -40,64 +42,60 @@ export default function HomePage() {
       {/* ── NAVIGATION ── */}
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between h-16">
-          <Link to="/">
-            <img
-              src={logoSvg}
-              alt="The Spanish Blitz"
-              className="h-12 w-auto"
-            />
+          <Link to="/" className="flex-shrink-0">
+            <img src={logoSvg} alt="The Spanish Blitz" className="h-12 w-auto" />
           </Link>
 
-          <div className="flex items-center gap-8">
-            <a
-              href="#students"
-              className="text-sm font-bold tracking-widest uppercase transition-colors"
-              style={{ color: DARK_BLUE }}
-              onMouseEnter={e => (e.currentTarget.style.color = LIGHT_BLUE)}
-              onMouseLeave={e => (e.currentTarget.style.color = DARK_BLUE)}
-            >
-              For Students
-            </a>
-            <a
-              href="#teachers"
-              className="text-sm font-bold tracking-widest uppercase transition-colors"
-              style={{ color: DARK_BLUE }}
-              onMouseEnter={e => (e.currentTarget.style.color = LIGHT_BLUE)}
-              onMouseLeave={e => (e.currentTarget.style.color = DARK_BLUE)}
-            >
-              For Teachers
-            </a>
+          {/* Desktop nav */}
+          <div className="hidden md:flex items-center gap-8">
+            <a href="#students" className="text-sm font-bold tracking-widest uppercase transition-colors" style={{ color: DARK_BLUE }} onMouseEnter={e => (e.currentTarget.style.color = LIGHT_BLUE)} onMouseLeave={e => (e.currentTarget.style.color = DARK_BLUE)}>For Students</a>
+            <a href="#teachers" className="text-sm font-bold tracking-widest uppercase transition-colors" style={{ color: DARK_BLUE }} onMouseEnter={e => (e.currentTarget.style.color = LIGHT_BLUE)} onMouseLeave={e => (e.currentTarget.style.color = DARK_BLUE)}>For Teachers</a>
             {!loading && user && (
-              <Link
-                to="/dashboard"
-                className="text-sm font-bold tracking-widest uppercase transition-colors"
-                style={{ color: LIGHT_BLUE }}
-              >
-                Dashboard
-              </Link>
+              <Link to="/dashboard" className="text-sm font-bold tracking-widest uppercase transition-colors" style={{ color: LIGHT_BLUE }}>Dashboard</Link>
             )}
           </div>
+
+          {/* Hamburger (mobile only) */}
+          <button className="md:hidden p-2" onClick={() => setIsMenuOpen(!isMenuOpen)} aria-label="Toggle menu">
+            {isMenuOpen ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: DARK_BLUE }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" style={{ color: DARK_BLUE }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
         </div>
+
+        {/* Mobile dropdown */}
+        {isMenuOpen && (
+          <div className="md:hidden bg-white border-t border-gray-100 px-6 py-4 flex flex-col gap-5">
+            <a href="#students" className="text-sm font-bold tracking-widest uppercase" style={{ color: DARK_BLUE }} onClick={() => setIsMenuOpen(false)}>For Students</a>
+            <a href="#teachers" className="text-sm font-bold tracking-widest uppercase" style={{ color: DARK_BLUE }} onClick={() => setIsMenuOpen(false)}>For Teachers</a>
+            {!loading && user && (
+              <Link to="/dashboard" className="text-sm font-bold tracking-widest uppercase" style={{ color: LIGHT_BLUE }} onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
+            )}
+          </div>
+        )}
       </nav>
 
       {/* ── HERO ── */}
-      <section className="bg-white" style={{ minHeight: 'calc(100vh - 64px)' }}>
-        <div
-          className="max-w-6xl mx-auto px-6 h-full flex flex-col md:flex-row items-center gap-8 md:gap-12"
-          style={{ minHeight: 'calc(100vh - 64px)' }}
-        >
-          {/* Image */}
-          <div className="flex-1 flex items-center justify-center py-8 order-2 md:order-1">
+      <section className="bg-white">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center gap-6 md:gap-12 md:min-h-[calc(100vh-64px)]">
+          {/* Image — order-1 on mobile (top), order-1 on desktop (left) */}
+          <div className="flex-1 flex items-center justify-center pt-8 pb-4 md:py-8 order-1">
             <img
               src={heroImg}
               alt="Learn Spanish with The Spanish Blitz"
               className="w-full object-contain"
-              style={{ maxHeight: '75vh' }}
+              style={{ maxHeight: '55vh' }}
             />
           </div>
 
-          {/* Text + CTAs */}
-          <div className="flex-1 flex flex-col justify-center items-center md:items-start text-center md:text-left py-12 order-1 md:order-2">
+          {/* Text + CTAs — order-2 on mobile (bottom), order-2 on desktop (right) */}
+          <div className="flex-1 flex flex-col justify-center items-center md:items-start text-center md:text-left pb-10 md:py-12 order-2">
             <h1
               className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6"
               style={{ color: DARK_BLUE }}
@@ -141,7 +139,7 @@ export default function HomePage() {
       {/* ── HOW IT WORKS / STEPS ── */}
 
       {/* Steps headline */}
-      <div className="bg-white border-t border-gray-100 pt-16 pb-4">
+      <div className="bg-white border-t border-gray-100 pt-16">
         <h2
           className="text-3xl md:text-4xl font-bold text-center px-6"
           style={{ color: DARK_BLUE }}
@@ -151,85 +149,55 @@ export default function HomePage() {
       </div>
 
       {/* Step 1 — image left, text right */}
-      <section className="bg-white" style={{ minHeight: '100vh' }}>
-        <div
-          className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center gap-8 md:gap-16"
-          style={{ minHeight: '100vh' }}
-        >
-          <div className="flex-1 flex items-center justify-center py-8">
-            <img
-              src={step1Img}
-              alt="Step 1 – Practice vocabulary in Study Mode"
-              className="w-full object-contain"
-              style={{ maxHeight: '70vh' }}
-            />
-          </div>
-          <div className="flex-1 flex flex-col justify-center py-12">
-            <p className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: LIGHT_BLUE }}>
-              Step 1
-            </p>
-            <h3 className="text-4xl md:text-5xl font-bold mb-6 leading-tight" style={{ color: DARK_BLUE }}>
-              Practice
-            </h3>
+      <section className="bg-white">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center gap-6 md:gap-16 md:py-16">
+          {/* Text — top on mobile, right on desktop */}
+          <div className="flex-1 flex flex-col justify-center py-8 order-1 md:order-2">
+            <p className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: LIGHT_BLUE }}>Step 1</p>
+            <h3 className="text-4xl md:text-5xl font-bold mb-6 leading-tight" style={{ color: DARK_BLUE }}>Practice</h3>
             <p className="text-gray-500 text-xl leading-relaxed">
               Students study vocabulary in Study Mode. Learn at your own pace with real Spanish prompts and instant feedback.
             </p>
+          </div>
+          {/* Image — bottom on mobile, left on desktop */}
+          <div className="flex-1 flex items-center justify-center pb-8 md:py-8 order-2 md:order-1">
+            <img src={step1Img} alt="Step 1 – Practice vocabulary in Study Mode" className="w-full object-contain" style={{ maxHeight: '60vh' }} />
           </div>
         </div>
       </section>
 
       {/* Step 2 — text left, image right */}
-      <section className="bg-gray-50" style={{ minHeight: '100vh' }}>
-        <div
-          className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center gap-8 md:gap-16"
-          style={{ minHeight: '100vh' }}
-        >
-          <div className="flex-1 flex flex-col justify-center py-12 order-1">
-            <p className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: LIGHT_BLUE }}>
-              Step 2
-            </p>
-            <h3 className="text-4xl md:text-5xl font-bold mb-6 leading-tight" style={{ color: DARK_BLUE }}>
-              Use All 4 Skills
-            </h3>
+      <section className="bg-gray-50">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center gap-6 md:gap-16 md:py-16">
+          {/* Text — top on mobile, left on desktop */}
+          <div className="flex-1 flex flex-col justify-center py-8 order-1">
+            <p className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: LIGHT_BLUE }}>Step 2</p>
+            <h3 className="text-4xl md:text-5xl font-bold mb-6 leading-tight" style={{ color: DARK_BLUE }}>Use All 4 Skills</h3>
             <p className="text-gray-500 text-xl leading-relaxed">
               Type answers, listen to prompts, read content, and speak with voice feedback. A complete language practice experience.
             </p>
           </div>
-          <div className="flex-1 flex items-center justify-center py-8 order-2">
-            <img
-              src={step2Img}
-              alt="Step 2 – Use all 4 language skills"
-              className="w-full object-contain"
-              style={{ maxHeight: '70vh' }}
-            />
+          {/* Image — bottom on mobile, right on desktop */}
+          <div className="flex-1 flex items-center justify-center pb-8 md:py-8 order-2">
+            <img src={step2Img} alt="Step 2 – Use all 4 language skills" className="w-full object-contain" style={{ maxHeight: '60vh' }} />
           </div>
         </div>
       </section>
 
       {/* Step 3 — image left, text right */}
-      <section className="bg-white" style={{ minHeight: '100vh' }}>
-        <div
-          className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center gap-8 md:gap-16"
-          style={{ minHeight: '100vh' }}
-        >
-          <div className="flex-1 flex items-center justify-center py-8">
-            <img
-              src={step3Img}
-              alt="Step 3 – Compete and improve your Spanish"
-              className="w-full object-contain"
-              style={{ maxHeight: '70vh' }}
-            />
-          </div>
-          <div className="flex-1 flex flex-col justify-center py-12">
-            <p className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: LIGHT_BLUE }}>
-              Step 3
-            </p>
-            <h3 className="text-4xl md:text-5xl font-bold mb-6 leading-tight" style={{ color: DARK_BLUE }}>
-              Compete &amp; Improve
-            </h3>
+      <section className="bg-white">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center gap-6 md:gap-16 md:py-16">
+          {/* Text — top on mobile, right on desktop */}
+          <div className="flex-1 flex flex-col justify-center py-8 order-1 md:order-2">
+            <p className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: LIGHT_BLUE }}>Step 3</p>
+            <h3 className="text-4xl md:text-5xl font-bold mb-6 leading-tight" style={{ color: DARK_BLUE }}>Compete &amp; Improve</h3>
             <p className="text-gray-500 text-xl leading-relaxed">
               Earn XP, join Blitz Challenges, and track your progress. Make learning a habit with friendly competition.
             </p>
+          </div>
+          {/* Image — bottom on mobile, left on desktop */}
+          <div className="flex-1 flex items-center justify-center pb-8 md:py-8 order-2 md:order-1">
+            <img src={step3Img} alt="Step 3 – Compete and improve your Spanish" className="w-full object-contain" style={{ maxHeight: '60vh' }} />
           </div>
         </div>
       </section>
@@ -238,8 +206,8 @@ export default function HomePage() {
       <section id="students" className="py-20 bg-gray-50 border-t border-gray-100">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center gap-16">
-            {/* Text */}
-            <div className="flex-1">
+            {/* Text — order-2 on mobile (below circle), order-1 on desktop (left) */}
+            <div className="flex-1 order-2 md:order-1">
               <p
                 className="text-sm font-bold uppercase tracking-widest mb-3"
                 style={{ color: LIGHT_BLUE }}
@@ -265,7 +233,7 @@ export default function HomePage() {
               </p>
               <Link
                 to="/account/signup"
-                className="inline-block mt-5 text-white font-bold uppercase tracking-widest text-sm px-8 py-4 rounded-xl transition-colors"
+                className="block w-full md:inline-block md:w-auto text-center mt-5 text-white font-bold uppercase tracking-widest text-sm px-8 py-4 rounded-xl transition-colors"
                 style={{ backgroundColor: DARK_BLUE }}
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#063260')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = DARK_BLUE)}
@@ -274,8 +242,8 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* Decorative visual */}
-            <div className="flex-1 flex justify-center">
+            {/* Decorative visual — order-1 on mobile (above text), order-2 on desktop (right) */}
+            <div className="flex-1 flex justify-center order-1 md:order-2">
               <div
                 className="w-72 h-72 md:w-80 md:h-80 rounded-full flex items-center justify-center"
                 style={{ background: `radial-gradient(circle at 30% 40%, ${LIGHT_BLUE}33 0%, ${DARK_BLUE}18 100%)` }}
@@ -291,8 +259,8 @@ export default function HomePage() {
       <section id="teachers" className="py-20 bg-white border-t border-gray-100">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row-reverse items-center gap-16">
-            {/* Text */}
-            <div className="flex-1">
+            {/* Text — order-2 on mobile (below circle), order-1 on desktop (right via flex-row-reverse) */}
+            <div className="flex-1 order-2 md:order-1">
               <p
                 className="text-sm font-bold uppercase tracking-widest mb-3"
                 style={{ color: LIGHT_BLUE }}
@@ -321,7 +289,7 @@ export default function HomePage() {
               </p>
               <Link
                 to="/account/signup"
-                className="inline-block mt-5 text-white font-bold uppercase tracking-widest text-sm px-8 py-4 rounded-xl transition-colors"
+                className="block w-full md:inline-block md:w-auto text-center mt-5 text-white font-bold uppercase tracking-widest text-sm px-8 py-4 rounded-xl transition-colors"
                 style={{ backgroundColor: DARK_BLUE }}
                 onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#063260')}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = DARK_BLUE)}
@@ -330,8 +298,8 @@ export default function HomePage() {
               </Link>
             </div>
 
-            {/* Decorative visual */}
-            <div className="flex-1 flex justify-center">
+            {/* Decorative visual — order-1 on mobile (above text), order-2 on desktop (left via flex-row-reverse) */}
+            <div className="flex-1 flex justify-center order-1 md:order-2">
               <div
                 className="w-72 h-72 md:w-80 md:h-80 rounded-full flex items-center justify-center"
                 style={{ background: `radial-gradient(circle at 70% 30%, ${DARK_BLUE}18 0%, ${LIGHT_BLUE}33 100%)` }}
