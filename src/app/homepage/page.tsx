@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import useUser from '@/shared/hooks/useUser';
 import heroImg from '@/assets/hero-image.avif';
@@ -7,8 +7,6 @@ import step2Img from '@/assets/step2.avif';
 import step3Img from '@/assets/step3.avif';
 import logoSvg from '@/assets/logo.svg';
 
-const DARK_BLUE = '#084178';
-const LIGHT_BLUE = '#10A5C3';
 
 interface BenefitItem {
   emoji: string;
@@ -16,15 +14,15 @@ interface BenefitItem {
   desc: string;
 }
 
-function BenefitList({ items }: { items: BenefitItem[] }) {
+function BenefitList({ items, titleColor }: { items: BenefitItem[]; titleColor: string }) {
   return (
     <ul className="space-y-5">
       {items.map((item) => (
         <li key={item.title} className="flex items-start gap-4">
           <span className="text-2xl leading-tight mt-0.5">{item.emoji}</span>
           <div>
-            <p className="font-bold text-lg" style={{ color: DARK_BLUE }}>{item.title}</p>
-            <p className="text-gray-500 mt-0.5">{item.desc}</p>
+            <p className="font-bold text-lg" style={{ color: titleColor }}>{item.title}</p>
+            <p className="text-gray-500 dark:text-gray-400 mt-0.5">{item.desc}</p>
           </div>
         </li>
       ))}
@@ -32,15 +30,60 @@ function BenefitList({ items }: { items: BenefitItem[] }) {
   );
 }
 
+function FadeIn({
+  children, delay = 0, direction = 'up', className = '',
+}: {
+  children: ReactNode; delay?: number; direction?: 'up' | 'left' | 'right'; className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const translate = direction === 'left' ? 'translateX(-32px)' : direction === 'right' ? 'translateX(32px)' : 'translateY(28px)';
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'none' : translate,
+        transition: `opacity 0.6s ease ${delay}ms, transform 0.6s ease ${delay}ms`,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function HomePage() {
   const { data: user, loading } = useUser();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDark, setIsDark] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  const DARK_BLUE = isDark ? '#93c5fd' : '#084178';
+  const LIGHT_BLUE = isDark ? '#38bdf8' : '#10A5C3';
+  const DARK_BLUE_HOVER = isDark ? '#60a5fa' : '#063260';
 
   return (
-    <div className="min-h-screen bg-white" style={{ fontFamily: "'Quicksand', sans-serif" }}>
+    <div className="min-h-screen bg-white dark:bg-gray-900" style={{ fontFamily: "'Quicksand', sans-serif" }}>
 
       {/* ── NAVIGATION ── */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between h-16">
           <Link to="/" className="flex-shrink-0">
             <img src={logoSvg} alt="The Spanish Blitz" className="h-12 w-auto" />
@@ -71,7 +114,7 @@ export default function HomePage() {
 
         {/* Mobile dropdown */}
         {isMenuOpen && (
-          <div className="md:hidden bg-white border-t border-gray-100 px-6 py-4 flex flex-col gap-5">
+          <div className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 px-6 py-4 flex flex-col gap-5">
             <a href="#students" className="text-sm font-bold tracking-widest uppercase" style={{ color: DARK_BLUE }} onClick={() => setIsMenuOpen(false)}>For Students</a>
             <a href="#teachers" className="text-sm font-bold tracking-widest uppercase" style={{ color: DARK_BLUE }} onClick={() => setIsMenuOpen(false)}>For Teachers</a>
             {!loading && user && (
@@ -82,7 +125,7 @@ export default function HomePage() {
       </nav>
 
       {/* ── HERO ── */}
-      <section className="bg-white">
+      <section className="bg-white dark:bg-gray-900">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center gap-6 md:gap-12 md:min-h-[calc(100vh-64px)]">
           {/* Image — order-1 on mobile (top), order-1 on desktop (left) */}
           <div className="flex-1 flex items-center justify-center pt-8 pb-4 md:py-8 order-1">
@@ -102,7 +145,7 @@ export default function HomePage() {
             >
               Master Spanish For Real.
             </h1>
-            <p className="text-lg text-gray-500 mb-10 max-w-md leading-relaxed">
+            <p className="text-lg text-gray-500 dark:text-gray-400 mb-10 max-w-md leading-relaxed">
               Practice vocabulary, pronunciation, listening, and writing — all in one place.
               The perfect companion to your Spanish classes.
             </p>
@@ -111,7 +154,7 @@ export default function HomePage() {
                 to="/account/signup"
                 className="block text-center text-white font-bold uppercase tracking-widest text-sm px-8 py-4 rounded-xl transition-colors"
                 style={{ backgroundColor: DARK_BLUE }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#063260')}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = DARK_BLUE_HOVER)}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = DARK_BLUE)}
               >
                 Get Started Free
@@ -139,7 +182,7 @@ export default function HomePage() {
       {/* ── HOW IT WORKS / STEPS ── */}
 
       {/* Steps headline */}
-      <div className="bg-white border-t border-gray-100 pt-16">
+      <div className="bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 pt-16">
         <h2
           className="text-3xl md:text-4xl font-bold text-center px-6"
           style={{ color: DARK_BLUE }}
@@ -149,61 +192,55 @@ export default function HomePage() {
       </div>
 
       {/* Step 1 — image left, text right */}
-      <section className="bg-white">
+      <section className="bg-white dark:bg-gray-900">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center gap-6 md:gap-16 md:py-16">
-          {/* Text — top on mobile, right on desktop */}
-          <div className="flex-1 flex flex-col justify-center py-8 order-1 md:order-2">
+          <FadeIn className="flex-1 flex flex-col justify-center py-8 order-1 md:order-2" direction="right">
             <p className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: LIGHT_BLUE }}>Step 1</p>
             <h3 className="text-4xl md:text-5xl font-bold mb-6 leading-tight" style={{ color: DARK_BLUE }}>Practice</h3>
-            <p className="text-gray-500 text-xl leading-relaxed">
+            <p className="text-gray-500 dark:text-gray-400 text-xl leading-relaxed">
               Students study vocabulary in Study Mode. Learn at your own pace with real Spanish prompts and instant feedback.
             </p>
-          </div>
-          {/* Image — bottom on mobile, left on desktop */}
-          <div className="flex-1 flex items-center justify-center pb-8 md:py-8 order-2 md:order-1">
+          </FadeIn>
+          <FadeIn className="flex-1 flex items-center justify-center pb-8 md:py-8 order-2 md:order-1" direction="left" delay={100}>
             <img src={step1Img} alt="Step 1 – Practice vocabulary in Study Mode" className="w-full object-contain" style={{ maxHeight: '60vh' }} />
-          </div>
+          </FadeIn>
         </div>
       </section>
 
       {/* Step 2 — text left, image right */}
-      <section className="bg-gray-50">
+      <section className="bg-gray-50 dark:bg-gray-800">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center gap-6 md:gap-16 md:py-16">
-          {/* Text — top on mobile, left on desktop */}
-          <div className="flex-1 flex flex-col justify-center py-8 order-1">
+          <FadeIn className="flex-1 flex flex-col justify-center py-8 order-1" direction="left">
             <p className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: LIGHT_BLUE }}>Step 2</p>
             <h3 className="text-4xl md:text-5xl font-bold mb-6 leading-tight" style={{ color: DARK_BLUE }}>Use All 4 Skills</h3>
-            <p className="text-gray-500 text-xl leading-relaxed">
+            <p className="text-gray-500 dark:text-gray-400 text-xl leading-relaxed">
               Type answers, listen to prompts, read content, and speak with voice feedback. A complete language practice experience.
             </p>
-          </div>
-          {/* Image — bottom on mobile, right on desktop */}
-          <div className="flex-1 flex items-center justify-center pb-8 md:py-8 order-2">
+          </FadeIn>
+          <FadeIn className="flex-1 flex items-center justify-center pb-8 md:py-8 order-2" direction="right" delay={100}>
             <img src={step2Img} alt="Step 2 – Use all 4 language skills" className="w-full object-contain" style={{ maxHeight: '60vh' }} />
-          </div>
+          </FadeIn>
         </div>
       </section>
 
       {/* Step 3 — image left, text right */}
-      <section className="bg-white">
+      <section className="bg-white dark:bg-gray-900">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center gap-6 md:gap-16 md:py-16">
-          {/* Text — top on mobile, right on desktop */}
-          <div className="flex-1 flex flex-col justify-center py-8 order-1 md:order-2">
+          <FadeIn className="flex-1 flex flex-col justify-center py-8 order-1 md:order-2" direction="right">
             <p className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: LIGHT_BLUE }}>Step 3</p>
             <h3 className="text-4xl md:text-5xl font-bold mb-6 leading-tight" style={{ color: DARK_BLUE }}>Compete &amp; Improve</h3>
-            <p className="text-gray-500 text-xl leading-relaxed">
+            <p className="text-gray-500 dark:text-gray-400 text-xl leading-relaxed">
               Earn XP, join Blitz Challenges, and track your progress. Make learning a habit with friendly competition.
             </p>
-          </div>
-          {/* Image — bottom on mobile, left on desktop */}
-          <div className="flex-1 flex items-center justify-center pb-8 md:py-8 order-2 md:order-1">
+          </FadeIn>
+          <FadeIn className="flex-1 flex items-center justify-center pb-8 md:py-8 order-2 md:order-1" direction="left" delay={100}>
             <img src={step3Img} alt="Step 3 – Compete and improve your Spanish" className="w-full object-contain" style={{ maxHeight: '60vh' }} />
-          </div>
+          </FadeIn>
         </div>
       </section>
 
       {/* ── FOR STUDENTS ── */}
-      <section id="students" className="py-20 bg-gray-50 border-t border-gray-100">
+      <section id="students" className="py-20 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center gap-16">
             {/* Text — order-2 on mobile (below circle), order-1 on desktop (left) */}
@@ -221,6 +258,7 @@ export default function HomePage() {
                 Show Up Ready<br />to Speak.
               </h2>
               <BenefitList
+                titleColor={DARK_BLUE}
                 items={[
                   { emoji: '🎧', title: 'Listen with purpose', desc: 'Train your ear with real Spanish prompts — not random phrases.' },
                   { emoji: '✍️', title: 'Write what you\'ve learned', desc: 'Type answers to strengthen memory and spelling.' },
@@ -228,14 +266,14 @@ export default function HomePage() {
                   { emoji: '🏆', title: 'Compete and level up', desc: 'Earn XP, improve your streak, and climb the Blitz rankings.' },
                 ]}
               />
-              <p className="mt-8 font-semibold text-gray-700">
+              <p className="mt-8 font-semibold text-gray-700 dark:text-gray-300">
                 Stop memorizing. Start using Spanish.
               </p>
               <Link
                 to="/account/signup"
                 className="block w-full md:inline-block md:w-auto text-center mt-5 text-white font-bold uppercase tracking-widest text-sm px-8 py-4 rounded-xl transition-colors"
                 style={{ backgroundColor: DARK_BLUE }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#063260')}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = DARK_BLUE_HOVER)}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = DARK_BLUE)}
               >
                 Start Learning Free
@@ -243,20 +281,20 @@ export default function HomePage() {
             </div>
 
             {/* Decorative visual — order-1 on mobile (above text), order-2 on desktop (right) */}
-            <div className="flex-1 flex justify-center order-1 md:order-2">
+            <FadeIn className="flex-1 flex justify-center order-1 md:order-2" direction="right" delay={150}>
               <div
                 className="w-72 h-72 md:w-80 md:h-80 rounded-full flex items-center justify-center"
                 style={{ background: `radial-gradient(circle at 30% 40%, ${LIGHT_BLUE}33 0%, ${DARK_BLUE}18 100%)` }}
               >
                 <span className="text-8xl select-none">🎓</span>
               </div>
-            </div>
+            </FadeIn>
           </div>
         </div>
       </section>
 
       {/* ── FOR TEACHERS ── */}
-      <section id="teachers" className="py-20 bg-white border-t border-gray-100">
+      <section id="teachers" className="py-20 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row-reverse items-center gap-16">
             {/* Text — order-2 on mobile (below circle), order-1 on desktop (right via flex-row-reverse) */}
@@ -274,6 +312,7 @@ export default function HomePage() {
                 Turn Practice Into<br />Accountability.
               </h2>
               <BenefitList
+                titleColor={DARK_BLUE}
                 items={[
                   { emoji: '📚', title: 'Create classrooms in seconds', desc: 'Organize students and manage vocabulary sets effortlessly.' },
                   { emoji: '📝', title: 'Assign targeted study work', desc: 'Send specific sets with deadlines and XP goals.' },
@@ -281,7 +320,7 @@ export default function HomePage() {
                   { emoji: '⚡', title: 'Run live Blitz Challenges', desc: 'Bring energy and competition into your classroom.' },
                 ]}
               />
-              <p className="mt-8 text-gray-500 leading-relaxed">
+              <p className="mt-8 text-gray-500 dark:text-gray-400 leading-relaxed">
                 You teach the lesson.<br />
                 <span className="font-semibold" style={{ color: DARK_BLUE }}>
                   We reinforce it between classes.
@@ -291,7 +330,7 @@ export default function HomePage() {
                 to="/account/signup"
                 className="block w-full md:inline-block md:w-auto text-center mt-5 text-white font-bold uppercase tracking-widest text-sm px-8 py-4 rounded-xl transition-colors"
                 style={{ backgroundColor: DARK_BLUE }}
-                onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#063260')}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = DARK_BLUE_HOVER)}
                 onMouseLeave={e => (e.currentTarget.style.backgroundColor = DARK_BLUE)}
               >
                 Create Your Classroom Free
@@ -299,20 +338,20 @@ export default function HomePage() {
             </div>
 
             {/* Decorative visual — order-1 on mobile (above text), order-2 on desktop (left via flex-row-reverse) */}
-            <div className="flex-1 flex justify-center order-1 md:order-2">
+            <FadeIn className="flex-1 flex justify-center order-1 md:order-2" direction="left" delay={150}>
               <div
                 className="w-72 h-72 md:w-80 md:h-80 rounded-full flex items-center justify-center"
                 style={{ background: `radial-gradient(circle at 70% 30%, ${DARK_BLUE}18 0%, ${LIGHT_BLUE}33 100%)` }}
               >
                 <span className="text-8xl select-none">👩‍🏫</span>
               </div>
-            </div>
+            </FadeIn>
           </div>
         </div>
       </section>
 
       {/* ── SOCIAL PROOF ── */}
-      <section className="py-20 bg-gray-50 border-t border-gray-100">
+      <section className="py-20 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
         <div className="max-w-6xl mx-auto px-6 text-center">
           <h2
             className="text-4xl font-bold mb-3"
@@ -320,7 +359,7 @@ export default function HomePage() {
           >
             Trusted in Real Spanish Classrooms
           </h2>
-          <p className="text-gray-400 text-base mb-16">
+          <p className="text-gray-400 dark:text-gray-500 text-base mb-16">
             Students Practice More. Teachers See the Difference.
           </p>
 
@@ -329,24 +368,23 @@ export default function HomePage() {
             {[
               {
                 quote: 'My students come to class more prepared and confident. The Blitz Challenge has completely changed how we review vocabulary.',
-                author: 'Spanish Teacher',
+                author: 'Spanish Teacher', delay: 0,
               },
               {
                 quote: 'Typing the answers and practicing pronunciation actually helps the words stick.',
-                author: 'Intermediate Student',
+                author: 'Intermediate Student', delay: 150,
               },
               {
                 quote: 'I like that it uses the exact vocabulary from our class. It makes studying feel purposeful.',
-                author: 'Beginner Student',
+                author: 'Beginner Student', delay: 300,
               },
             ].map((t) => (
-              <div
-                key={t.author}
-                className="bg-white rounded-2xl p-8 text-left shadow-sm border border-gray-100"
+              <FadeIn key={t.author} direction="up" delay={t.delay}
+                className="bg-white dark:bg-gray-900 rounded-2xl p-8 text-left shadow-sm border border-gray-100 dark:border-gray-700"
               >
-                <p className="text-gray-600 leading-relaxed italic mb-5">"{t.quote}"</p>
+                <p className="text-gray-600 dark:text-gray-300 leading-relaxed italic mb-5">"{t.quote}"</p>
                 <p className="font-bold text-sm" style={{ color: DARK_BLUE }}>— {t.author}</p>
-              </div>
+              </FadeIn>
             ))}
           </div>
 
@@ -359,12 +397,12 @@ export default function HomePage() {
             ].map((s) => (
               <div key={s.label}>
                 <p className="text-4xl font-bold" style={{ color: LIGHT_BLUE }}>{s.stat}</p>
-                <p className="text-gray-500 mt-1 text-sm">{s.label}</p>
+                <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{s.label}</p>
               </div>
             ))}
           </div>
 
-          <p className="text-gray-400 text-sm">
+          <p className="text-gray-400 dark:text-gray-500 text-sm">
             Built for real teachers. Used by real students. Designed to make Spanish stick.
           </p>
         </div>
@@ -393,9 +431,9 @@ export default function HomePage() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="border-t border-gray-200 bg-white py-8">
+      <footer className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 py-8">
         <div className="max-w-6xl mx-auto px-6 text-center">
-          <p className="text-gray-400 text-sm">
+          <p className="text-gray-400 dark:text-gray-500 text-sm">
             © {new Date().getFullYear()} The Spanish Blitz. All rights reserved.
           </p>
         </div>
