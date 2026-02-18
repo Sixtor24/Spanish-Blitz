@@ -1,4 +1,9 @@
 /// <reference path="./types/auth-create-react.d.ts" />
+
+declare module '*.avif' {
+  const src: string;
+  export default src;
+}
 import 'react-router';
 module 'virtual:load-fonts.jsx' {
 	export function LoadFonts(): null;
