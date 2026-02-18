@@ -22,7 +22,7 @@ function BenefitList({ items, titleColor }: { items: BenefitItem[]; titleColor: 
           <span className="text-2xl leading-tight mt-0.5">{item.emoji}</span>
           <div>
             <p className="font-bold text-lg" style={{ color: titleColor }}>{item.title}</p>
-            <p className="text-gray-500 dark:text-gray-400 mt-0.5">{item.desc}</p>
+            <p className="text-gray-500 mt-0.5">{item.desc}</p>
           </div>
         </li>
       ))}
@@ -66,24 +66,15 @@ function FadeIn({
 export default function HomePage() {
   const { data: user, loading } = useUser();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDark, setIsDark] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
-  );
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-  const DARK_BLUE = isDark ? '#93c5fd' : '#084178';
-  const LIGHT_BLUE = isDark ? '#38bdf8' : '#10A5C3';
-  const DARK_BLUE_HOVER = isDark ? '#60a5fa' : '#063260';
+  const DARK_BLUE = '#084178';
+  const LIGHT_BLUE = '#10A5C3';
+  const DARK_BLUE_HOVER = '#063260';
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900" style={{ fontFamily: "'Quicksand', sans-serif" }}>
+    <div className="min-h-screen bg-white" style={{ fontFamily: "'Quicksand', sans-serif" }}>
 
       {/* ── NAVIGATION ── */}
-      <nav className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50">
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-6 flex items-center justify-between h-16">
           <Link to="/" className="flex-shrink-0">
             <img src={logoSvg} alt="The Spanish Blitz" className="h-12 w-auto" />
@@ -114,7 +105,7 @@ export default function HomePage() {
 
         {/* Mobile dropdown */}
         {isMenuOpen && (
-          <div className="md:hidden bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 px-6 py-4 flex flex-col gap-5">
+          <div className="md:hidden bg-white border-t border-gray-100 px-6 py-4 flex flex-col gap-5">
             <a href="#students" className="text-sm font-bold tracking-widest uppercase" style={{ color: DARK_BLUE }} onClick={() => setIsMenuOpen(false)}>For Students</a>
             <a href="#teachers" className="text-sm font-bold tracking-widest uppercase" style={{ color: DARK_BLUE }} onClick={() => setIsMenuOpen(false)}>For Teachers</a>
             {!loading && user && (
@@ -125,7 +116,7 @@ export default function HomePage() {
       </nav>
 
       {/* ── HERO ── */}
-      <section className="bg-white dark:bg-gray-900">
+      <section className="bg-white">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center gap-6 md:gap-12 md:min-h-[calc(100vh-64px)]">
           {/* Image — order-1 on mobile (top), order-1 on desktop (left) */}
           <div className="flex-1 flex items-center justify-center pt-8 pb-4 md:py-8 order-1">
@@ -145,7 +136,7 @@ export default function HomePage() {
             >
               Master Spanish For Real.
             </h1>
-            <p className="text-lg text-gray-500 dark:text-gray-400 mb-10 max-w-md leading-relaxed">
+            <p className="text-lg text-gray-500 mb-10 max-w-md leading-relaxed">
               Practice vocabulary, pronunciation, listening, and writing — all in one place.
               The perfect companion to your Spanish classes.
             </p>
@@ -182,7 +173,7 @@ export default function HomePage() {
       {/* ── HOW IT WORKS / STEPS ── */}
 
       {/* Steps headline */}
-      <div className="bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700 pt-16">
+      <div className="bg-white border-t border-gray-100 pt-16">
         <h2
           className="text-3xl md:text-4xl font-bold text-center px-6"
           style={{ color: DARK_BLUE }}
@@ -192,12 +183,12 @@ export default function HomePage() {
       </div>
 
       {/* Step 1 — image left, text right */}
-      <section className="bg-white dark:bg-gray-900">
+      <section className="bg-white">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center gap-6 md:gap-16 md:py-16">
           <FadeIn className="flex-1 flex flex-col justify-center py-8 order-1 md:order-2" direction="right">
             <p className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: LIGHT_BLUE }}>Step 1</p>
             <h3 className="text-4xl md:text-5xl font-bold mb-6 leading-tight" style={{ color: DARK_BLUE }}>Practice</h3>
-            <p className="text-gray-500 dark:text-gray-400 text-xl leading-relaxed">
+            <p className="text-gray-500 text-xl leading-relaxed">
               Students study vocabulary in Study Mode. Learn at your own pace with real Spanish prompts and instant feedback.
             </p>
           </FadeIn>
@@ -208,12 +199,12 @@ export default function HomePage() {
       </section>
 
       {/* Step 2 — text left, image right */}
-      <section className="bg-gray-50 dark:bg-gray-800">
+      <section className="bg-gray-50">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center gap-6 md:gap-16 md:py-16">
           <FadeIn className="flex-1 flex flex-col justify-center py-8 order-1" direction="left">
             <p className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: LIGHT_BLUE }}>Step 2</p>
             <h3 className="text-4xl md:text-5xl font-bold mb-6 leading-tight" style={{ color: DARK_BLUE }}>Use All 4 Skills</h3>
-            <p className="text-gray-500 dark:text-gray-400 text-xl leading-relaxed">
+            <p className="text-gray-500 text-xl leading-relaxed">
               Type answers, listen to prompts, read content, and speak with voice feedback. A complete language practice experience.
             </p>
           </FadeIn>
@@ -224,12 +215,12 @@ export default function HomePage() {
       </section>
 
       {/* Step 3 — image left, text right */}
-      <section className="bg-white dark:bg-gray-900">
+      <section className="bg-white">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center gap-6 md:gap-16 md:py-16">
           <FadeIn className="flex-1 flex flex-col justify-center py-8 order-1 md:order-2" direction="right">
             <p className="text-sm font-bold uppercase tracking-widest mb-4" style={{ color: LIGHT_BLUE }}>Step 3</p>
             <h3 className="text-4xl md:text-5xl font-bold mb-6 leading-tight" style={{ color: DARK_BLUE }}>Compete &amp; Improve</h3>
-            <p className="text-gray-500 dark:text-gray-400 text-xl leading-relaxed">
+            <p className="text-gray-500 text-xl leading-relaxed">
               Earn XP, join Blitz Challenges, and track your progress. Make learning a habit with friendly competition.
             </p>
           </FadeIn>
@@ -240,7 +231,7 @@ export default function HomePage() {
       </section>
 
       {/* ── FOR STUDENTS ── */}
-      <section id="students" className="py-20 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
+      <section id="students" className="py-20 bg-gray-50 border-t border-gray-100">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row items-center gap-16">
             {/* Text — order-2 on mobile (below circle), order-1 on desktop (left) */}
@@ -266,7 +257,7 @@ export default function HomePage() {
                   { emoji: '🏆', title: 'Compete and level up', desc: 'Earn XP, improve your streak, and climb the Blitz rankings.' },
                 ]}
               />
-              <p className="mt-8 font-semibold text-gray-700 dark:text-gray-300">
+              <p className="mt-8 font-semibold text-gray-700">
                 Stop memorizing. Start using Spanish.
               </p>
               <Link
@@ -294,7 +285,7 @@ export default function HomePage() {
       </section>
 
       {/* ── FOR TEACHERS ── */}
-      <section id="teachers" className="py-20 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-700">
+      <section id="teachers" className="py-20 bg-white border-t border-gray-100">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row-reverse items-center gap-16">
             {/* Text — order-2 on mobile (below circle), order-1 on desktop (right via flex-row-reverse) */}
@@ -320,7 +311,7 @@ export default function HomePage() {
                   { emoji: '⚡', title: 'Run live Blitz Challenges', desc: 'Bring energy and competition into your classroom.' },
                 ]}
               />
-              <p className="mt-8 text-gray-500 dark:text-gray-400 leading-relaxed">
+              <p className="mt-8 text-gray-500 leading-relaxed">
                 You teach the lesson.<br />
                 <span className="font-semibold" style={{ color: DARK_BLUE }}>
                   We reinforce it between classes.
@@ -351,7 +342,7 @@ export default function HomePage() {
       </section>
 
       {/* ── SOCIAL PROOF ── */}
-      <section className="py-20 bg-gray-50 dark:bg-gray-800 border-t border-gray-100 dark:border-gray-700">
+      <section className="py-20 bg-gray-50 border-t border-gray-100">
         <div className="max-w-6xl mx-auto px-6 text-center">
           <h2
             className="text-4xl font-bold mb-3"
@@ -359,7 +350,7 @@ export default function HomePage() {
           >
             Trusted in Real Spanish Classrooms
           </h2>
-          <p className="text-gray-400 dark:text-gray-500 text-base mb-16">
+          <p className="text-gray-400 text-base mb-16">
             Students Practice More. Teachers See the Difference.
           </p>
 
@@ -380,9 +371,9 @@ export default function HomePage() {
               },
             ].map((t) => (
               <FadeIn key={t.author} direction="up" delay={t.delay}
-                className="bg-white dark:bg-gray-900 rounded-2xl p-8 text-left shadow-sm border border-gray-100 dark:border-gray-700"
+                className="bg-white rounded-2xl p-8 text-left shadow-sm border border-gray-100"
               >
-                <p className="text-gray-600 dark:text-gray-300 leading-relaxed italic mb-5">"{t.quote}"</p>
+                <p className="text-gray-600 leading-relaxed italic mb-5">"{t.quote}"</p>
                 <p className="font-bold text-sm" style={{ color: DARK_BLUE }}>— {t.author}</p>
               </FadeIn>
             ))}
@@ -397,12 +388,12 @@ export default function HomePage() {
             ].map((s) => (
               <div key={s.label}>
                 <p className="text-4xl font-bold" style={{ color: LIGHT_BLUE }}>{s.stat}</p>
-                <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{s.label}</p>
+                <p className="text-gray-500 mt-1 text-sm">{s.label}</p>
               </div>
             ))}
           </div>
 
-          <p className="text-gray-400 dark:text-gray-500 text-sm">
+          <p className="text-gray-400 text-sm">
             Built for real teachers. Used by real students. Designed to make Spanish stick.
           </p>
         </div>
@@ -431,9 +422,9 @@ export default function HomePage() {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 py-8">
+      <footer className="border-t border-gray-200 bg-white py-8">
         <div className="max-w-6xl mx-auto px-6 text-center">
-          <p className="text-gray-400 dark:text-gray-500 text-sm">
+          <p className="text-gray-400 text-sm">
             © {new Date().getFullYear()} The Spanish Blitz. All rights reserved.
           </p>
         </div>
