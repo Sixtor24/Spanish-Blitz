@@ -37,25 +37,10 @@ customHeaders:
       - key: "Cache-Control"
         value: "public, max-age=3600"
 redirects:
-  - source: '/assets/<*>'
-    target: '/assets/<*>'
-    status: 200
-  - source: '/favicon/<*>'
-    target: '/favicon/<*>'
-    status: 200
-  - source: '/favicon.ico'
-    target: '/favicon.ico'
-    status: 200
-  - source: '/logo.png'
-    target: '/logo.png'
-    status: 200
-  - source: '/logo.svg'
-    target: '/logo.svg'
-    status: 200
   - source: '/api/<*>'
     target: 'https://spanish-blitz-back-production.up.railway.app/api/<*>'
     status: 200
-  - source: '/<*>'
+  - source: '</^[^.]+$|\.(?!(css|gif|ico|jpg|jpeg|js|png|txt|svg|woff|woff2|ttf|map|json|webp|avif|xml|pdf|webmanifest)$)([^.]+$)/>'
     target: '/index.html'
     status: 200
 env:
