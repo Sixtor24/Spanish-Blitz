@@ -36,7 +36,7 @@ interface CardQuestion {
 export default function PlaySoloPage() {
   const [searchParams] = useSearchParams();
   const deckId = searchParams.get("deck");
-  const { refetch: refetchUser } = useUser();
+  const { user, refetch: refetchUser } = useUser();
   const { micEnabled, resetMic } = useMicrophone();
   const [showVoicePrompt, setShowVoicePrompt] = useState(true);
   
@@ -693,6 +693,7 @@ export default function PlaySoloPage() {
                   locale={userLocale}
                   onError={(error) => console.error("Speech error:", error)}
                   autoStop={true}
+                  userId={user?.id}
                 />
               </div>
 

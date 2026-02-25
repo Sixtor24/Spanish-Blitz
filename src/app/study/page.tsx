@@ -776,6 +776,7 @@ function StudyPage() {
                         locale={userLocale}
                         autoStop={false}
                         showTranscript={false}
+                        userId={userId ?? user?.id}
                       />
                     </div>
                   )}
