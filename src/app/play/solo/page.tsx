@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import DashboardLayout from "@/shared/components/DashboardLayout";
-import AdPlaceholder from "@/shared/components/AdPlaceholder";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition from "@/shared/components/SpeechRecognition";
 import MicPermissionModal from "@/shared/components/MicPermissionModal";
@@ -458,9 +457,6 @@ export default function PlaySoloPage() {
           </div>
         )}
 
-        <div className="mt-8">
-          <AdPlaceholder />
-        </div>
       </DashboardLayout>
     );
   }
@@ -575,9 +571,6 @@ export default function PlaySoloPage() {
             </div>
           </div>
 
-          <div className="mt-8">
-            <AdPlaceholder />
-          </div>
         </div>
       </DashboardLayout>
     );
@@ -592,21 +585,21 @@ export default function PlaySoloPage() {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{deck.title}</h1>
             <div className="flex items-center gap-3">
               {/* XP Badge */}
-              <div className="flex items-center gap-2 bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-lg px-3 py-2 shadow-sm">
-                <span className="text-sm font-bold text-purple-600">XPs</span>
+              <div className="flex items-center gap-2 bg-gradient-to-r from-purple-50 to-purple-100 dark:from-purple-900/30 dark:to-purple-800/30 border border-purple-200 dark:border-purple-700 rounded-lg px-3 py-2 shadow-sm">
+                <span className="text-sm font-bold text-purple-600 dark:text-purple-400">XPs</span>
                 <span className="text-lg font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                   {score}/{cards.length}
                 </span>
               </div>
               {/* Progress */}
-              <div className="text-sm font-medium text-gray-600 bg-gray-50 px-3 py-2 rounded-lg border border-gray-200">
+              <div className="text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-600">
                 {currentIndex + 1} / {cards.length}
               </div>
             </div>
           </div>
 
           {/* Progress Bar */}
-          <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
             <div
               className="h-2.5 rounded-full transition-all duration-500 ease-out bg-gradient-to-r from-blue-500 to-purple-600"
               style={{ width: `${((currentIndex + 1) / cards.length) * 100}%` }}
@@ -617,7 +610,7 @@ export default function PlaySoloPage() {
         {/* Card */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-8 mb-6">
           <div className="text-center mb-8">
-            <div className="inline-block px-4 py-2 bg-purple-100 text-purple-800 rounded-full text-sm font-medium mb-4">
+            <div className="inline-block px-4 py-2 bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 rounded-full text-sm font-medium mb-4">
               {resolvedLabel}
             </div>
 
@@ -662,15 +655,15 @@ export default function PlaySoloPage() {
                 const isCorrect = option === correctAnswer;
                 const showResult = selectedOption !== null;
 
-                let bgColor = "bg-gray-50 border-gray-200";
-                let hoverEffect = showResult ? "" : "hover:bg-gray-100";
+                let bgColor = "bg-gray-50 dark:bg-gray-700 border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100";
+                let hoverEffect = showResult ? "" : "hover:bg-gray-100 dark:hover:bg-gray-600";
 
                 if (showResult && isSelected && isCorrect) {
-                  bgColor = "bg-green-100 border-green-500";
+                  bgColor = "bg-green-100 dark:bg-green-900/40 border-green-500 text-green-900 dark:text-green-200";
                 } else if (showResult && isSelected && !isCorrect) {
-                  bgColor = "bg-red-100 border-red-500";
+                  bgColor = "bg-red-100 dark:bg-red-900/40 border-red-500 text-red-900 dark:text-red-200";
                 } else if (showResult && isCorrect) {
-                  bgColor = "bg-green-50 border-green-300";
+                  bgColor = "bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700 text-green-900 dark:text-green-200";
                 }
 
                 return (
@@ -723,18 +716,18 @@ export default function PlaySoloPage() {
           {isWrittenQuestion(questionType) && selectedOption && feedback && (
             <div className="space-y-4">
               {feedback === "correct" ? (
-                <div className="p-4 rounded-lg bg-green-100 border-2 border-green-500">
-                  <p className="font-medium text-green-800">✓ Correct!</p>
+                <div className="p-4 rounded-lg bg-green-100 dark:bg-green-900/40 border-2 border-green-500">
+                  <p className="font-medium text-green-800 dark:text-green-300">✓ Correct!</p>
                 </div>
               ) : (
                 <>
-                  <div className="p-4 rounded-lg bg-red-100 border-2 border-red-500">
-                    <p className="text-sm text-gray-600 mb-1">You typed:</p>
-                    <p className="font-medium text-gray-900">{selectedOption}</p>
+                  <div className="p-4 rounded-lg bg-red-100 dark:bg-red-900/40 border-2 border-red-500">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">You typed:</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{selectedOption}</p>
                   </div>
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-1">Correct answer:</p>
-                    <p className="font-medium text-gray-900">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Correct answer:</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">
                       {getSpanishAnswer(currentCard)}
                     </p>
                   </div>
@@ -747,18 +740,18 @@ export default function PlaySoloPage() {
           {micEnabled && isSpeechQuestion(questionType) && selectedOption && (
             <div className="space-y-4">
               {feedback === "correct" ? (
-                <div className="p-4 rounded-lg bg-green-100 border-2 border-green-500">
-                  <p className="font-medium text-green-800">✓ Correct!</p>
+                <div className="p-4 rounded-lg bg-green-100 dark:bg-green-900/40 border-2 border-green-500">
+                  <p className="font-medium text-green-800 dark:text-green-300">✓ Correct!</p>
                 </div>
               ) : (
                 <>
-                  <div className="p-4 rounded-lg bg-red-100 border-2 border-red-500">
-                    <p className="text-sm text-gray-600 mb-1">You said:</p>
-                    <p className="font-medium text-gray-900">{selectedOption}</p>
+                  <div className="p-4 rounded-lg bg-red-100 dark:bg-red-900/40 border-2 border-red-500">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">You said:</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{selectedOption}</p>
                   </div>
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-gray-600 mb-1">Correct answer:</p>
-                    <p className="font-medium text-gray-900">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Correct answer:</p>
+                    <p className="font-medium text-gray-900 dark:text-gray-100">
                       {getSpanishAnswer(currentCard)}
                     </p>
                   </div>
@@ -768,8 +761,6 @@ export default function PlaySoloPage() {
           )}
         </div>
 
-        {/* Ad Placeholder */}
-        <AdPlaceholder />
       </div>
     </DashboardLayout>
   );

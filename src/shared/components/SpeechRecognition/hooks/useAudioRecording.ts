@@ -28,15 +28,27 @@ export function useAudioRecording({
     }
 
     try {
-      // Get microphone access
+      // Get microphone access — use Safari-safe audio constraints
+      // Safari ignores sampleRate and may reject unsupported constraints
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      const audioConstraints = isSafari
+        ? { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        : AUDIO_CONFIG;
+
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: AUDIO_CONFIG,
+        audio: audioConstraints,
       });
       streamRef.current = stream;
 
-      // Create MediaRecorder
+      // Create MediaRecorder — pick a supported MIME type
+      // Safari: no webm support, use mp4 or let browser choose
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm')
+        ? 'audio/webm'
+        : MediaRecorder.isTypeSupported('audio/mp4')
+          ? 'audio/mp4'
+          : undefined;
       const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : undefined,
+        ...(mimeType ? { mimeType } : {}),
       });
       mediaRecorderRef.current = mediaRecorder;
 

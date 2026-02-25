@@ -361,7 +361,7 @@ export default function CreateSetPage() {
 
     try {
       await api.decks.delete(setId);
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: true });
     } catch (err) {
       console.error("Error deleting set:", err);
       setError(err instanceof Error ? err.message : "Failed to delete set");

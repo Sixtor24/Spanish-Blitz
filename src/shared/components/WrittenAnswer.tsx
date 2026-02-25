@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Check, X, PenLine, ArrowRight, CornerDownLeft } from 'lucide-react';
+import { Check, X, PenLine, ArrowRight, CornerDownLeft, Send } from 'lucide-react';
+
+const ACCENT_CHARS = ['á', 'é', 'í', 'ó', 'ú', 'ü', 'ñ'];
 
 /**
  * Normalize text for flexible Spanish comparison.
@@ -149,17 +151,35 @@ export default function WrittenAnswer({
   const isCorrect = result?.isCorrect ?? false;
   const isAlmostCorrect = result?.isAlmostCorrect ?? false;
 
+  const insertAccentChar = useCallback((char: string) => {
+    if (disabled || hasResult) return;
+    const el = inputRef.current;
+    if (!el) {
+      setInput((prev) => prev + char);
+      return;
+    }
+    const start = el.selectionStart ?? input.length;
+    const end = el.selectionEnd ?? input.length;
+    const newValue = input.slice(0, start) + char + input.slice(end);
+    setInput(newValue);
+    // Restore cursor position after React re-render
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + char.length, start + char.length);
+    });
+  }, [disabled, hasResult, input]);
+
   return (
-    <div className="w-full space-y-4">
+    <div className="w-full space-y-3">
       {/* Input area */}
       <div
         className={`
           relative rounded-2xl border-2 transition-all duration-300
           ${hasResult && isCorrect
-            ? 'border-emerald-400 bg-emerald-50/50'
+            ? 'border-emerald-400 bg-emerald-50/50 dark:bg-emerald-900/20'
             : hasResult && !isCorrect
-              ? 'border-red-400 bg-red-50/50'
-              : 'border-gray-200 bg-white focus-within:border-purple-400 focus-within:shadow-[0_0_0_3px_rgba(147,51,234,0.1)]'
+              ? 'border-red-400 bg-red-50/50 dark:bg-red-900/20'
+              : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 focus-within:border-purple-400 dark:focus-within:border-purple-500 focus-within:shadow-[0_0_0_3px_rgba(147,51,234,0.1)]'
           }
           ${shaking ? 'animate-[shake_0.5s_ease-in-out]' : ''}
         `}
@@ -172,7 +192,7 @@ export default function WrittenAnswer({
                 ? 'text-emerald-500'
                 : hasResult && !isCorrect
                   ? 'text-red-400'
-                  : 'text-gray-300'
+                  : 'text-gray-300 dark:text-gray-500'
             }`}
           />
           <input
@@ -188,17 +208,18 @@ export default function WrittenAnswer({
             autoCapitalize="off"
             spellCheck={false}
             className={`
-              flex-1 py-3 text-lg font-medium bg-transparent outline-none placeholder:text-gray-300
-              ${hasResult && isCorrect ? 'text-emerald-700' : ''}
-              ${hasResult && !isCorrect ? 'text-red-600 line-through decoration-2' : ''}
-              ${!hasResult ? 'text-gray-900' : ''}
+              flex-1 py-3 text-lg font-medium bg-transparent outline-none placeholder:text-gray-300 dark:placeholder:text-gray-500
+              ${hasResult && isCorrect ? 'text-emerald-700 dark:text-emerald-400' : ''}
+              ${hasResult && !isCorrect ? 'text-red-600 dark:text-red-400 line-through decoration-2' : ''}
+              ${!hasResult ? 'text-gray-900 dark:text-gray-100' : ''}
               disabled:cursor-not-allowed
             `}
           />
+          {/* Inline check button (desktop) */}
           {!hasResult && input.trim() && (
             <button
               onClick={handleSubmit}
-              className="flex-shrink-0 bg-purple-600 hover:bg-purple-700 text-white rounded-xl px-4 py-2 font-semibold text-sm transition-all active:scale-95 flex items-center gap-1.5"
+              className="flex-shrink-0 hidden sm:flex bg-purple-600 hover:bg-purple-700 text-white rounded-xl px-4 py-2 font-semibold text-sm transition-all active:scale-95 items-center gap-1.5"
             >
               <CornerDownLeft size={14} />
               Check
@@ -217,33 +238,61 @@ export default function WrittenAnswer({
         </div>
       </div>
 
+      {/* Spanish accent character buttons + submit */}
+      {!hasResult && (
+        <div className="flex items-center gap-2">
+          <div className="flex flex-wrap gap-1.5 flex-1">
+            {ACCENT_CHARS.map((char) => (
+              <button
+                key={char}
+                type="button"
+                onClick={() => insertAccentChar(char)}
+                className="min-w-[36px] h-9 px-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 hover:bg-purple-50 dark:hover:bg-purple-900/30 hover:border-purple-300 dark:hover:border-purple-600 text-gray-700 dark:text-gray-200 font-semibold text-base transition-all active:scale-95 select-none"
+              >
+                {char}
+              </button>
+            ))}
+          </div>
+          {/* Mobile submit button */}
+          {input.trim() && (
+            <button
+              onClick={handleSubmit}
+              className="sm:hidden flex-shrink-0 bg-purple-600 hover:bg-purple-700 text-white rounded-xl px-5 h-9 font-semibold text-sm transition-all active:scale-95 flex items-center gap-1.5"
+            >
+              <Send size={14} />
+              Send
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Feedback area */}
       {hasResult && (
         <div
           className={`
             rounded-xl px-5 py-4 transition-all duration-300 animate-in slide-in-from-bottom-2
             ${isCorrect && !isAlmostCorrect
-              ? 'bg-emerald-50 border border-emerald-200'
+              ? 'bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800'
               : isCorrect && isAlmostCorrect
-                ? 'bg-amber-50 border border-amber-200'
-                : 'bg-red-50 border border-red-200'
+                ? 'bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800'
+                : 'bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800'
             }
           `}
         >
           {isCorrect && !isAlmostCorrect && (
             <div className="flex items-center gap-2">
               <span className="text-lg">🎉</span>
-              <p className="font-bold text-emerald-700">Excellent!</p>
+              <p className="font-bold text-emerald-700 dark:text-emerald-400">Excellent!</p>
             </div>
           )}
           {isCorrect && isAlmostCorrect && (
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-lg">👍</span>
-                <p className="font-bold text-amber-700">Almost correct!</p>
+                <p className="font-bold text-amber-700 dark:text-amber-400">Almost correct!</p>
               </div>
-              <p className="text-sm text-amber-600">
-                Correct spelling: <strong className="text-amber-800">{correctAnswer}</strong>
+              <p className="text-sm text-amber-600 dark:text-amber-400">
+                Correct spelling: <strong className="text-amber-800 dark:text-amber-300">{correctAnswer}</strong>
               </p>
             </div>
           )}
@@ -251,12 +300,12 @@ export default function WrittenAnswer({
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-lg">💡</span>
-                <p className="font-bold text-red-700">Not quite</p>
+                <p className="font-bold text-red-700 dark:text-red-400">Not quite</p>
               </div>
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-gray-400">
                 Correct answer:
               </p>
-              <p className="font-bold text-gray-900 text-lg mt-0.5">{correctAnswer}</p>
+              <p className="font-bold text-gray-900 dark:text-gray-100 text-lg mt-0.5">{correctAnswer}</p>
             </div>
           )}
         </div>
@@ -264,7 +313,7 @@ export default function WrittenAnswer({
 
       {/* Keyboard hint */}
       {!hasResult && !input.trim() && (
-        <p className="text-xs text-gray-400 text-center flex items-center justify-center gap-1.5">
+        <p className="text-xs text-gray-400 dark:text-gray-500 text-center flex items-center justify-center gap-1.5">
           <CornerDownLeft size={12} />
           Press Enter to check your answer
         </p>

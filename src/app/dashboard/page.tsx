@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import DashboardLayout from "@/shared/components/DashboardLayout";
 import WelcomeModal from "@/shared/components/WelcomeModal";
 import {
@@ -129,6 +129,7 @@ function PendingTasksPanel({ assignments, loading }: { assignments: Assignment[]
    ═══════════════════════════════════════════════════════ */
 function DashboardPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: user } = useUser();
   const [decks, setDecks] = useState<DbDeck[]>([]);
   const [stats, setStats] = useState({ cardsStudied: 0, accuracy: 0, streak: 0 });
@@ -154,7 +155,7 @@ function DashboardPage() {
       fetchData();
       return () => { mounted = false; };
     }
-  }, [filterMode, searchQuery, user]);
+  }, [filterMode, searchQuery, user, location.key]);
 
   // Fetch assignments
   useEffect(() => {

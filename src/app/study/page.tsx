@@ -295,19 +295,37 @@ function StudyPage() {
           [cardId]: newRepCount,
         });
 
-        // Insert this card randomly in the next 3-10 positions (if possible)
+        // Insert this card with a minimum gap of 3 positions to avoid consecutive repeats
         const remainingCards = cards.length - currentCardIndex - 1;
-        if (remainingCards > 0) {
-          const insertPosition =
-            currentCardIndex +
-            1 +
-            Math.floor(Math.random() * Math.min(remainingCards, 10));
+        const minGap = Math.min(3, remainingCards); // at least 3 cards apart
+        if (remainingCards > 0 && minGap > 0) {
+          const rangeStart = currentCardIndex + 1 + minGap;
+          const rangeEnd = currentCardIndex + 1 + Math.min(remainingCards, 10);
+          const insertPosition = rangeStart >= rangeEnd
+            ? rangeEnd
+            : rangeStart + Math.floor(Math.random() * (rangeEnd - rangeStart));
+
           const newCards = [...cards];
           newCards.splice(insertPosition, 0, currentCard);
 
+          // Verify no card appears more than 2 times consecutively at insertion point
+          let finalPos = insertPosition;
+          const checkConsecutive = (arr: DbCard[], pos: number) => {
+            let count = 1;
+            for (let k = pos - 1; k >= 0 && arr[k]?.id === arr[pos]?.id; k--) count++;
+            for (let k = pos + 1; k < arr.length && arr[k]?.id === arr[pos]?.id; k++) count++;
+            return count;
+          };
+          if (checkConsecutive(newCards, finalPos) > 2) {
+            // Move it further down to break the consecutive run
+            newCards.splice(finalPos, 1);
+            finalPos = Math.min(finalPos + 3, newCards.length);
+            newCards.splice(finalPos, 0, currentCard);
+          }
+
           const newVariants = [...cardVariants];
           const newVariant: Variant = Math.random() < 0.5 ? VARIANT_A : VARIANT_B;
-          newVariants.splice(insertPosition, 0, newVariant);
+          newVariants.splice(finalPos, 0, newVariant);
 
           setCards(newCards);
           setCardVariants(newVariants);

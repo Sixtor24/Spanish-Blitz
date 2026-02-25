@@ -19,16 +19,55 @@ const MAX_CACHE_SIZE = 50; // Limit cache entries
 // Preload Audio element pool for instant playback
 const audioPool: HTMLAudioElement[] = [];
 const POOL_SIZE = 3;
+let audioContextUnlocked = false;
 
 const initAudioPool = () => {
   if (typeof window === 'undefined') return;
   for (let i = 0; i < POOL_SIZE; i++) {
     audioPool.push(new Audio());
   }
+  // Pre-load Web Speech voices (Safari loads them async)
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  }
+};
+
+// Safari requires AudioContext to be resumed after a user gesture
+const unlockAudioContext = () => {
+  if (audioContextUnlocked) return;
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (ctx.state === 'suspended') ctx.resume();
+    // Play a silent buffer to unlock audio playback
+    const buffer = ctx.createBuffer(1, 1, 22050);
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+    source.start(0);
+    audioContextUnlocked = true;
+  } catch {}
 };
 
 const getAudioFromPool = (): HTMLAudioElement => {
   return audioPool.find(a => a.paused) || new Audio();
+};
+
+// Convert base64 to Blob URL — Safari handles blob URLs better than long data URIs
+const base64ToBlobUrl = (base64: string, type = 'audio/mp3'): string => {
+  try {
+    const byteChars = atob(base64);
+    const byteArray = new Uint8Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+      byteArray[i] = byteChars.charCodeAt(i);
+    }
+    const blob = new Blob([byteArray], { type });
+    return URL.createObjectURL(blob);
+  } catch {
+    return `data:${type};base64,${base64}`;
+  }
 };
 
 // Persistent cache helpers
@@ -156,23 +195,38 @@ export default function TTSButton({
         }
       }
       
-      // Use Web Audio API for faster decoding
+      // Unlock audio context on user interaction (critical for Safari/iOS)
+      unlockAudioContext();
+
+      // Use blob URL for Safari compatibility (data URIs can fail on iOS)
       const audio = getAudioFromPool();
-      audio.src = `data:audio/mp3;base64,${audioBase64}`;
-      // No modificar playbackRate - el audio ya viene a la velocidad correcta del backend
+      const blobUrl = base64ToBlobUrl(audioBase64);
+      audio.src = blobUrl;
       
       audio.onended = () => {
         setSpeaking(false);
         setLoading(false);
+        URL.revokeObjectURL(blobUrl);
       };
       audio.onerror = () => {
         setSpeaking(false);
         setLoading(false);
+        URL.revokeObjectURL(blobUrl);
         console.warn('⚠️ [TTSButton] Audio playback failed, using Web Speech API');
         fallbackToWebSpeech(userLocale, slowMode);
       };
 
-      await audio.play();
+      try {
+        await audio.play();
+      } catch (playError) {
+        // Safari autoplay policy may block play() — fall back to Web Speech
+        console.warn('⚠️ [TTSButton] audio.play() blocked:', playError);
+        setSpeaking(false);
+        setLoading(false);
+        URL.revokeObjectURL(blobUrl);
+        fallbackToWebSpeech(userLocale, slowMode);
+        return;
+      }
     } catch (error) {
       console.error('❌ [TTSButton] Unexpected error:', error);
       setLoading(false);
@@ -190,15 +244,18 @@ export default function TTSButton({
 
     console.log('🔊 [TTSButton] Using Web Speech API fallback');
     
+    // Safari workaround: cancel any previous utterance and wait a tick
     window.speechSynthesis.cancel();
-    setSpeaking(true); // Set speaking to true when starting Web Speech
+    setSpeaking(true);
     
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = locale || 'es-ES';
-    utterance.rate = slowMode ? 0.75 : 1.0; // Web Speech API usa playback rate
+    utterance.rate = slowMode ? 0.75 : 1.0;
     
     const voices = window.speechSynthesis.getVoices();
-    const spanishVoice = voices.find(v => v.lang === locale || v.lang.startsWith('es'));
+    // Prefer exact locale match, then any Spanish voice
+    const spanishVoice = voices.find(v => v.lang === locale)
+      || voices.find(v => v.lang.startsWith('es'));
     if (spanishVoice) {
       utterance.voice = spanishVoice;
       console.log('🎤 [TTSButton] Using voice:', spanishVoice.name);
@@ -213,7 +270,11 @@ export default function TTSButton({
       console.error('❌ [TTSButton] Web Speech error:', event.error);
     };
     
-    window.speechSynthesis.speak(utterance);
+    // Safari iOS bug: speechSynthesis.speak() can silently fail if called
+    // right after cancel(). Use a small delay.
+    setTimeout(() => {
+      window.speechSynthesis.speak(utterance);
+    }, 50);
   };
 
   const sizeClasses: Record<NonNullable<TTSButtonProps['size']>, string> = {

@@ -18,6 +18,16 @@ export function MicrophoneProvider({ children }: { children: ReactNode }) {
 
   const enableMic = useCallback(async (): Promise<boolean> => {
     try {
+      // Safari/iOS: unlock AudioContext first to help with audio permissions
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          if (ctx.state === 'suspended') await ctx.resume();
+          ctx.close();
+        }
+      } catch {}
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.getTracks().forEach((track) => track.stop());
       setMicEnabled(true);

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import DashboardLayout from "@/shared/components/DashboardLayout";
-import { User, Globe, LogOut, Users, Plus, BookOpen, Target, Flame, Zap, Settings, Mic, Camera } from "lucide-react";
+import { User, Globe, LogOut, Users, Plus, BookOpen, Target, Flame, Zap, Settings, Mic, Camera, Clock, CheckCircle, ChevronRight } from "lucide-react";
 import useAuth from "@/shared/hooks/useAuth";
 import { useAuth as useAuthContext } from "@/lib/auth-context";
 import { api } from "@/config/api";
@@ -33,6 +33,8 @@ function ProfilePage() {
   const [joiningClassroom, setJoiningClassroom] = useState(false);
   const [joinMessage, setJoinMessage] = useState("");
   const [classrooms, setClassrooms] = useState<any[]>([]);
+  const [assignments, setAssignments] = useState<any[]>([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(true);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const { signOut } = useAuth();
@@ -74,6 +76,38 @@ function ProfilePage() {
     fetchData();
     return () => { mounted = false; };
   }, []);
+
+  // Fetch assignments for students
+  useEffect(() => {
+    if (!user || user.role === 'teacher' || user.role === 'admin') {
+      setAssignmentsLoading(false);
+      return;
+    }
+    async function fetchAssignments() {
+      try {
+        setAssignmentsLoading(true);
+        const cls = await api.classrooms.list().catch(() => []);
+        const all = await Promise.all(
+          cls.map(async (c: any) => {
+            const items = await api.classrooms.assignments(c.id).catch(() => []);
+            return items.map((a: any) => ({ ...a, classroom_id: c.id, classroom_name: c.name, classroom_color: c.color }));
+          })
+        );
+        const flat = all.flat().sort((a: any, b: any) => {
+          if (!a.due_date && !b.due_date) return 0;
+          if (!a.due_date) return 1;
+          if (!b.due_date) return -1;
+          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+        });
+        setAssignments(flat);
+      } catch {
+        // Student may not be in any classroom
+      } finally {
+        setAssignmentsLoading(false);
+      }
+    }
+    fetchAssignments();
+  }, [user]);
 
   const handleSave = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -301,29 +335,43 @@ function ProfilePage() {
       </div>
 
       {/* ─── Stats Row ─── */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 md:p-5 text-center">
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center mx-auto mb-3">
-            <BookOpen size={20} className="text-blue-600" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Cards Studied</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.cardsStudied}</p>
+            </div>
+            <BookOpen size={28} style={{ color: LIGHT_BLUE }} />
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.cardsStudied}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Cards Studied</p>
         </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 md:p-5 text-center">
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-3">
-            <Target size={20} className="text-green-600" />
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Accuracy</p>
+              <p className="text-2xl font-bold text-green-600">{stats.accuracy}%</p>
+            </div>
+            <Zap size={28} className="text-green-500" />
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.accuracy}%</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Accuracy</p>
         </div>
-
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 md:p-5 text-center">
-          <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center mx-auto mb-3">
-            <Flame size={20} className="text-orange-500" />
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Day Streak</p>
+              <p className="text-2xl font-bold text-orange-500">{stats.streak} 🔥</p>
+            </div>
           </div>
-          <p className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.streak}</p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Day Streak</p>
+        </div>
+        <div className="rounded-2xl border-2 p-5" style={{ borderColor: LIGHT_BLUE, background: `${LIGHT_BLUE}08` }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold mb-1" style={{ color: LIGHT_BLUE }}>Total XP</p>
+              <p className="text-2xl font-bold" style={{ color: DARK_BLUE }}>
+                <span className="dark:text-blue-300">{user?.xp_total || 0}</span>
+              </p>
+            </div>
+            <span className="text-3xl">⚡</span>
+          </div>
         </div>
       </div>
 
@@ -419,6 +467,92 @@ function ProfilePage() {
 
         {/* Right Column */}
         <div className="space-y-6">
+          {/* Pending Tasks — students only */}
+          {user && user.role !== 'teacher' && user.role !== 'admin' && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+                <Clock size={18} className="text-gray-500" />
+                <h2 className="font-bold text-gray-900 dark:text-gray-100">Pending Tasks</h2>
+                {(() => {
+                  const pending = assignments.filter((a: any) => !a.completed);
+                  return pending.length > 0 ? (
+                    <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: LIGHT_BLUE }}>
+                      {pending.length}
+                    </span>
+                  ) : null;
+                })()}
+              </div>
+              <div className="p-4">
+                {assignmentsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: LIGHT_BLUE }} />
+                  </div>
+                ) : (() => {
+                  const pending = assignments.filter((a: any) => !a.completed);
+                  if (pending.length === 0) {
+                    return (
+                      <div className="text-center py-6">
+                        <CheckCircle className="mx-auto mb-2 text-green-400" size={32} />
+                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">All caught up!</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">No pending assignments right now. Enjoy your free time!</p>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="space-y-3">
+                      {pending.slice(0, 5).map((task: any) => {
+                        const dueDate = task.due_date ? new Date(task.due_date) : null;
+                        const isOverdue = dueDate && dueDate < new Date();
+                        const targetUrl = task.deck_id
+                          ? `/study?deck=${task.deck_id}&classroom=${task.classroom_id}&assignment=${task.id}`
+                          : "/play/solo";
+                        return (
+                          <Link
+                            key={task.id}
+                            to={targetUrl}
+                            className="flex items-start gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group"
+                          >
+                            <div
+                              className="w-2 h-2 rounded-full mt-2 flex-shrink-0"
+                              style={{ backgroundColor: task.classroom_color || LIGHT_BLUE }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                                {task.title}
+                              </p>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                                {task.classroom_name}
+                              </p>
+                              {dueDate && (
+                                <div className={`flex items-center gap-1 mt-1 text-xs ${
+                                  isOverdue ? "text-red-500 font-semibold" : "text-gray-400 dark:text-gray-500"
+                                }`}>
+                                  <Clock size={12} />
+                                  {dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                                  {isOverdue && <span className="ml-1 text-red-500">Overdue</span>}
+                                </div>
+                              )}
+                            </div>
+                            <ChevronRight size={16} className="mt-1 text-gray-300 dark:text-gray-600 group-hover:text-gray-400 flex-shrink-0" />
+                          </Link>
+                        );
+                      })}
+                      {pending.length > 5 && (
+                        <Link
+                          to="/classrooms"
+                          className="block text-center text-xs font-semibold py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                          style={{ color: LIGHT_BLUE }}
+                        >
+                          View all {pending.length} tasks
+                        </Link>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
           {/* Enrolled Classes */}
           {user && user.role !== 'teacher' && user.role !== 'admin' && classrooms.length > 0 && (
             <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
