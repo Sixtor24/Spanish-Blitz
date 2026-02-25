@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import Navigation from "@/shared/components/Navigation";
+import DashboardLayout from "@/shared/components/DashboardLayout";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition, { type SpeechRecognitionHandle } from "@/shared/components/SpeechRecognition";
 import MicPermissionModal from "@/shared/components/MicPermissionModal";
@@ -435,30 +435,27 @@ function StudyPage() {
   // Show mic permission modal before loading content (always on mode entry)
   if (showMicPrompt) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
+      <DashboardLayout>
         <MicPermissionModal onComplete={() => setShowMicPrompt(false)} />
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
+      <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="text-gray-500">Loading...</div>
+          <div className="text-gray-500 dark:text-gray-400">Loading...</div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="max-w-2xl mx-auto px-4 py-8">
-          <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
+      <DashboardLayout>
+        <div className="max-w-2xl mx-auto py-8">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 rounded-xl p-4">
             {error}
           </div>
           <Link
@@ -469,7 +466,7 @@ function StudyPage() {
             Back to Dashboard
           </Link>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
@@ -483,21 +480,9 @@ function StudyPage() {
     const remainingRepetitions = requiredRepetitions - newCompletedCount;
     
     return (
-      <div
-        className="min-h-screen"
-        style={
-          dynamicGradient.background
-            ? dynamicGradient
-            : {
-                background:
-                  "linear-gradient(to bottom right, #3B82F6, #2563EB, #14B8A6)",
-              }
-        }
-      >
-        <Navigation />
-
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className="bg-white rounded-xl shadow-2xl p-12 text-center relative">
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 md:p-12 text-center relative border border-gray-200 dark:border-gray-700">
             {/* Back link in top left */}
             <Link
               to="/dashboard"
@@ -616,25 +601,13 @@ function StudyPage() {
             )}
           </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div
-      className="min-h-screen"
-      style={
-        dynamicGradient.background
-          ? dynamicGradient
-          : {
-              background:
-                "linear-gradient(to bottom right, #3B82F6, #2563EB, #14B8A6)",
-            }
-      }
-    >
-      <Navigation />
-
-      <div className="max-w-4xl mx-auto px-4 py-8">
+    <DashboardLayout>
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <Link
@@ -926,7 +899,7 @@ function StudyPage() {
           )}
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
 

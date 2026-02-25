@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import Navigation from "../../shared/components/Navigation";
+import DashboardLayout from "@/shared/components/DashboardLayout";
 import useUser from "../../shared/hooks/useUser";
 import { Calendar, Clock, CheckCircle, Loader2, ArrowRight, BookOpen } from "lucide-react";
 import { api } from "../../config/api";
@@ -92,40 +92,36 @@ export default function StudentAssignmentsPage() {
 
   if (userLoading || loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
+      <DashboardLayout>
         <div className="flex items-center justify-center h-96">
           <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+    <DashboardLayout>
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+          <Calendar className="text-blue-600" size={32} />
+          Assignments
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400 mt-2">
+          View all your assignments from enrolled classrooms
+        </p>
+      </div>
+
+      {assignments.length === 0 ? (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+          <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
             <Calendar className="text-blue-600" size={32} />
-            Assignments
-          </h1>
-          <p className="text-gray-600 mt-2">
-            View all your assignments from enrolled classrooms
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No Assignments Yet</h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            You don't have any assignments at the moment. Check your profile to join a classroom.
           </p>
         </div>
-
-        {assignments.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Calendar className="text-blue-600" size={32} />
-            </div>
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">No Assignments Yet</h2>
-            <p className="text-gray-600 mb-6">
-              You don't have any assignments at the moment. Check your profile to join a classroom.
-            </p>
-          </div>
         ) : (
           <div className="space-y-4">
             {assignments.map((assignment) => {
@@ -133,19 +129,19 @@ export default function StudentAssignmentsPage() {
               // Solo mostrar como overdue si hay fecha Y está caducada (no si la fecha es opcional/null)
               const isActuallyOverdue = assignment.due_date && dueDate?.isOverdue;
               
-              const cardClassName = `block border-l-4 border-2 rounded-lg p-5 transition-all ${
+              const cardClassName = `block border rounded-xl p-5 transition-all ${
                 assignment.completed
-                  ? 'border-green-200 bg-green-50 hover:border-green-300'
+                  ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 hover:border-green-300'
                   : isActuallyOverdue
-                  ? 'border-red-200 bg-red-50 hover:border-red-300'
-                  : 'border-gray-200 bg-white hover:shadow-md'
+                  ? 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 hover:border-red-300'
+                  : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md'
               } cursor-pointer`;
               
               const CardContent = (
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-bold text-lg text-gray-900">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
+                        <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100">
                           {assignment.title}
                         </h3>
                         {assignment.required_repetitions > 1 && (
@@ -181,7 +177,7 @@ export default function StudentAssignmentsPage() {
                       </div>
 
                       {assignment.description && (
-                        <p className="text-sm text-gray-600 mb-2">{assignment.description}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{assignment.description}</p>
                       )}
 
                       {dueDate && assignment.due_date && (
@@ -240,7 +236,6 @@ export default function StudentAssignmentsPage() {
             })}
           </div>
         )}
-      </div>
-    </div>
+    </DashboardLayout>
   );
 }

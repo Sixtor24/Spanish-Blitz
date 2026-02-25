@@ -1,57 +1,59 @@
-// @ts-nocheck
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { motion } from "motion/react";
+import { Mail, Lock, User, ArrowRight, Loader2 } from "lucide-react";
 import useAuth from "@/shared/hooks/useAuth";
 import useUser from "@/shared/hooks/useUser";
 
+const DARK_BLUE = "#084178";
+const LIGHT_BLUE = "#1CB0F6";
+
 function MainComponent() {
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState("");
   const navigate = useNavigate();
   const { signUp } = useAuth();
   const { data: user, loading: userLoading } = useUser();
 
-  // Redirect if already authenticated
   useEffect(() => {
     if (!userLoading && user) {
       navigate("/dashboard", { replace: true });
     }
   }, [user, userLoading, navigate]);
 
-  const onSubmit = async (e) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
+    if (!firstName.trim() || !lastName.trim()) {
+      setError("First name and last name are required");
+      setLoading(false);
+      return;
+    }
     if (!email || !password) {
       setError("Please fill in all fields");
       setLoading(false);
       return;
     }
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters");
+      setLoading(false);
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
 
     try {
-      await signUp(email, password);
-      
-      // Wait for cookies to be set and verify authentication (especially important for Safari)
-      let attempts = 0;
-      const maxAttempts = 10;
-      
-      while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 200));
-        
-        // Check if user is now authenticated
-        if (user) {
-          navigate("/dashboard", { replace: true });
-          return;
-        }
-        
-        attempts++;
-      }
-      
-      // If we get here, try navigating anyway (user might be authenticated but state not updated)
+      await signUp(email, password, { firstName: firstName.trim(), lastName: lastName.trim() });
       navigate("/dashboard", { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign up failed. Email may already be registered.");
@@ -60,90 +62,263 @@ function MainComponent() {
   };
 
   return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
-      <form
-        noValidate
-        onSubmit={onSubmit}
-        className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl"
-      >
-        <h1 className="mb-8 text-center text-3xl font-bold text-gray-800">
-          Create Account
-        </h1>
-
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Email
-            </label>
-            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white px-4 py-3 focus-within:border-[#357AFF] focus-within:ring-1 focus-within:ring-[#357AFF]">
-              <input
-                required
-                name="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
-                className="w-full bg-transparent text-lg outline-none"
-              />
+    <div className="min-h-screen pt-16 pb-12 px-4 sm:px-6 lg:px-8
+      bg-gradient-to-br from-blue-50 via-white to-blue-50/30
+      dark:from-gray-950 dark:via-gray-900 dark:to-gray-950
+      flex items-center justify-center"
+    >
+      <div className="max-w-6xl w-full grid lg:grid-cols-2 gap-12 items-center">
+        {/* Left Side — Form */}
+        <motion.div
+          initial={{ opacity: 0, x: -30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6 }}
+          className="w-full order-2 lg:order-1"
+        >
+          <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-2xl p-8 sm:p-12 border border-gray-100 dark:border-gray-700">
+            <div className="mb-8">
+              <h1 className="text-3xl sm:text-4xl font-bold text-[#084178] dark:text-white mb-2">
+                Create Account
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Start your Spanish learning journey today
+              </p>
             </div>
-          </div>
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
-            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white px-4 py-3 focus-within:border-[#357AFF] focus-within:ring-1 focus-within:ring-[#357AFF] relative">
-              <input
-                required
-                name="password"
-                type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg bg-transparent text-lg outline-none pr-10"
-                placeholder="Enter your password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+
+            <form onSubmit={onSubmit} className="space-y-5">
+              {/* Name Row */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[#084178] dark:text-gray-300 mb-2">
+                    First Name
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="block w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl
+                        bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                        focus:ring-2 focus:ring-[#1CB0F6] focus:border-[#1CB0F6] transition outline-none"
+                      placeholder="John"
+                      required
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[#084178] dark:text-gray-300 mb-2">
+                    Last Name
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <User className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="block w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl
+                        bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                        focus:ring-2 focus:ring-[#1CB0F6] focus:border-[#1CB0F6] transition outline-none"
+                      placeholder="Doe"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="block text-sm font-medium text-[#084178] dark:text-gray-300 mb-2">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Mail className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="block w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl
+                      bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                      focus:ring-2 focus:ring-[#1CB0F6] focus:border-[#1CB0F6] transition outline-none"
+                    placeholder="you@example.com"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="block text-sm font-medium text-[#084178] dark:text-gray-300 mb-2">
+                  Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="block w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl
+                      bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                      focus:ring-2 focus:ring-[#1CB0F6] focus:border-[#1CB0F6] transition outline-none"
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Confirm Password */}
+              <div>
+                <label className="block text-sm font-medium text-[#084178] dark:text-gray-300 mb-2">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <Lock className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="block w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl
+                      bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                      focus:ring-2 focus:ring-[#1CB0F6] focus:border-[#1CB0F6] transition outline-none"
+                    placeholder="••••••••"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Terms */}
+              <div className="flex items-start">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  className="h-4 w-4 mt-1 text-[#1CB0F6] focus:ring-[#1CB0F6] border-gray-300 rounded"
+                  required
+                />
+                <label htmlFor="terms" className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+                  I agree to the{" "}
+                  <Link to="/privacy" className="text-[#1CB0F6] hover:text-[#084178] dark:hover:text-white transition">
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link to="/privacy" className="text-[#1CB0F6] hover:text-[#084178] dark:hover:text-white transition">
+                    Privacy Policy
+                  </Link>
+                </label>
+              </div>
+
+              {error && (
+                <div className="rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 text-sm text-red-600 dark:text-red-400">
+                  {error}
+                </div>
+              )}
+
+              {/* Submit */}
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#1CB0F6] text-white py-3 px-6 rounded-xl font-medium text-lg hover:bg-[#084178] transition flex items-center justify-center gap-2 group disabled:opacity-50"
               >
-                {showPassword ? (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                  </svg>
+                {loading ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    Creating account…
+                  </>
                 ) : (
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
+                  <>
+                    Create Account
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                  </>
                 )}
-              </button>
+              </motion.button>
+            </form>
+
+            {/* Login Link */}
+            <p className="mt-8 text-center text-gray-600 dark:text-gray-400">
+              Already have an account?{" "}
+              <Link to="/account/signin" className="font-medium text-[#1CB0F6] hover:text-[#084178] dark:hover:text-white transition">
+                Sign in
+              </Link>
+            </p>
+          </div>
+        </motion.div>
+
+        {/* Right Side — Illustration */}
+        <motion.div
+          initial={{ opacity: 0, x: 30 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="hidden lg:flex flex-col justify-center order-1 lg:order-2"
+        >
+          <div className="relative">
+            {/* Main Icon */}
+            <motion.div
+              animate={{ y: [0, -15, 0] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              className="relative z-10 mb-8"
+            >
+              <div className="w-48 h-48 mx-auto bg-[#1CB0F6] rounded-3xl flex items-center justify-center shadow-2xl">
+                <User className="w-24 h-24 text-white" />
+              </div>
+            </motion.div>
+
+            {/* Decorative circles */}
+            <motion.div
+              animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.5, 0.3] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute top-0 left-12 w-32 h-32 bg-[#1CB0F6]/20 rounded-full"
+            />
+            <motion.div
+              animate={{ scale: [1, 1.3, 1], opacity: [0.2, 0.4, 0.2] }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+              className="absolute bottom-12 right-12 w-40 h-40 bg-[#084178]/15 dark:bg-[#1CB0F6]/10 rounded-full"
+            />
+
+            <h2 className="text-4xl font-bold text-[#084178] dark:text-white mb-4 text-center">
+              Join Spanish Blitz
+            </h2>
+            <p className="text-xl text-gray-600 dark:text-gray-400 text-center mb-8">
+              Start learning Spanish today with AI-powered tools
+            </p>
+
+            {/* Benefits */}
+            <div className="space-y-4">
+              {[
+                "Interactive voice recognition",
+                "Personalized learning path",
+                "Track your progress",
+                "Join a community of learners",
+              ].map((benefit, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.8 + index * 0.1 }}
+                  className="flex items-center gap-3"
+                >
+                  <div className="w-8 h-8 bg-[#1CB0F6] rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-gray-700 dark:text-gray-300">{benefit}</span>
+                </motion.div>
+              ))}
             </div>
           </div>
-
-          {error && (
-            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-500">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-[#357AFF] px-4 py-3 text-base font-medium text-white transition-colors hover:bg-[#2E69DE] focus:outline-none focus:ring-2 focus:ring-[#357AFF] focus:ring-offset-2 disabled:opacity-50"
-          >
-            {loading ? "Loading..." : "Sign Up"}
-          </button>
-          <p className="text-center text-sm text-gray-600">
-            Already have an account?{" "}
-            <Link
-              to="/account/signin"
-              className="text-[#357AFF] hover:text-[#2E69DE]"
-            >
-              Sign in
-            </Link>
-          </p>
-        </div>
-      </form>
+        </motion.div>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import Navigation from "@/shared/components/Navigation";
+import DashboardLayout from "@/shared/components/DashboardLayout";
 import ColorPicker from "@/shared/components/ColorPicker";
 import { BookOpen, Plus, Upload, X, ArrowLeft, Trash2, AlertCircle } from "lucide-react";
 import { api } from "@/config/api";
@@ -370,76 +370,77 @@ export default function CreateSetPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
+      <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="text-gray-500">Loading...</div>
+          <div className="text-gray-500 dark:text-gray-400">Loading...</div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4"
-          >
-            <ArrowLeft size={20} />
-            Back to Dashboard
-          </button>
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {isEditMode ? "Edit Set" : "Create New Set"}
-              </h1>
-              <p className="text-gray-600">
-                {isEditMode
-                  ? "Update your set and manage cards"
-                  : "Define your set and add cards all at once"}
-              </p>
-            </div>
-            {isEditMode && (
-              <button
-                onClick={handleDeleteSet}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
-              >
-                <Trash2 size={20} />
-                Delete Set
-              </button>
-            )}
+    <DashboardLayout>
+      {/* Header */}
+      <div className="mb-6">
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="inline-flex items-center gap-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 mb-4 text-sm font-medium transition-colors"
+        >
+          <ArrowLeft size={18} />
+          Back to Dashboard
+        </button>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
+              {isEditMode ? "Edit Set" : "Create New Set"}
+            </h1>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+              {isEditMode
+                ? "Update your set and manage cards"
+                : "Define your set and add cards all at once"}
+            </p>
           </div>
+          {isEditMode && (
+            <button
+              onClick={handleDeleteSet}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 text-sm font-semibold transition-colors self-start"
+            >
+              <Trash2 size={16} />
+              Delete Set
+            </button>
+          )}
         </div>
+      </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4 mb-6">
-            {error}
-          </div>
-        )}
+      {/* Alerts */}
+      {error && (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 rounded-xl p-4 mb-6 text-sm">
+          {error}
+        </div>
+      )}
+      {successMessage && (
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-300 rounded-xl p-4 mb-6 flex items-center gap-2 text-sm">
+          <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+          </svg>
+          <span className="font-medium">{successMessage}</span>
+        </div>
+      )}
 
-        {successMessage && (
-          <div className="bg-green-50 border border-green-200 text-green-800 rounded-lg p-4 mb-6 flex items-center gap-2">
-            <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-            </svg>
-            <span className="font-medium">{successMessage}</span>
-          </div>
-        )}
-
-        <div className="grid lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <BookOpen className="text-blue-600" size={24} />
-              <h2 className="text-xl font-bold text-gray-900">Set Info</h2>
+      {/* ─── Two-Column Grid ─── */}
+      <div className="grid lg:grid-cols-5 gap-6 min-w-0">
+        {/* Left: Set Info (2 cols) */}
+        <div className="lg:col-span-2 space-y-6 min-w-0">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex items-center gap-2">
+              <BookOpen className="text-blue-500" size={18} />
+              <h2 className="font-bold text-gray-900 dark:text-gray-100">Set Info</h2>
             </div>
 
-            <div className="space-y-4">
+            <div className="p-5 space-y-4">
+              {/* Title */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                   Set Title <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -447,16 +448,19 @@ export default function CreateSetPage() {
                   value={setTitle}
                   onChange={(e) => setSetTitle(e.target.value)}
                   placeholder="e.g., Spanish Greetings"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl
+                    bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                    focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   required
                 />
               </div>
 
+              {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Short Description
-                  <span className="text-xs text-gray-500 ml-2">
-                    ({setDescription.length}/150)
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Description
+                  <span className="text-xs text-gray-400 ml-2">
+                    {setDescription.length}/150
                   </span>
                 </label>
                 <textarea
@@ -467,70 +471,85 @@ export default function CreateSetPage() {
                     }
                   }}
                   placeholder="Optional description for this set"
-                  rows={4}
+                  rows={3}
                   maxLength={150}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent break-words"
+                  className="w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 rounded-xl
+                    bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                    focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors resize-none"
                   style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                 />
               </div>
 
+              {/* Color Picker */}
               <ColorPicker value={setColor} onChange={setSetColor} />
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">
+              {/* Tip */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3">
+                <p className="text-xs text-blue-700 dark:text-blue-300">
                   <strong>Tip:</strong>{" "}
                   {isEditMode
                     ? "Changes are saved when you click 'Save Set' below."
                     : "After creating the set, you can edit it anytime from the Dashboard."}
                 </p>
               </div>
+            </div>
+          </div>
 
-              {/* Preview Card */}
-              <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Preview
-                </label>
-                <div
-                  className="border-2 rounded-lg p-4"
-                  style={{
-                    borderLeftWidth: "6px",
-                    borderLeftColor: setColor,
-                  }}
-                >
-                  <h3 className="font-bold text-gray-900 mb-2">
-                    {setTitle || "Your Set Title"}
-                  </h3>
-                  <p className="text-sm text-gray-600 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
-                    {setDescription || "Your set description will appear here"}
-                  </p>
+          {/* Preview Card */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Preview</h3>
+            </div>
+            <div className="p-5">
+              <div
+                className="rounded-xl p-4 border border-gray-100 dark:border-gray-700"
+                style={{
+                  borderLeftWidth: "5px",
+                  borderLeftColor: setColor,
+                  background: `linear-gradient(135deg, ${setColor}08 0%, transparent 100%)`,
+                }}
+              >
+                <h3 className="font-bold text-gray-900 dark:text-gray-100 mb-1">
+                  {setTitle || "Your Set Title"}
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                  {setDescription || "Your set description will appear here"}
+                </p>
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full"
+                    style={{ backgroundColor: `${setColor}20`, color: setColor }}
+                  >
+                    {cards.filter((c) => (c.spanish || "").trim() && (c.english || "").trim()).length} cards
+                  </span>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="mb-6">
-              <h2 className="text-xl font-bold text-gray-900 mb-4">
-                Cards for this Set
-              </h2>
-
-              <div className="flex gap-2 bg-gray-100 p-1 rounded-lg">
+        {/* Right: Cards (3 cols) */}
+        <div className="lg:col-span-3 min-w-0">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row sm:items-center gap-3">
+              <h2 className="font-bold text-gray-900 dark:text-gray-100">Cards for this Set</h2>
+              {/* Mode Toggle */}
+              <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-xl sm:ml-auto">
                 <button
                   onClick={() => setMode("line-by-line")}
-                  className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                     mode === "line-by-line"
-                      ? "bg-white text-blue-600 shadow"
-                      : "text-gray-600 hover:text-gray-900"
+                      ? "bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                   }`}
                 >
-                  Add line by line
+                  Line by line
                 </button>
                 <button
                   onClick={() => setMode("bulk")}
-                  className={`flex-1 px-4 py-2 rounded-md font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                     mode === "bulk"
-                      ? "bg-white text-blue-600 shadow"
-                      : "text-gray-600 hover:text-gray-900"
+                      ? "bg-white dark:bg-gray-600 text-blue-600 dark:text-blue-400 shadow-sm"
+                      : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                   }`}
                 >
                   Bulk import
@@ -538,205 +557,194 @@ export default function CreateSetPage() {
               </div>
             </div>
 
-            {mode === "line-by-line" && (
-              <div className="space-y-4">
-                {hasDuplicates && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-                    <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
-                    <div className="flex-1">
-                      <p className="text-sm text-red-800 font-medium mb-1">
-                        Duplicate words detected
-                      </p>
-                      <button
-                        onClick={handleRemoveDuplicates}
-                        className="text-sm text-red-600 hover:text-red-700 underline font-medium"
-                      >
-                        Delete duplicates
-                      </button>
+            <div className="p-5">
+              {mode === "line-by-line" && (
+                <div className="space-y-4">
+                  {hasDuplicates && (
+                    <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 flex items-start gap-2">
+                      <AlertCircle className="text-red-500 flex-shrink-0 mt-0.5" size={18} />
+                      <div className="flex-1">
+                        <p className="text-sm text-red-700 dark:text-red-300 font-medium">
+                          Duplicate words detected
+                        </p>
+                        <button
+                          onClick={handleRemoveDuplicates}
+                          className="text-xs text-red-600 dark:text-red-400 hover:underline font-medium mt-0.5"
+                        >
+                          Delete duplicates
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-                <div className="overflow-y-auto max-h-96">
-                  <div className="space-y-2">
+                  )}
+
+                  {/* Card Rows */}
+                  <div className="overflow-y-auto max-h-[480px] space-y-3 pr-1">
                     {cards.map((card, index) => {
                       const isDuplicate = duplicateIndices.has(index);
                       const notesLength = card.notes?.length || 0;
                       return (
                         <div
                           key={index}
-                          className={`${isDuplicate ? "bg-red-50 p-2 rounded border border-red-200" : ""}`}
+                          className={`rounded-xl p-3 border transition-colors ${
+                            isDuplicate
+                              ? "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/10"
+                              : "border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30"
+                          }`}
                         >
-                          <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-start mb-2">
+                          <div className="flex gap-2 items-start mb-2">
                             <input
                               type="text"
                               value={card.spanish}
-                              onChange={(e) =>
-                                updateCard(index, "spanish", e.target.value)
-                              }
+                              onChange={(e) => updateCard(index, "spanish", e.target.value)}
                               placeholder="Spanish"
-                              className={`px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                isDuplicate ? "border-red-300 bg-white" : "border-gray-300"
-                              }`}
+                              className="flex-1 min-w-0 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg
+                                bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm
+                                focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                             />
                             <input
                               type="text"
                               value={card.english}
-                              onChange={(e) =>
-                                updateCard(index, "english", e.target.value)
-                              }
+                              onChange={(e) => updateCard(index, "english", e.target.value)}
                               placeholder="English"
-                              className={`px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                                isDuplicate ? "border-red-300 bg-white" : "border-gray-300"
-                              }`}
+                              className="flex-1 min-w-0 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg
+                                bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm
+                                focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                             />
                             <button
                               onClick={() => removeRow(index)}
-                              className="p-2 rounded text-red-600 hover:bg-red-50 transition-colors"
+                              className="p-2 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex-shrink-0"
                               title={card.id ? "Delete card permanently" : "Remove card"}
                             >
-                              <X size={20} />
+                              <X size={16} />
                             </button>
                           </div>
-                          <div className="grid grid-cols-[1fr_auto] gap-2 items-start">
+                          <div className="flex gap-2 items-start">
                             <textarea
                               value={card.notes || ""}
-                              onChange={(e) =>
-                                updateCard(index, "notes", e.target.value.substring(0, 150))
-                              }
-                              placeholder="Optional notes or examples (max 150 characters)"
-                              rows={2}
+                              onChange={(e) => updateCard(index, "notes", e.target.value.substring(0, 150))}
+                              placeholder="Optional notes (max 150 chars)"
+                              rows={1}
                               maxLength={150}
-                              className={`px-3 py-2 border rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none ${
-                                isDuplicate ? "border-red-300 bg-white" : "border-gray-300"
-                              }`}
+                              className="flex-1 min-w-0 px-3 py-1.5 border border-gray-200 dark:border-gray-600 rounded-lg
+                                bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-xs
+                                focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors resize-none"
                             />
-                            <div className="text-xs text-gray-500 pt-2 text-right w-12">
+                            <span className="text-[10px] text-gray-400 pt-1.5 w-10 text-right flex-shrink-0">
                               {notesLength}/150
-                            </div>
+                            </span>
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                </div>
 
-                <button
-                  onClick={addRow}
-                  className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  <Plus size={20} />
-                  Add another row
-                </button>
+                  {/* Add Row */}
+                  <button
+                    onClick={addRow}
+                    className="flex items-center gap-2 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium text-sm transition-colors"
+                  >
+                    <Plus size={18} />
+                    Add another row
+                  </button>
 
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                  <p className="text-sm text-gray-600">
-                    <strong>
-                      {
-                        cards.filter(
-                          (c) => (c.spanish || "").trim() && (c.english || "").trim(),
-                        ).length
-                      }
-                    </strong>{" "}
-                    cards ready to save (minimum 4 required)
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {mode === "bulk" && (
-              <div className="space-y-4">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm text-blue-800 mb-2">
-                    <strong>Format:</strong> One entry per line as{" "}
-                    <code className="bg-blue-100 px-1 rounded">
-                      Spanish = English
-                    </code>
-                  </p>
-                  <p className="text-sm text-blue-800">
-                    <strong>Example:</strong>
-                    <br />
-                    <code className="bg-blue-100 px-1 rounded">
-                      hola = hello
-                      <br />
-                      adiós = goodbye
-                      <br />
-                      gracias = thank you
-                    </code>
-                  </p>
-                </div>
-
-                <textarea
-                  value={bulkText}
-                  onChange={(e) => setBulkText(e.target.value)}
-                  placeholder="hola = hello&#10;adiós = goodbye&#10;gracias = thank you"
-                  rows={12}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                />
-
-                <button
-                  onClick={handleBulkImport}
-                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium"
-                >
-                  <Upload size={20} />
-                  Import
-                </button>
-
-                {importSummary && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <p className="text-sm text-green-800">
-                      <strong>✓ Imported {importSummary.imported} cards</strong>
-                      {importSummary.skipped > 0 &&
-                        `, skipped ${importSummary.skipped} invalid lines`}
-                      <br />
-                      <span className="text-xs text-green-700 mt-1 block">
-                        Cards have been added to your existing list. Switch to "Add line by line" to view them.
-                      </span>
+                  {/* Card Count */}
+                  <div className="bg-gray-50 dark:bg-gray-700/30 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5">
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <span className="font-bold text-gray-900 dark:text-gray-100">
+                        {cards.filter((c) => (c.spanish || "").trim() && (c.english || "").trim()).length}
+                      </span>{" "}
+                      cards ready to save (minimum 4 required)
                     </p>
                   </div>
-                )}
+                </div>
+              )}
 
-              </div>
-            )}
+              {mode === "bulk" && (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
+                    <p className="text-sm text-blue-700 dark:text-blue-300 mb-1.5">
+                      <strong>Format:</strong> One entry per line as{" "}
+                      <code className="bg-blue-100 dark:bg-blue-800/40 px-1.5 py-0.5 rounded text-xs">
+                        Spanish = English
+                      </code>
+                    </p>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 font-mono leading-relaxed">
+                      hola = hello<br />
+                      adiós = goodbye<br />
+                      gracias = thank you
+                    </p>
+                  </div>
+
+                  <textarea
+                    value={bulkText}
+                    onChange={(e) => setBulkText(e.target.value)}
+                    placeholder="hola = hello&#10;adiós = goodbye&#10;gracias = thank you"
+                    rows={10}
+                    className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl
+                      bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100
+                      focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm transition-colors"
+                  />
+
+                  <button
+                    onClick={handleBulkImport}
+                    className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl hover:bg-blue-700 font-semibold text-sm transition-colors"
+                  >
+                    <Upload size={16} />
+                    Import Cards
+                  </button>
+
+                  {importSummary && (
+                    <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
+                      <p className="text-sm text-green-700 dark:text-green-300">
+                        <strong>Imported {importSummary.imported} cards</strong>
+                        {importSummary.skipped > 0 &&
+                          `, skipped ${importSummary.skipped} invalid lines`}
+                      </p>
+                      <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                        Switch to "Line by line" to view them.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
+      </div>
 
-        <div className="flex gap-4 justify-end mt-8">
-          <button
-            onClick={() => navigate("/dashboard")}
-            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSaveSet}
-            disabled={saving}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:bg-blue-400 disabled:cursor-not-allowed"
-          >
-            {saving
-              ? isEditMode
-                ? "Saving..."
-                : "Creating Set..."
-              : isEditMode
-                ? "Save Set"
-                : "Create Set"}
-          </button>
-        </div>
+      {/* ─── Action Bar ─── */}
+      <div className="flex flex-col-reverse sm:flex-row gap-3 justify-end mt-8">
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="px-6 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 font-semibold text-sm transition-colors"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSaveSet}
+          disabled={saving}
+          className="px-6 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {saving
+            ? isEditMode ? "Saving..." : "Creating Set..."
+            : isEditMode ? "Save Set" : "Create Set"}
+        </button>
       </div>
 
       {/* Upgrade Modal */}
       {showUpgradeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full p-6 border border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-3">
               Upgrade to Premium
             </h2>
-            <p className="text-gray-700 mb-6">{upgradeMessage}</p>
+            <p className="text-gray-600 dark:text-gray-400 mb-5 text-sm">{upgradeMessage}</p>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-sm font-medium text-blue-900 mb-2">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-5">
+              <p className="text-sm font-semibold text-blue-800 dark:text-blue-300 mb-2">
                 Premium benefits:
               </p>
-              <ul className="text-sm text-blue-800 space-y-1">
+              <ul className="text-sm text-blue-700 dark:text-blue-400 space-y-1">
                 <li>✓ Unlimited sets</li>
                 <li>✓ Unlimited cards per set</li>
                 <li>✓ No ads</li>
@@ -747,13 +755,13 @@ export default function CreateSetPage() {
             <div className="flex gap-3">
               <button
                 onClick={() => setShowUpgradeModal(false)}
-                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                className="flex-1 px-4 py-2.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 font-medium text-sm"
               >
                 Maybe Later
               </button>
               <Link
-                href="/pricing"
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-center"
+                to="/pricing"
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium text-center text-sm"
               >
                 View Pricing
               </Link>
@@ -761,6 +769,6 @@ export default function CreateSetPage() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardLayout>
   );
 }

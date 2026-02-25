@@ -6,7 +6,7 @@ interface AuthContextType {
   user: DbUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name?: string) => Promise<void>;
+  signUp: (email: string, password: string, opts?: { firstName?: string; lastName?: string; displayName?: string }) => Promise<void>;
   signOut: () => Promise<void>;
   refetch: () => Promise<boolean>;
 }
@@ -71,9 +71,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signUp = async (email: string, password: string, name?: string) => {
+  const signUp = async (email: string, password: string, opts?: { firstName?: string; lastName?: string; displayName?: string }) => {
     try {
-      await api.auth.signUp(email, password, name);
+      await api.auth.signUp(email, password, opts);
       // Wait for cookies to be set (especially important for Safari)
       await new Promise(resolve => setTimeout(resolve, 100));
       

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import Navigation from "@/shared/components/Navigation";
+import DashboardLayout from "@/shared/components/DashboardLayout";
 import useUser from "@/shared/hooks/useUser";
 import { ArrowLeft, Clock, HelpCircle, Users, Mic, Keyboard } from "lucide-react";
 import { api } from "@/config/api";
@@ -70,12 +70,11 @@ export default function CreateBlitzChallengePage() {
 
   if (userLoading || loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
+      <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="text-gray-500">Loading...</div>
+          <div className="text-gray-500 dark:text-gray-400">Loading...</div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
@@ -85,28 +84,25 @@ export default function CreateBlitzChallengePage() {
 
   if (!deck) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto py-12 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
             Set Not Found
           </h1>
           <Link
             to="/blitz-challenge"
-            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700"
           >
             Back to Blitz Challenge
           </Link>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <DashboardLayout>
+      <div className="max-w-4xl mx-auto">
         {/* Back to Blitz Challenge */}
         <Link
           to="/blitz-challenge"
@@ -337,6 +333,6 @@ export default function CreateBlitzChallengePage() {
           </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

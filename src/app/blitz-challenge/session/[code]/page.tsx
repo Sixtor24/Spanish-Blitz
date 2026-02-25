@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
-import Navigation from "@/shared/components/Navigation";
+import DashboardLayout from "@/shared/components/DashboardLayout";
 import useUser from "@/shared/hooks/useUser";
 import { Trophy, Crown, Medal, Zap, Users, Clock, ArrowLeft, Timer, Play, Mic } from "lucide-react";
 import { api, API_BASE_URL } from "@/config/api";
@@ -527,17 +527,15 @@ function BlitzSessionPage() {
   // When require_mic is false: no popup, text-only cards (no speech questions)
   if (!loading && state?.session && showMicGate && !isTeacherHost && state.session.require_mic) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
+      <DashboardLayout>
         <BlitzMicModal onComplete={() => setShowMicGate(false)} />
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <DashboardLayout>
+      <div className="max-w-6xl mx-auto">
         <Link to="/blitz-challenge" className="inline-flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-4">
           <ArrowLeft size={18} /> Back
         </Link>
@@ -1188,7 +1186,7 @@ function BlitzSessionPage() {
           </div>
         )}
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
 

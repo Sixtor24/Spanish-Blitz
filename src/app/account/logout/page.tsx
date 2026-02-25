@@ -1,25 +1,18 @@
+import { useEffect } from "react";
 import useAuth from "@/shared/hooks/useAuth";
 
 function MainComponent() {
   const { signOut } = useAuth();
-  const handleSignOut = async () => {
-    await signOut({
-      callbackUrl: "/",
-    });
-  };
-  return (
-    <div className="flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
-        <h1 className="mb-8 text-center text-3xl font-bold text-gray-800">
-          Sign Out
-        </h1>
 
-        <button
-          onClick={handleSignOut}
-          className="w-full rounded-lg bg-[#357AFF] px-4 py-3 text-base font-medium text-white transition-colors hover:bg-[#2E69DE] focus:outline-none focus:ring-2 focus:ring-[#357AFF] focus:ring-offset-2 disabled:opacity-50"
-        >
-          Sign Out
-        </button>
+  useEffect(() => {
+    signOut();
+  }, []);
+
+  return (
+    <div className="flex min-h-screen w-full items-center justify-center bg-gray-50 dark:bg-gray-950">
+      <div className="text-center">
+        <div className="w-10 h-10 border-4 border-gray-300 border-t-[#10A5C3] rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">Signing out…</p>
       </div>
     </div>
   );

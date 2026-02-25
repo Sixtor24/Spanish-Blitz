@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
-import Navigation from "@/shared/components/Navigation";
+import DashboardLayout from "@/shared/components/DashboardLayout";
 import useUser from "@/shared/hooks/useUser";
 import { ArrowLeft, Users, Trash2, Plus, Calendar, Loader2, Copy, Check, BookOpen } from "lucide-react";
 import { api } from "@/config/api";
@@ -174,21 +174,19 @@ function ClassroomDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
+      <DashboardLayout>
         <div className="flex items-center justify-center h-96">
           <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (error || !classroom) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className="bg-red-50 border border-red-200 text-red-800 rounded-lg p-4">
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto py-8">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 rounded-xl p-4">
             {error || "Classroom not found"}
           </div>
           <Link to="/teacher" className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 mt-4">
@@ -196,7 +194,7 @@ function ClassroomDetailPage() {
             Back to Teacher Panel
           </Link>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
@@ -204,134 +202,131 @@ function ClassroomDetailPage() {
   const classroomColor = classroom.color || '#8B5CF6';
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <Link to="/teacher" className="inline-flex items-center gap-2 mb-4 transition-colors" style={{ color: classroomColor }}>
-            <ArrowLeft size={20} />
-            Back to Teacher Panel
-          </Link>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h1 className="text-3xl font-bold mb-2" style={{ color: classroomColor }}>{classroom.name}</h1>
-                {classroom.description && <p className="text-gray-600">{classroom.description}</p>}
-              </div>
-              {isTeacher && (
-                <div className="flex items-center gap-2 px-4 py-2 rounded-lg" style={{ backgroundColor: `${classroomColor}15` }}>
-                  <span className="text-sm font-medium" style={{ color: classroomColor }}>Join Code:</span>
-                  <code className="text-lg font-mono font-bold" style={{ color: classroomColor }}>{classroom.code}</code>
-                  <button onClick={handleCopyCode} className="p-1 rounded transition-colors">
-                    {codeCopied ? <Check size={16} className="text-green-600" /> : <Copy size={16} style={{ color: classroomColor }} />}
-                  </button>
-                </div>
-              )}
+    <DashboardLayout>
+      <div className="mb-6">
+        <Link to="/teacher" className="inline-flex items-center gap-2 mb-4 transition-colors text-sm font-medium" style={{ color: classroomColor }}>
+          <ArrowLeft size={18} />
+          Back to Teacher Panel
+        </Link>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2" style={{ color: classroomColor }}>{classroom.name}</h1>
+              {classroom.description && <p className="text-gray-600 dark:text-gray-400">{classroom.description}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
-              <div>
-                <p className="text-sm text-gray-500">Students</p>
-                <p className="text-2xl font-bold text-gray-900">{classroom.student_count || 0}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Assignments</p>
-                <p className="text-2xl font-bold text-gray-900">{classroom.assignment_count || 0}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-              <Users size={24} />
-              Students ({students.length})
-            </h2>
-            {students.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">No students have joined yet.</div>
-            ) : (
-              <div className="space-y-2">
-                {students.map((student) => (
-                  <div key={student.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <p className="font-medium text-gray-900">{student.display_name || student.email}</p>
-                        <span className="px-2 py-1 text-xs font-semibold text-purple-600 bg-purple-50 rounded">
-                          {student.xp_total || 0} XP
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-500">Joined {new Date(student.joined_at).toLocaleDateString()}</p>
-                    </div>
-                    {isTeacher && (
-                      <button onClick={() => handleRemoveStudent(student.id)} className="p-2 text-red-600 hover:bg-red-50 rounded">
-                        <Trash2 size={18} />
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                <Calendar size={24} />
-                Assignments ({assignments.length})
-              </h2>
-              {isTeacher && (
-                <button onClick={() => setShowAssignmentModal(true)} className="flex items-center gap-2 text-white px-4 py-2 rounded-lg font-medium" style={{ backgroundColor: classroomColor }}>
-                  <Plus size={18} />
-                  New Assignment
+            {isTeacher && (
+              <div className="flex items-center gap-2 px-4 py-2 rounded-xl flex-shrink-0" style={{ backgroundColor: `${classroomColor}15` }}>
+                <span className="text-sm font-medium" style={{ color: classroomColor }}>Join Code:</span>
+                <code className="text-lg font-mono font-bold" style={{ color: classroomColor }}>{classroom.code}</code>
+                <button onClick={handleCopyCode} className="p-1 rounded-lg hover:bg-white/50 transition-colors">
+                  {codeCopied ? <Check size={16} className="text-green-600" /> : <Copy size={16} style={{ color: classroomColor }} />}
                 </button>
-              )}
-            </div>
-            {assignments.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">No assignments yet.</div>
-            ) : (
-              <div className="space-y-3">
-                {assignments.map((assignment) => (
-                  <div key={assignment.id} className="p-4 border-2 border-gray-200 rounded-lg">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <h3 className="font-bold text-gray-900">{assignment.title}</h3>
-                          {assignment.required_repetitions > 1 && (
-                            <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs font-semibold rounded">
-                              {assignment.required_repetitions}x repetitions
-                            </span>
-                          )}
-                          {assignment.xp_reward && assignment.xp_reward > 0 && (
-                            <span className="px-2 py-0.5 bg-gradient-to-r from-yellow-100 to-orange-100 text-orange-700 text-xs font-semibold rounded flex items-center gap-1">
-                              ⚡ {assignment.xp_reward} XP Reward
-                            </span>
-                          )}
-                          {assignment.xp_goal && assignment.xp_goal > 0 && (
-                            <span className="px-2 py-0.5 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 text-xs font-semibold rounded flex items-center gap-1">
-                              💰 {assignment.xp_goal} XP Goal
-                            </span>
-                          )}
-                        </div>
-                        {assignment.description && <p className="text-sm text-gray-600">{assignment.description}</p>}
-                        {assignment.due_date && <p className="text-xs text-orange-600 mt-1">Due: {new Date(assignment.due_date).toLocaleDateString()}</p>}
-                      </div>
-                      {isTeacher && (
-                        <button onClick={() => handleDeleteAssignment(assignment.id)} className="p-1 text-red-600 hover:bg-red-50 rounded">
-                          <Trash2 size={16} />
-                        </button>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-500 pt-2 border-t border-gray-100">
-                      {assignment.completed_count || 0} / {assignment.total_students || 0} students completed
-                    </div>
-                  </div>
-                ))}
               </div>
             )}
+          </div>
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Students</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{classroom.student_count || 0}</p>
+            </div>
+            <div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Assignments</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{classroom.assignment_count || 0}</p>
+            </div>
           </div>
         </div>
       </div>
+      <div className="grid md:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+            <Users size={24} />
+            Students ({students.length})
+          </h2>
+          {students.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">No students have joined yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {students.map((student) => (
+                <div key={student.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-medium text-gray-900 dark:text-gray-100 truncate">{student.display_name || student.email}</p>
+                      <span className="px-2 py-0.5 text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 rounded flex-shrink-0">
+                        {student.xp_total || 0} XP
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Joined {new Date(student.joined_at).toLocaleDateString()}</p>
+                  </div>
+                  {isTeacher && (
+                    <button onClick={() => handleRemoveStudent(student.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg flex-shrink-0">
+                      <Trash2 size={18} />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
+              <Calendar size={24} />
+              Assignments ({assignments.length})
+            </h2>
+            {isTeacher && (
+              <button onClick={() => setShowAssignmentModal(true)} className="flex items-center gap-2 text-white px-4 py-2 rounded-xl font-medium text-sm" style={{ backgroundColor: classroomColor }}>
+                <Plus size={18} />
+                New Assignment
+              </button>
+            )}
+          </div>
+          {assignments.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400">No assignments yet.</div>
+          ) : (
+            <div className="space-y-3">
+              {assignments.map((assignment) => (
+                <div key={assignment.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-xl">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <h3 className="font-bold text-gray-900 dark:text-gray-100">{assignment.title}</h3>
+                        {assignment.required_repetitions > 1 && (
+                          <span className="px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 text-xs font-semibold rounded">
+                            {assignment.required_repetitions}x repetitions
+                          </span>
+                        )}
+                        {assignment.xp_reward && assignment.xp_reward > 0 && (
+                          <span className="px-2 py-0.5 bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30 text-orange-700 dark:text-orange-400 text-xs font-semibold rounded flex items-center gap-1">
+                            ⚡ {assignment.xp_reward} XP Reward
+                          </span>
+                        )}
+                        {assignment.xp_goal && assignment.xp_goal > 0 && (
+                          <span className="px-2 py-0.5 bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 text-purple-700 dark:text-purple-400 text-xs font-semibold rounded flex items-center gap-1">
+                            💰 {assignment.xp_goal} XP Goal
+                          </span>
+                        )}
+                      </div>
+                      {assignment.description && <p className="text-sm text-gray-600 dark:text-gray-400">{assignment.description}</p>}
+                      {assignment.due_date && <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">Due: {new Date(assignment.due_date).toLocaleDateString()}</p>}
+                    </div>
+                    {isTeacher && (
+                      <button onClick={() => handleDeleteAssignment(assignment.id)} className="p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg flex-shrink-0">
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-100 dark:border-gray-700">
+                    {assignment.completed_count || 0} / {assignment.total_students || 0} students completed
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
       {showAssignmentModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full p-6 md:p-8 max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-3xl font-bold text-gray-900">Create Assignment</h2>
@@ -566,7 +561,7 @@ function ClassroomDetailPage() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardLayout>
   );
 }
 

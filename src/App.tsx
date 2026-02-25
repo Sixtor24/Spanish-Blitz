@@ -2,6 +2,7 @@ import { Routes, Route } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { AuthProvider } from './lib/auth-context';
 import { MicrophoneProvider } from './lib/microphone-context';
+import { ThemeProvider } from './lib/theme-context';
 import './app/global.css';
 
 // Pages
@@ -31,6 +32,7 @@ import NotFoundPage from './app/__create/not-found';
 
 export default function App() {
   return (
+    <ThemeProvider>
     <AuthProvider>
       <MicrophoneProvider>
       <Toaster position="bottom-right" />
@@ -76,5 +78,6 @@ export default function App() {
       </Routes>
       </MicrophoneProvider>
     </AuthProvider>
+    </ThemeProvider>
   );
 }

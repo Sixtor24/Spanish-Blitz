@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
-import Navigation from "@/shared/components/Navigation";
+import DashboardLayout from "@/shared/components/DashboardLayout";
 import AdPlaceholder from "@/shared/components/AdPlaceholder";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition from "@/shared/components/SpeechRecognition";
@@ -394,120 +394,114 @@ export default function PlaySoloPage() {
   // Set Selection Screen
   if (showSetSelection) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Play Solo</h1>
-            <p className="text-xl text-gray-600">
-              Choose a set to start practicing
-            </p>
-          </div>
-
-          {availableSets.length === 0 ? (
-            <div className="max-w-2xl mx-auto bg-white rounded-lg shadow p-12 text-center">
-              <BookOpen className="mx-auto mb-4 text-gray-400" size={64} />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                No Sets Yet
-              </h2>
-              <p className="text-gray-600 mb-6">
-                Create your first set to start practicing
-              </p>
-              <Link
-                to="/admin/create-set"
-                className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-medium"
-              >
-                Create Your First Set
-              </Link>
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              {availableSets.map((set) => (
-                <Link
-                  key={set.id}
-                  to={`/play/solo?deck=${set.id}`}
-                  className="bg-white border-2 rounded-lg p-6 hover:shadow-lg transition-all cursor-pointer group"
-                  style={{
-                    borderLeftWidth: "6px",
-                    borderLeftColor: set.primary_color_hex || "#0EA5E9",
-                  }}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
-                        {set.title}
-                      </h3>
-                      <p className="text-sm text-gray-600 mb-3">
-                        {set.description}
-                      </p>
-                    </div>
-                    <ArrowRight
-                      className="text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all"
-                      size={24}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <span className="text-sm text-gray-500">
-                      {set.card_count || 0} cards
-                    </span>
-                    <span className="text-sm font-medium text-blue-600">
-                      Start Playing →
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-8">
-            <AdPlaceholder />
-          </div>
+      <DashboardLayout>
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">Play Solo</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Choose a set to start practicing
+          </p>
         </div>
-      </div>
+
+        {availableSets.length === 0 ? (
+          <div className="max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-12 text-center">
+            <BookOpen className="mx-auto mb-4 text-gray-400 dark:text-gray-500" size={64} />
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+              No Sets Yet
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Create your first set to start practicing
+            </p>
+            <Link
+              to="/admin/create-set"
+              className="inline-block bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700 font-medium"
+            >
+              Create Your First Set
+            </Link>
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {availableSets.map((set) => (
+              <Link
+                key={set.id}
+                to={`/play/solo?deck=${set.id}`}
+                className="bg-white dark:bg-gray-800 border rounded-xl p-5 hover:shadow-md transition-all cursor-pointer group
+                  border-gray-200 dark:border-gray-700"
+                style={{
+                  borderLeftWidth: "5px",
+                  borderLeftColor: set.primary_color_hex || "#10A5C3",
+                }}
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2 group-hover:text-blue-600 transition-colors">
+                      {set.title}
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                      {set.description}
+                    </p>
+                  </div>
+                  <ArrowRight
+                    className="text-gray-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all"
+                    size={24}
+                  />
+                </div>
+                <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-gray-700">
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {set.card_count || 0} cards
+                  </span>
+                  <span className="text-sm font-medium text-blue-600">
+                    Start Playing →
+                  </span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-8">
+          <AdPlaceholder />
+        </div>
+      </DashboardLayout>
     );
   }
 
   // Show voice mode prompt before game (always on mode entry when a deck is selected)
   if (deckId && showVoicePrompt && !loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
+      <DashboardLayout>
         <MicPermissionModal onComplete={() => setShowVoicePrompt(false)} />
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
+      <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="text-gray-500">Loading...</div>
+          <div className="text-gray-500 dark:text-gray-400">Loading...</div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (!deck || cards.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto py-12 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
             Set Not Found
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
             This set doesn't exist or has no cards.
           </p>
           <Link
             to="/play/solo"
-            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700"
           >
             Choose Another Set
           </Link>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
@@ -515,45 +509,43 @@ export default function PlaySoloPage() {
     const accuracy = Math.round((score / cards.length) * 100);
 
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-8 text-center">
             <Trophy className="mx-auto mb-4 text-yellow-500" size={64} />
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
               Game Complete!
             </h1>
-            <p className="text-gray-600 mb-8">
+            <p className="text-gray-600 dark:text-gray-400 mb-8">
               Great job on completing {deck.title}
             </p>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <div className="p-6 bg-blue-50 rounded-lg">
+              <div className="p-5 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
                 <Target className="mx-auto mb-2 text-blue-600" size={32} />
-                <p className="text-sm text-gray-600">Score</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Score</p>
                 <p className="text-3xl font-bold text-blue-600">
                   {score}/{cards.length}
                 </p>
               </div>
 
-              <div className="p-6 bg-green-50 rounded-lg">
+              <div className="p-5 bg-green-50 dark:bg-green-900/20 rounded-xl">
                 <Trophy className="mx-auto mb-2 text-green-600" size={32} />
-                <p className="text-sm text-gray-600">Accuracy</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Accuracy</p>
                 <p className="text-3xl font-bold text-green-600">{accuracy}%</p>
               </div>
 
-              <div className="p-6 bg-orange-50 rounded-lg">
+              <div className="p-5 bg-orange-50 dark:bg-orange-900/20 rounded-xl">
                 <Clock className="mx-auto mb-2 text-orange-600" size={32} />
-                <p className="text-sm text-gray-600">Cards</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Cards</p>
                 <p className="text-3xl font-bold text-orange-600">
                   {cards.length}
                 </p>
               </div>
 
-              <div className="p-6 bg-purple-50 rounded-lg border-2 border-purple-300">
+              <div className="p-5 bg-purple-50 dark:bg-purple-900/20 rounded-xl border-2 border-purple-300 dark:border-purple-700">
                 <div className="text-3xl mb-2 mx-auto text-center">⚡</div>
-                <p className="text-sm text-gray-600">XPs Earned</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">XPs Earned</p>
                 <p className="text-3xl font-bold text-purple-600">
                   +{xpEarned}
                 </p>
@@ -563,20 +555,20 @@ export default function PlaySoloPage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={restartGame}
-                className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 font-medium"
+                className="bg-blue-600 text-white px-8 py-3 rounded-xl hover:bg-blue-700 font-medium"
               >
                 Play Again
               </button>
               <Link
                 to="/classrooms"
-                className="bg-purple-600 text-white px-8 py-3 rounded-lg hover:bg-purple-700 font-medium flex items-center gap-2"
+                className="bg-purple-600 text-white px-8 py-3 rounded-xl hover:bg-purple-700 font-medium flex items-center justify-center gap-2"
               >
                 <Trophy size={20} />
                 View Assignments
               </Link>
               <Link
                 to="/play/solo"
-                className="bg-gray-200 text-gray-700 px-8 py-3 rounded-lg hover:bg-gray-300 font-medium"
+                className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-8 py-3 rounded-xl hover:bg-gray-300 dark:hover:bg-gray-600 font-medium"
               >
                 Choose Another Set
               </Link>
@@ -587,19 +579,17 @@ export default function PlaySoloPage() {
             <AdPlaceholder />
           </div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
-
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <DashboardLayout>
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6 border border-gray-100">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h1 className="text-2xl font-bold text-gray-900">{deck.title}</h1>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{deck.title}</h1>
             <div className="flex items-center gap-3">
               {/* XP Badge */}
               <div className="flex items-center gap-2 bg-gradient-to-r from-purple-50 to-purple-100 border border-purple-200 rounded-lg px-3 py-2 shadow-sm">
@@ -625,14 +615,14 @@ export default function PlaySoloPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-lg shadow-lg p-8 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-8 mb-6">
           <div className="text-center mb-8">
             <div className="inline-block px-4 py-2 bg-purple-100 text-purple-800 rounded-full text-sm font-medium mb-4">
               {resolvedLabel}
             </div>
 
             {resolvedPrompt && (
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
                 {resolvedPrompt}
               </h2>
             )}
@@ -781,6 +771,6 @@ export default function PlaySoloPage() {
         {/* Ad Placeholder */}
         <AdPlaceholder />
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

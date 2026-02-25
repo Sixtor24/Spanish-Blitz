@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import Navigation from "../../../shared/components/Navigation";
+import DashboardLayout from "@/shared/components/DashboardLayout";
 import useUser from "../../../shared/hooks/useUser";
 import { ArrowLeft, BookOpen, Calendar, Clock, CheckCircle, Loader2, ArrowRight } from "lucide-react";
 import { api } from "../../../config/api";
@@ -80,36 +80,30 @@ export default function StudentClassroomPage() {
 
   if (userLoading || loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
+      <DashboardLayout>
         <div className="flex items-center justify-center h-96">
           <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (!classroom) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900">Classroom not found</h2>
-            <Link to="/classrooms" className="text-purple-600 hover:text-purple-700 mt-4 inline-block">
-              ← Back to My Classrooms
-            </Link>
-          </div>
+      <DashboardLayout>
+        <div className="text-center py-8">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Classroom not found</h2>
+          <Link to="/classrooms" className="text-purple-600 hover:text-purple-700 mt-4 inline-block">
+            ← Back to My Classrooms
+          </Link>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <DashboardLayout>
+      <div className="max-w-7xl mx-auto">
         <Link 
           to="/classrooms"
           className="inline-flex items-center gap-2 text-purple-600 hover:text-purple-700 mb-6 font-medium"
@@ -293,6 +287,6 @@ export default function StudentClassroomPage() {
           )}
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

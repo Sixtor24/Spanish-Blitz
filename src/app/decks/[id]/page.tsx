@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import Navigation from "@/shared/components/Navigation";
+import DashboardLayout from "@/shared/components/DashboardLayout";
 import { Plus, X, BookOpen } from "lucide-react";
 import { api } from "@/config/api";
 import type { DbDeck, DbCard } from "@/types/api.types";
@@ -130,39 +130,35 @@ export default function DeckDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
+      <DashboardLayout>
         <div className="flex items-center justify-center h-96">
-          <div className="text-gray-500">Loading...</div>
+          <div className="text-gray-500 dark:text-gray-400">Loading...</div>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   if (!deck) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <Navigation />
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+      <DashboardLayout>
+        <div className="max-w-4xl mx-auto py-12 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
             Deck Not Found
           </h1>
           <Link
             to="/dashboard"
-            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+            className="inline-block bg-blue-600 text-white px-6 py-3 rounded-xl hover:bg-blue-700"
           >
             Back to Dashboard
           </Link>
         </div>
-      </div>
+      </DashboardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navigation />
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <DashboardLayout>
+      <div className="max-w-6xl mx-auto">
         <div
           className="rounded-lg shadow p-6 mb-6"
           style={{
@@ -468,6 +464,6 @@ export default function DeckDetailPage() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardLayout>
   );
 }

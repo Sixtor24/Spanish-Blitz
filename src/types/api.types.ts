@@ -28,6 +28,9 @@ export interface DbUser {
   id: string;
   email: string;
   display_name?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
+  avatar_url?: string | null;
   role?: 'user' | 'teacher' | 'admin' | null;
   preferred_locale?: string | null;
   preferred_voice_gender?: 'male' | 'female' | null;

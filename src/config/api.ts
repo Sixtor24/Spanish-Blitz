@@ -63,10 +63,10 @@ export const api = {
     /**
      * Sign up with email, password, and optional display name
      */
-    signUp: (email: string, password: string, displayName?: string) =>
+    signUp: (email: string, password: string, opts?: { firstName?: string; lastName?: string; displayName?: string }) =>
       apiFetch('/api/auth/signup', {
         method: 'POST',
-        body: JSON.stringify({ email, password, displayName }),
+        body: JSON.stringify({ email, password, ...opts }),
       }),
     
     /**
@@ -111,7 +111,7 @@ export const api = {
     /**
      * Update current user profile
      */
-    patch: (data: { display_name?: string; preferred_locale?: string; preferred_voice_gender?: 'male' | 'female' }) => 
+    patch: (data: { display_name?: string; first_name?: string; last_name?: string; avatar_url?: string; preferred_locale?: string; preferred_voice_gender?: 'male' | 'female' }) => 
       apiFetch('/api/users/current', {
         method: 'PATCH',
         body: JSON.stringify(data),
