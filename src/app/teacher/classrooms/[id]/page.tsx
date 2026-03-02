@@ -329,34 +329,34 @@ function ClassroomDetailPage() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full p-6 md:p-8 max-h-[90vh] overflow-y-auto border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-3xl font-bold text-gray-900">Create Assignment</h2>
-                <p className="text-sm text-gray-500 mt-1">Assign a deck to your students</p>
+                <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Create Assignment</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Assign a deck to your students</p>
               </div>
-              <button onClick={() => setShowAssignmentModal(false)} className="p-2 hover:bg-gray-100 rounded-full">
+              <button onClick={() => setShowAssignmentModal(false)} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full">
                 <Plus size={24} className="rotate-45 text-gray-400" />
               </button>
             </div>
             <form onSubmit={handleCreateAssignment} className="space-y-6">
               {/* Assignment Type Selector */}
-              <div className="rounded-lg p-4 bg-purple-50 border-2 border-purple-200">
-                <label className="block text-sm font-semibold text-purple-900 mb-3">Assignment Type *</label>
+              <div className="rounded-lg p-4 bg-purple-50 dark:bg-purple-900/20 border-2 border-purple-200 dark:border-purple-700">
+                <label className="block text-sm font-semibold text-purple-900 dark:text-purple-300 mb-3">Assignment Type *</label>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setAssignmentType('deck')}
                     className={`p-4 rounded-lg border-2 transition-all ${
                       assignmentType === 'deck'
-                        ? 'border-purple-500 bg-purple-100 shadow-md'
-                        : 'border-gray-300 bg-white hover:border-purple-300'
+                        ? 'border-purple-500 bg-purple-100 dark:bg-purple-900/40 shadow-md'
+                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-purple-300 dark:hover:border-purple-500'
                     }`}
                     disabled={submitting}
                   >
                     <div className="text-center">
                       <BookOpen className="w-6 h-6 mx-auto mb-2" style={{ color: assignmentType === 'deck' ? '#9333ea' : '#6b7280' }} />
-                      <p className={`font-semibold ${assignmentType === 'deck' ? 'text-purple-700' : 'text-gray-700'}`}>
+                      <p className={`font-semibold ${assignmentType === 'deck' ? 'text-purple-700 dark:text-purple-300' : 'text-gray-700 dark:text-gray-300'}`}>
                         Study a Set
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">Assign a specific deck to study</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Assign a specific deck to study</p>
                     </div>
                   </button>
                   <button
@@ -364,17 +364,17 @@ function ClassroomDetailPage() {
                     onClick={() => setAssignmentType('xp_goal')}
                     className={`p-4 rounded-lg border-2 transition-all ${
                       assignmentType === 'xp_goal'
-                        ? 'border-purple-500 bg-purple-100 shadow-md'
-                        : 'border-gray-300 bg-white hover:border-purple-300'
+                        ? 'border-purple-500 bg-purple-100 dark:bg-purple-900/40 shadow-md'
+                        : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 hover:border-purple-300 dark:hover:border-purple-500'
                     }`}
                     disabled={submitting}
                   >
                     <div className="text-center">
                       <span className="text-3xl block mb-1">💰</span>
-                      <p className={`font-semibold ${assignmentType === 'xp_goal' ? 'text-purple-700' : 'text-gray-700'}`}>
+                      <p className={`font-semibold ${assignmentType === 'xp_goal' ? 'text-purple-700 dark:text-purple-300' : 'text-gray-700 dark:text-gray-300'}`}>
                         Earn XP Goal
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">Set an XP goal to achieve</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Set an XP goal to achieve</p>
                     </div>
                   </button>
                 </div>
@@ -383,12 +383,12 @@ function ClassroomDetailPage() {
               {/* Deck Assignment Fields */}
               {assignmentType === 'deck' && (
                 <>
-                  <div className="rounded-lg p-4" style={{ backgroundColor: `${classroomColor}15`, border: `2px solid ${classroomColor}40` }}>
+                  <div className="rounded-lg p-4 dark:!border-gray-600" style={{ backgroundColor: `${classroomColor}15`, border: `2px solid ${classroomColor}40` }}>
                     <label className="block text-sm font-semibold mb-2" style={{ color: classroomColor }}>📚 What set? *</label>
                     <select 
                       value={assignmentForm.deck_id} 
                       onChange={(e) => setAssignmentForm({ ...assignmentForm, deck_id: e.target.value })} 
-                      className="w-full px-4 py-2 border-2 rounded-lg" 
+                      className="w-full px-4 py-2 border-2 rounded-lg bg-white dark:!bg-gray-700 text-gray-900 dark:text-gray-100" 
                       style={{ borderColor: `${classroomColor}60` }} 
                       required 
                       disabled={submitting}
@@ -398,11 +398,11 @@ function ClassroomDetailPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">🔁 How many times? *</label>
+                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">🔁 How many times? *</label>
                     <select 
                       value={assignmentForm.repetitions} 
                       onChange={(e) => setAssignmentForm({ ...assignmentForm, repetitions: parseInt(e.target.value) })} 
-                      className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                      className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:!bg-gray-700 text-gray-900 dark:text-gray-100 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                       required 
                       disabled={submitting}
                     >
@@ -412,30 +412,30 @@ function ClassroomDetailPage() {
                       <option value={4}>4 times</option>
                       <option value={5}>5 times</option>
                     </select>
-                    <p className="text-xs text-gray-500 mt-1">Number of times students must complete this set</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Number of times students must complete this set</p>
                   </div>
                 </>
               )}
 
               {/* XP Goal Assignment Fields */}
               {assignmentType === 'xp_goal' && (
-                <div className="rounded-lg p-4 bg-gradient-to-r from-purple-50 to-pink-50 border-2 border-purple-300">
-                  <label className="block text-sm font-semibold text-purple-900 mb-2">💰 XP Goal *</label>
+                <div className="rounded-lg p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-2 border-purple-300 dark:border-purple-600">
+                  <label className="block text-sm font-semibold text-purple-900 dark:text-purple-300 mb-2">💰 XP Goal *</label>
                   <input
                     type="number"
                     min="1"
                     max="500"
                     value={assignmentForm.xp_goal}
                     onChange={(e) => setAssignmentForm({ ...assignmentForm, xp_goal: parseInt(e.target.value) || 0 })}
-                    className="w-full px-4 py-3 border-2 border-purple-300 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-lg font-semibold"
+                    className="w-full px-4 py-3 border-2 border-purple-300 dark:border-purple-600 rounded-lg bg-white dark:!bg-gray-700 text-gray-900 dark:text-gray-100 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 text-lg font-semibold"
                     placeholder="e.g., 20"
                     required
                     disabled={submitting}
                   />
-                  <p className="text-sm text-purple-700 mt-2 font-medium">
+                  <p className="text-sm text-purple-700 dark:text-purple-300 mt-2 font-medium">
                     🎯 Students must earn this amount of XP by practicing <strong>any of their own created sets</strong>
                   </p>
-                  <p className="text-xs text-gray-600 mt-1">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                     XP earned will count towards this goal (Solo Blitz: 1 XP per correct answer, Multiplayer: based on ranking)
                   </p>
                 </div>
@@ -443,33 +443,33 @@ function ClassroomDetailPage() {
 
               {/* XP Reward (common to both types) */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">⚡ XP Reward (Optional)</label>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">⚡ XP Reward (Optional)</label>
                 <input
                   type="number"
                   min="0"
                   max="1000"
                   value={assignmentForm.xp_reward}
                   onChange={(e) => setAssignmentForm({ ...assignmentForm, xp_reward: parseInt(e.target.value) || 0 })}
-                  className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
+                  className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:!bg-gray-700 text-gray-900 dark:text-gray-100 focus:border-purple-500 focus:ring-2 focus:ring-purple-200"
                   placeholder="0"
                   disabled={submitting}
                 />
-                <p className="text-xs text-gray-500 mt-1">Bonus XP awarded when assignment is completed</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Bonus XP awarded when assignment is completed</p>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Due Date (Optional)</label>
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Due Date (Optional)</label>
                 <div className="grid grid-cols-2 gap-3">
-                  <input type="date" value={assignmentForm.due_date ? assignmentForm.due_date.split('T')[0] : ''} onChange={(e) => setAssignmentForm({ ...assignmentForm, due_date: e.target.value ? `${e.target.value}T23:59` : '' })} className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg" disabled={submitting} />
+                  <input type="date" value={assignmentForm.due_date ? assignmentForm.due_date.split('T')[0] : ''} onChange={(e) => setAssignmentForm({ ...assignmentForm, due_date: e.target.value ? `${e.target.value}T23:59` : '' })} className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:!bg-gray-700 text-gray-900 dark:text-gray-100" disabled={submitting} />
                   <input type="time" value={assignmentForm.due_date ? assignmentForm.due_date.split('T')[1] : ''} onChange={(e) => {
                     const date = assignmentForm.due_date ? assignmentForm.due_date.split('T')[0] : new Date().toISOString().split('T')[0];
                     setAssignmentForm({ ...assignmentForm, due_date: `${date}T${e.target.value}` });
-                  }} className="w-full px-4 py-2 border-2 border-gray-200 rounded-lg" disabled={submitting} />
+                  }} className="w-full px-4 py-2 border-2 border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:!bg-gray-700 text-gray-900 dark:text-gray-100" disabled={submitting} />
                 </div>
               </div>
 
               {/* Student Selection */}
-              <div className="rounded-lg p-4 border-2 border-gray-200 bg-gray-50">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">Assign to:</label>
+              <div className="rounded-lg p-4 border-2 border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50">
+                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Assign to:</label>
                 
                 <div className="space-y-2 mb-3">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -483,7 +483,7 @@ function ClassroomDetailPage() {
                       className="w-4 h-4"
                       disabled={submitting}
                     />
-                    <span className="text-sm font-medium text-gray-700">All students ({students.filter(s => s.is_active).length})</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">All students ({students.filter(s => s.is_active).length})</span>
                   </label>
                   
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -494,18 +494,18 @@ function ClassroomDetailPage() {
                       className="w-4 h-4"
                       disabled={submitting}
                     />
-                    <span className="text-sm font-medium text-gray-700">Specific students</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Specific students</span>
                   </label>
                 </div>
 
                 {!assignToAll && (
-                  <div className="mt-3 max-h-48 overflow-y-auto border rounded-lg p-3 bg-white">
+                  <div className="mt-3 max-h-48 overflow-y-auto border dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-700">
                     {students.filter(s => s.is_active).length === 0 ? (
                       <p className="text-sm text-gray-500 text-center py-2">No students yet</p>
                     ) : (
                       <div className="space-y-2">
                         {students.filter(s => s.is_active).map((student) => (
-                          <label key={student.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                          <label key={student.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 p-2 rounded">
                             <input
                               type="checkbox"
                               checked={selectedStudents.includes(student.id)}
@@ -520,10 +520,10 @@ function ClassroomDetailPage() {
                               disabled={submitting}
                             />
                             <div className="flex-1 flex items-center justify-between">
-                              <span className="text-sm text-gray-700">
+                              <span className="text-sm text-gray-700 dark:text-gray-300">
                                 {student.display_name || student.email}
                               </span>
-                              <span className="text-xs font-semibold text-purple-600 bg-purple-50 px-2 py-1 rounded">
+                              <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 px-2 py-1 rounded">
                                 {student.xp_total || 0} XP
                               </span>
                             </div>
@@ -535,14 +535,14 @@ function ClassroomDetailPage() {
                 )}
 
                 {!assignToAll && selectedStudents.length > 0 && (
-                  <p className="text-xs text-gray-600 mt-2">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
                     {selectedStudents.length} student{selectedStudents.length !== 1 ? 's' : ''} selected
                   </p>
                 )}
               </div>
 
-              <div className="flex gap-3 pt-6 border-t border-gray-200">
-                <button type="button" onClick={() => { setShowAssignmentModal(false); setAssignmentForm({ deck_id: "", repetitions: 1, due_date: "", xp_reward: 0, xp_goal: 0 }); setAssignmentType('deck'); setSelectedStudents([]); setAssignToAll(true); }} className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-semibold" disabled={submitting}>Cancel</button>
+              <div className="flex gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <button type="button" onClick={() => { setShowAssignmentModal(false); setAssignmentForm({ deck_id: "", repetitions: 1, due_date: "", xp_reward: 0, xp_goal: 0 }); setAssignmentType('deck'); setSelectedStudents([]); setAssignToAll(true); }} className="flex-1 px-4 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-semibold" disabled={submitting}>Cancel</button>
                 <button 
                   type="submit" 
                   className="flex-1 px-4 py-2 text-white rounded-lg font-semibold flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed" 

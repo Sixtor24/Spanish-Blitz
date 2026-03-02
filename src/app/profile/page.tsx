@@ -97,7 +97,7 @@ function ProfilePage() {
           if (!a.due_date && !b.due_date) return 0;
           if (!a.due_date) return 1;
           if (!b.due_date) return -1;
-          return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+          return new Date(b.due_date).getTime() - new Date(a.due_date).getTime();
         });
         setAssignments(flat);
       } catch {
@@ -474,7 +474,10 @@ function ProfilePage() {
                 <Clock size={18} className="text-gray-500" />
                 <h2 className="font-bold text-gray-900 dark:text-gray-100">Pending Tasks</h2>
                 {(() => {
-                  const pending = assignments.filter((a: any) => !a.completed);
+                  const now = new Date();
+                  const pending = assignments
+                    .filter((a: any) => !a.completed)
+                    .filter((a: any) => !a.due_date || new Date(a.due_date) >= now);
                   return pending.length > 0 ? (
                     <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: LIGHT_BLUE }}>
                       {pending.length}
@@ -488,7 +491,16 @@ function ProfilePage() {
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: LIGHT_BLUE }} />
                   </div>
                 ) : (() => {
-                  const pending = assignments.filter((a: any) => !a.completed);
+                  const now = new Date();
+                  const pending = assignments
+                    .filter((a: any) => !a.completed)
+                    .filter((a: any) => !a.due_date || new Date(a.due_date) >= now)
+                    .sort((a: any, b: any) => {
+                      if (!a.due_date && !b.due_date) return 0;
+                      if (!a.due_date) return 1;
+                      if (!b.due_date) return -1;
+                      return new Date(b.due_date).getTime() - new Date(a.due_date).getTime();
+                    });
                   if (pending.length === 0) {
                     return (
                       <div className="text-center py-6">

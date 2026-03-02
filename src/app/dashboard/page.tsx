@@ -40,7 +40,17 @@ interface Assignment {
    Pending Tasks Panel (right sidebar)
    ═══════════════════════════════════════════════════════ */
 function PendingTasksPanel({ assignments, loading }: { assignments: Assignment[]; loading: boolean }) {
-  const pending = assignments.filter((a) => !a.completed);
+  const now = new Date();
+  const pending = assignments
+    .filter((a) => !a.completed)
+    .filter((a) => !a.due_date || new Date(a.due_date) >= now) // hide expired
+    .sort((a, b) => {
+      // newest first (by due_date descending; no due_date goes last)
+      if (!a.due_date && !b.due_date) return 0;
+      if (!a.due_date) return 1;
+      if (!b.due_date) return -1;
+      return new Date(b.due_date).getTime() - new Date(a.due_date).getTime();
+    });
 
   if (loading) {
     return (
@@ -207,7 +217,7 @@ function DashboardPage() {
         if (!a.due_date && !b.due_date) return 0;
         if (!a.due_date) return 1;
         if (!b.due_date) return -1;
-        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+        return new Date(b.due_date).getTime() - new Date(a.due_date).getTime();
       });
       setAssignments(flat);
     } catch {

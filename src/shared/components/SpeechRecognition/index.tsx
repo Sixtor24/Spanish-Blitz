@@ -1,7 +1,8 @@
 /**
- * Speech Recognition Component (Refactored)
- * Uses Deepgram backend streaming with persistent WebSocket
- * Provides real-time transcription with visual feedback
+ * Speech Recognition Component
+ * Push-to-talk microphone with Deepgram streaming via WebSocket.
+ * Optimized for a language learning platform where students speak
+ * at different speeds — from slow syllable-by-syllable to fast fluent speech.
  */
 import { useState, useRef, useImperativeHandle, forwardRef, useCallback } from 'react';
 import { Mic, MicOff } from 'lucide-react';
@@ -14,29 +15,44 @@ import type { SpeechRecognitionHandle, SpeechRecognitionProps, TranscriptMessage
 
 const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionProps>(
   ({ onTranscript, locale = 'es-ES', onError, autoStop = true, showTranscript = true, userId }, ref) => {
-    // UI State
+    // ─── UI State ─────────────────────────────────────────────────
     const [isListening, setIsListening] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [currentTranscript, setCurrentTranscript] = useState<string>('');
     const [finalTranscript, setFinalTranscript] = useState<string>('');
 
-    // Refs
+    // ─── Refs ─────────────────────────────────────────────────────
     const sessionIdRef = useRef<string | null>(null);
     const audioBufferRef = useRef<Blob[]>([]);
-    const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const maxDurationRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const processingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isStartingRef = useRef(false);
-    const hasAttemptedRecordingRef = useRef(false);
+    const receivedFinalRef = useRef(false);
 
-    // Custom Hooks
+    // ─── Custom Hooks ─────────────────────────────────────────────
     const { audioLevel, setupVisualizer, stopVisualizer } = useAudioVisualizer();
 
-    // WebSocket message handlers
+    // ─── Session Cleanup ──────────────────────────────────────────
+    // Single source of truth for cleaning up a session.
+    // Safe to call multiple times — idempotent.
+    const resetSession = useCallback(() => {
+      if (maxDurationRef.current) { clearTimeout(maxDurationRef.current); maxDurationRef.current = null; }
+      if (processingTimeoutRef.current) { clearTimeout(processingTimeoutRef.current); processingTimeoutRef.current = null; }
+      if (debounceTimerRef.current) { clearTimeout(debounceTimerRef.current); debounceTimerRef.current = null; }
+      audioBufferRef.current = [];
+      isStartingRef.current = false;
+      setIsListening(false);
+      setIsProcessing(false);
+      setCurrentTranscript('');
+    }, []);
+
+    // ─── WebSocket Handlers ───────────────────────────────────────
     const handleStreamReady = useCallback(() => {
-      console.log('✅ [Speech] Stream ready, sending buffered audio');
-      audioBufferRef.current.forEach((blob) => {
+      const buffered = audioBufferRef.current;
+      audioBufferRef.current = [];
+      buffered.forEach((blob) => {
         blobToBase64(blob).then((base64) => {
           sendMessage({
             type: 'speech:audio',
@@ -45,23 +61,38 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
           });
         });
       });
-      audioBufferRef.current = [];
     }, []);
 
     const handleTranscriptMessage = useCallback(
       (data: TranscriptMessage) => {
         const { transcript, isFinal, confidence } = data;
 
-        if (isFinal) {
-          console.log(`✅ [Speech] Final: "${transcript}" (${(confidence * 100).toFixed(1)}%)`);
+        if (isFinal && transcript.trim()) {
+          receivedFinalRef.current = true;
+
+          // Cancel processing timeout — we got our answer
+          if (processingTimeoutRef.current) {
+            clearTimeout(processingTimeoutRef.current);
+            processingTimeoutRef.current = null;
+          }
+
           const filtered = filterEvaluationKeywords(transcript);
           setFinalTranscript(filtered);
+          setIsProcessing(false);
+          setCurrentTranscript('');
           onTranscript(filtered, confidence);
 
           if (autoStop) {
-            setTimeout(() => stopListening(), TIMING.STOP_SIGNAL_DELAY);
+            // Full cleanup — session is done
+            stopRecording();
+            stopVisualizer();
+            if (sessionIdRef.current) stopSession(sessionIdRef.current);
+            if (maxDurationRef.current) { clearTimeout(maxDurationRef.current); maxDurationRef.current = null; }
+            sessionIdRef.current = null;
+            setIsListening(false);
           }
-        } else {
+        } else if (!isFinal) {
+          // Show interim results so student sees their words appearing
           setCurrentTranscript(transcript);
         }
       },
@@ -70,16 +101,29 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
 
     const handleErrorMessage = useCallback(
       (data: ErrorMessage) => {
-        if (!isSilenceError(data.message)) {
-          setErrorMessage(data.message || 'Error');
-          if (onError) onError('transcription-failed');
-        } else {
-          console.log('[Speech] Silence detected - waiting for user voice');
+        // Cancel processing timeout
+        if (processingTimeoutRef.current) {
+          clearTimeout(processingTimeoutRef.current);
+          processingTimeoutRef.current = null;
         }
-        setIsProcessing(false);
-        stopListening();
+
+        if (isSilenceError(data.message)) {
+          setErrorMessage('No escuché nada.\nMantén presionado e intenta de nuevo.');
+        } else {
+          setErrorMessage(data.message || 'Error de transcripción');
+          if (onError) onError('transcription-failed');
+        }
+
+        setTimeout(() => setErrorMessage(null), TIMING.ERROR_DISPLAY_DURATION);
+
+        // Full cleanup
+        stopRecording();
+        stopVisualizer();
+        if (sessionIdRef.current) stopSession(sessionIdRef.current);
+        resetSession();
+        sessionIdRef.current = null;
       },
-      [onError]
+      [onError, resetSession]
     );
 
     const { sendMessage, startSession, stopSession, wsReadyRef } = useWebSocketConnection({
@@ -89,10 +133,10 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       onStreamReady: handleStreamReady,
     });
 
-    // Audio recording handlers
+    // ─── Audio Recording Handlers ─────────────────────────────────
     const handleAudioChunk = useCallback(
       (blob: Blob) => {
-        if (wsReadyRef.current) {
+        if (wsReadyRef.current && sessionIdRef.current) {
           blobToBase64(blob).then((base64) => {
             sendMessage({
               type: 'speech:audio',
@@ -108,26 +152,24 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     );
 
     const handleRecordingStart = useCallback(() => {
-      hasAttemptedRecordingRef.current = true; // Mark that user tried to record
       setIsListening(true);
-      setCurrentTranscript('Speak Now');
+      setCurrentTranscript('Habla ahora...');
       setFinalTranscript('');
       setErrorMessage(null);
       audioBufferRef.current = [];
     }, []);
 
     const handleRecordingStop = useCallback(() => {
-      console.log('📦 [Speech] Recording stopped');
+      // MediaRecorder stopped — audio chunks flushed
     }, []);
 
     const handleRecordingError = useCallback(
       (error: Error) => {
         setErrorMessage(getMicrophoneErrorMessage(error));
         if (onError) onError('microphone-denied');
-        setIsListening(false);
-        setIsProcessing(false);
+        resetSession();
       },
-      [onError]
+      [onError, resetSession]
     );
 
     const { startRecording, stopRecording } = useAudioRecording({
@@ -137,67 +179,50 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       onError: handleRecordingError,
     });
 
-    // Core functions
+    // ─── Core Functions ───────────────────────────────────────────
     const startListening = useCallback(async () => {
-      // Create new session with userId to prevent collisions between students
+      // Create unique session ID per student per recording
       const timestamp = Date.now();
       const randomId = Math.random().toString(36).substr(2, 9);
       const userPrefix = userId ? `${userId.substr(0, 8)}-` : '';
       const sessionId = `speech-${userPrefix}${timestamp}-${randomId}`;
       sessionIdRef.current = sessionId;
+      receivedFinalRef.current = false;
 
-      // Start WebSocket session
+      // Start WebSocket session (Deepgram)
       startSession(sessionId);
 
-      // Start recording and get stream
+      // Start recording and get audio stream
       const stream = await startRecording();
       if (stream) {
         setupVisualizer(stream);
 
-        // Safety timeout
-        timeoutRef.current = setTimeout(() => {
-          stopListening();
+        // Safety: auto-stop after MAX_DURATION so mic doesn't stay on forever
+        maxDurationRef.current = setTimeout(() => {
+          if (sessionIdRef.current) {
+            // Trigger the same flow as user releasing the button
+            handlePressEnd();
+          }
         }, TIMING.MAX_DURATION);
       }
-    }, [startRecording, startSession, setupVisualizer]);
+    }, [startRecording, startSession, setupVisualizer, userId]);
 
-    const stopListening = useCallback(() => {
-      console.log('📦 [Speech] Stopping listening');
-
-      // Stop recording
-      stopRecording();
-      stopVisualizer();
-
-      // Send stop signal to backend
-      if (sessionIdRef.current) {
-        stopSession(sessionIdRef.current);
-      }
-
-      // Clear timeouts
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (processingTimeoutRef.current) clearTimeout(processingTimeoutRef.current);
-
-      // Reset state
-      sessionIdRef.current = null;
-      audioBufferRef.current = [];
-      setIsListening(false);
-      setIsProcessing(false);
-      setCurrentTranscript('');
-    }, [stopRecording, stopVisualizer, stopSession]);
-
-    // Event handlers
+    // ─── Event Handlers ───────────────────────────────────────────
     const handlePressStart = useCallback(() => {
-      // Clear any previous error message immediately
-      if (errorMessage) {
-        setErrorMessage(null);
-      }
+      // Clear any previous error immediately
+      if (errorMessage) setErrorMessage(null);
 
+      // If stuck in processing, reset so student can try again
       if (isProcessing) {
-        console.log('🔄 [Speech] Resetting stuck processing');
-        stopListening();
+        stopRecording();
+        stopVisualizer();
+        if (sessionIdRef.current) stopSession(sessionIdRef.current);
+        resetSession();
+        sessionIdRef.current = null;
         return;
       }
 
+      // Start listening with debounce to prevent accidental double-taps
       if (!isListening && !isStartingRef.current) {
         isStartingRef.current = true;
         debounceTimerRef.current = setTimeout(() => {
@@ -206,10 +231,10 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
           }
         }, TIMING.DEBOUNCE_DELAY);
       }
-    }, [isProcessing, isListening, errorMessage, startListening, stopListening]);
+    }, [isProcessing, isListening, errorMessage, startListening, resetSession, stopRecording, stopVisualizer, stopSession]);
 
     const handlePressEnd = useCallback(() => {
-      // Cancel debounce if released early
+      // Cancel debounce if released before recording started
       if (isStartingRef.current && !isListening) {
         if (debounceTimerRef.current) {
           clearTimeout(debounceTimerRef.current);
@@ -219,48 +244,61 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
         return;
       }
 
-      // Stop recording if active
+      // User released the mic button while recording
       if (isListening) {
         isStartingRef.current = false;
         setIsListening(false);
         setIsProcessing(true);
         setCurrentTranscript('');
 
-        // Stop recording
+        // Stop the MediaRecorder and audio visualizer
         stopRecording();
+        stopVisualizer();
 
-        // Send stop signal with delay
+        // Clear max duration timeout (user stopped manually)
+        if (maxDurationRef.current) {
+          clearTimeout(maxDurationRef.current);
+          maxDurationRef.current = null;
+        }
+
+        // Send stop signal to backend with delay so remaining audio chunks flush first
         setTimeout(() => {
           if (sessionIdRef.current) {
             stopSession(sessionIdRef.current);
           }
         }, TIMING.STOP_SIGNAL_DELAY);
 
-        // Processing timeout
+        // Processing timeout — if backend doesn't respond, show friendly error
         processingTimeoutRef.current = setTimeout(() => {
-          console.warn('⚠️ [Speech] Processing timeout');
-          stopListening();
-          // Only show error if user actually attempted to record
-          if (hasAttemptedRecordingRef.current) {
-            setErrorMessage('Oops! I didn\'t hear anything.\nPlease try again.');
+          // Only show error if we never received a final transcript
+          if (!receivedFinalRef.current) {
+            setErrorMessage('No escuché bien.\nMantén presionado e intenta de nuevo.');
             setTimeout(() => setErrorMessage(null), TIMING.ERROR_DISPLAY_DURATION);
+            if (onError) onError('timeout');
           }
+          // Clean up
+          sessionIdRef.current = null;
+          audioBufferRef.current = [];
+          setIsProcessing(false);
         }, TIMING.PROCESSING_TIMEOUT);
       }
-    }, [isListening, stopRecording, stopSession, stopListening]);
+    }, [isListening, stopRecording, stopVisualizer, stopSession, onError]);
 
-    // Expose methods to parent
+    // ─── Imperative Handle ────────────────────────────────────────
     useImperativeHandle(ref, () => ({
       stop: () => {
         if (isListening || isProcessing) {
-          console.log('🛑 [Speech] External stop call');
-          stopListening();
+          stopRecording();
+          stopVisualizer();
+          if (sessionIdRef.current) stopSession(sessionIdRef.current);
+          resetSession();
+          sessionIdRef.current = null;
         }
       },
       isListening: () => isListening,
     }));
 
-    // UI rendering
+    // ─── UI ───────────────────────────────────────────────────────
     const buttonColor = errorMessage
       ? 'bg-orange-500 hover:bg-orange-600'
       : isListening
@@ -272,10 +310,10 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     const instructionText = errorMessage
       ? ''
       : isListening
-      ? 'Recording... Release to stop'
+      ? 'Grabando... Suelta para enviar'
       : isProcessing
-      ? 'Processing your answer...'
-      : 'Press and hold to speak';
+      ? 'Procesando tu respuesta...'
+      : 'Mantén presionado para hablar';
 
     const ButtonIcon = errorMessage ? MicOff : Mic;
 
@@ -311,7 +349,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
             onTouchEnd={handlePressEnd}
             className={`relative flex items-center justify-center w-24 h-24 rounded-full font-medium transition-all duration-200 ${buttonColor} text-white shadow-2xl active:scale-95 select-none touch-none z-10`}
             style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none', userSelect: 'none' }}
-            aria-label={isListening ? 'Recording' : 'Hold to Record'}
+            aria-label={isListening ? 'Grabando' : 'Mantén para grabar'}
             disabled={!!errorMessage}
           >
             <ButtonIcon className="w-12 h-12" />
@@ -319,25 +357,25 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
         </div>
 
         {/* Instruction text */}
-        <p className="text-sm text-gray-600 text-center max-w-xs font-medium">{instructionText}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400 text-center max-w-xs font-medium">{instructionText}</p>
 
         {/* Final transcript */}
         {showTranscript && finalTranscript && !isListening && (
-          <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm max-w-md text-center font-medium">
+          <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-sm max-w-md text-center font-medium">
             {finalTranscript}
           </div>
         )}
 
-        {/* Current transcript */}
-        {showTranscript && currentTranscript && isListening && currentTranscript !== 'Speak Now' && (
-          <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg text-sm max-w-md text-center">
+        {/* Current transcript (interim) */}
+        {showTranscript && currentTranscript && isListening && currentTranscript !== 'Habla ahora...' && (
+          <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg text-sm max-w-md text-center">
             {currentTranscript}
           </div>
         )}
 
         {/* Error message */}
         {errorMessage && (
-          <div className="px-4 py-2 bg-orange-50 text-orange-600 rounded-lg text-sm max-w-md text-center">
+          <div className="px-4 py-2 bg-orange-50 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg text-sm max-w-md text-center whitespace-pre-line">
             {errorMessage}
           </div>
         )}

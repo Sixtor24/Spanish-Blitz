@@ -54,12 +54,12 @@ export default function StudentAssignmentsPage() {
         })
       );
       
-      // Flatten and sort by due date
+      // Flatten and sort newest-first (by due_date descending; no due_date goes last)
       const flatAssignments = allAssignments.flat().sort((a: any, b: any) => {
         if (!a.due_date && !b.due_date) return 0;
         if (!a.due_date) return 1;
         if (!b.due_date) return -1;
-        return new Date(a.due_date).getTime() - new Date(b.due_date).getTime();
+        return new Date(b.due_date).getTime() - new Date(a.due_date).getTime();
       });
       
       setAssignments(flatAssignments);
@@ -147,8 +147,8 @@ export default function StudentAssignmentsPage() {
                         {assignment.required_repetitions > 1 && (
                           <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
                             assignment.completed
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-blue-100 text-blue-700'
+                              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                              : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                           }`}>
                             {assignment.repetitions_completed || 0}/{assignment.required_repetitions}
                           </span>
@@ -156,14 +156,14 @@ export default function StudentAssignmentsPage() {
                         {assignment.xp_goal && assignment.xp_goal > 0 && (
                           <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
                             assignment.completed
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-purple-100 text-purple-700'
+                              ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                              : 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
                           }`}>
                             ⚡ {assignment.xp_progress || 0}/{assignment.xp_goal} XP
                           </span>
                         )}
                         {assignment.completed && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold rounded-full">
                             <CheckCircle size={14} />
                             Completed
                           </span>
@@ -189,7 +189,7 @@ export default function StudentAssignmentsPage() {
                           <Clock size={14} />
                           Due: {dueDate.formatted} at {dueDate.time}
                           {isActuallyOverdue && !assignment.completed && (
-                            <span className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">
+                            <span className="ml-2 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-2 py-0.5 rounded">
                               Overdue
                             </span>
                           )}

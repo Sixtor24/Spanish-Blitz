@@ -112,41 +112,41 @@ export default function StudentClassroomPage() {
           Back to My Classrooms
         </Link>
 
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-8">
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">{classroom.name}</h1>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">{classroom.name}</h1>
               {classroom.description && (
-                <p className="text-gray-600 mt-2">{classroom.description}</p>
+                <p className="text-gray-600 dark:text-gray-400 mt-2">{classroom.description}</p>
               )}
               {classroom.teacher_name && (
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
                   Teacher: {classroom.teacher_name}
                 </p>
               )}
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-500">Classroom Code</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">Classroom Code</p>
               <p className="font-mono font-bold text-lg text-purple-600">{classroom.code}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
               <Calendar className="text-purple-600" size={28} />
               Assignments
             </h2>
-            <span className="text-sm text-gray-500">
+            <span className="text-sm text-gray-500 dark:text-gray-400">
               {assignments.filter(a => a.completed).length} of {assignments.length} completed
             </span>
           </div>
 
           {assignments.length === 0 ? (
             <div className="text-center py-12">
-              <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">No assignments yet</p>
+              <BookOpen className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+              <p className="text-gray-500 dark:text-gray-400">No assignments yet</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -154,35 +154,35 @@ export default function StudentClassroomPage() {
                 const dueDate = formatDueDate(assignment.due_date);
                 const cardClassName = `block border-2 rounded-lg p-5 transition-all ${
                   assignment.completed
-                    ? 'border-green-200 bg-green-50' + (assignment.deck_id ? ' hover:border-green-300' : '')
+                    ? 'border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20' + (assignment.deck_id ? ' hover:border-green-300' : '')
                     : dueDate?.isOverdue
-                    ? 'border-red-200 bg-red-50' + (assignment.deck_id ? ' hover:border-red-300' : '')
-                    : 'border-gray-200' + (assignment.deck_id ? ' hover:border-purple-300 hover:shadow-md' : '')
+                    ? 'border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20' + (assignment.deck_id ? ' hover:border-red-300' : '')
+                    : 'border-gray-200 dark:border-gray-700' + (assignment.deck_id ? ' hover:border-purple-300 hover:shadow-md' : '')
                 } ${!assignment.deck_id ? 'cursor-default' : 'cursor-pointer'}`;
                 
                 const CardContent = (
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <h3 className="font-bold text-lg text-gray-900">
+                          <h3 className="font-bold text-lg text-gray-900 dark:text-gray-100">
                             {assignment.title}
                           </h3>
                           {assignment.required_repetitions > 1 && assignment.deck_id && (
                             <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
                               assignment.completed
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-blue-100 text-blue-700'
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
                             }`}>
                               {assignment.repetitions_completed || 0}/{assignment.required_repetitions}
                             </span>
                           )}
                           {assignment.xp_reward && assignment.xp_reward > 0 && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-yellow-100 to-orange-100 text-orange-700 text-xs font-semibold rounded">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-gradient-to-r from-yellow-100 to-orange-100 dark:from-yellow-900/30 dark:to-orange-900/30 text-orange-700 dark:text-orange-400 text-xs font-semibold rounded">
                               ⚡ {assignment.xp_reward} XP Reward
                             </span>
                           )}
                           {assignment.completed && (
-                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 text-xs font-semibold rounded-full">
                               <CheckCircle size={14} />
                               Completed
                             </span>
@@ -190,7 +190,7 @@ export default function StudentClassroomPage() {
                         </div>
                         
                         {assignment.deck_id && assignment.deck_title && (
-                          <p className="text-sm text-gray-600 mb-2">
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                             <BookOpen size={14} className="inline mr-1" />
                             {assignment.deck_title}
                           </p>
@@ -200,14 +200,14 @@ export default function StudentClassroomPage() {
                         {assignment.xp_goal && assignment.xp_goal > 0 && (
                           <div className="mb-3 mt-3">
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs font-semibold text-purple-700">
+                              <span className="text-xs font-semibold text-purple-700 dark:text-purple-400">
                                 💰 XP Goal: {assignment.xp_progress || 0}/{assignment.xp_goal}
                               </span>
-                              <span className="text-xs font-semibold text-purple-700">
+                              <span className="text-xs font-semibold text-purple-700 dark:text-purple-400">
                                 {Math.min(100, Math.round(((assignment.xp_progress || 0) / assignment.xp_goal) * 100))}%
                               </span>
                             </div>
-                            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
                               <div
                                 className={`h-3 rounded-full transition-all duration-500 ${
                                   assignment.completed
@@ -220,7 +220,7 @@ export default function StudentClassroomPage() {
                               ></div>
                             </div>
                             {!assignment.deck_id && (
-                              <p className="text-xs text-gray-500 mt-1">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                                 Gana XP practicando cualquier set para completar esta meta
                               </p>
                             )}
@@ -228,7 +228,7 @@ export default function StudentClassroomPage() {
                         )}
 
                         {assignment.description && (
-                          <p className="text-sm text-gray-600 mb-2">{assignment.description}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{assignment.description}</p>
                         )}
 
                         {dueDate && (
@@ -240,7 +240,7 @@ export default function StudentClassroomPage() {
                             <Clock size={14} />
                             Due: {dueDate.formatted} at {dueDate.time}
                             {dueDate.isOverdue && !assignment.completed && (
-                              <span className="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">
+                              <span className="ml-2 text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-2 py-0.5 rounded">
                                 Overdue
                               </span>
                             )}

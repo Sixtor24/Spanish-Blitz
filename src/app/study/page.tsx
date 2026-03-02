@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { motion, AnimatePresence } from "motion/react";
 import DashboardLayout from "@/shared/components/DashboardLayout";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition, { type SpeechRecognitionHandle } from "@/shared/components/SpeechRecognition";
@@ -91,6 +92,7 @@ function StudyPage() {
 
   // Random completion phrase (set once on mount)
   const [completionPhrase, setCompletionPhrase] = useState("");
+  const [showExitModal, setShowExitModal] = useState(false);
 
   // Reset mic state on mount so the prompt always shows when entering study mode
   useEffect(() => {
@@ -241,8 +243,11 @@ function StudyPage() {
     if (!classroomId || !assignmentId) return;
     
     try {
-      await api.classrooms.completeAssignment(classroomId, assignmentId);
-      console.log('Assignment marked as complete');
+      const result = await api.classrooms.completeAssignment(classroomId, assignmentId);
+      // Update local state with the server's authoritative count
+      if (result && typeof result.repetitions_completed === 'number') {
+        setCompletedRepetitions(result.repetitions_completed);
+      }
     } catch (err) {
       console.error('Error marking assignment complete:', err);
     }
@@ -338,6 +343,11 @@ function StudyPage() {
       setIsCompleted(true);
       // Mark assignment as completed if this is from a classroom
       if (classroomId && assignmentId) {
+        // Only increment if not already at the required count (prevents 4/3)
+        setCompletedRepetitions(prev => 
+          prev < requiredRepetitions ? prev + 1 : prev
+        );
+        // Confirm with server (server response will set the authoritative value)
         markAssignmentComplete();
       }
     } else {
@@ -491,11 +501,10 @@ function StudyPage() {
   // Completion screen
   if (isCompleted) {
     const isAssignment = assignmentId !== null;
-    // After completing this session, the count will be incremented by 1
-    const newCompletedCount = completedRepetitions + 1;
-    const hasMoreRepetitions = newCompletedCount < requiredRepetitions;
+    // completedRepetitions is already updated (optimistic + server confirmation)
+    const hasMoreRepetitions = completedRepetitions < requiredRepetitions;
     const showStudyAgain = !isAssignment || hasMoreRepetitions;
-    const remainingRepetitions = requiredRepetitions - newCompletedCount;
+    const remainingRepetitions = requiredRepetitions - completedRepetitions;
     
     return (
       <DashboardLayout>
@@ -514,10 +523,10 @@ function StudyPage() {
               <div className="text-6xl mb-4">
                 {completionPhrase.split(" ")[0]}
               </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                 {completionPhrase.substring(completionPhrase.indexOf(" ") + 1)}
               </h1>
-              <p className="text-xl text-gray-600">
+              <p className="text-xl text-gray-600 dark:text-gray-400">
                 You studied <strong>{cards.length} cards</strong> ·{" "}
                 <strong>{hardCardsCount} marked Hard</strong>
               </p>
@@ -547,7 +556,7 @@ function StudyPage() {
                             stroke={hasMoreRepetitions ? "#3B82F6" : "#10B981"}
                             strokeWidth="12"
                             fill="none"
-                            strokeDasharray={`${(newCompletedCount / requiredRepetitions) * 377} 377`}
+                            strokeDasharray={`${(completedRepetitions / requiredRepetitions) * 377} 377`}
                             strokeLinecap="round"
                             className="transition-all duration-500"
                           />
@@ -555,9 +564,9 @@ function StudyPage() {
                         {/* Center text */}
                         <div className="absolute inset-0 flex flex-col items-center justify-center">
                           <span className={`text-4xl font-bold ${hasMoreRepetitions ? 'text-blue-600' : 'text-green-600'}`}>
-                            {newCompletedCount}
+                            {completedRepetitions}
                           </span>
-                          <span className="text-gray-400 text-sm font-medium">of {requiredRepetitions}</span>
+                          <span className="text-gray-500 dark:text-gray-400 text-sm font-medium">of {requiredRepetitions}</span>
                         </div>
                       </div>
                     </div>
@@ -628,18 +637,18 @@ function StudyPage() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-6">
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-2 text-white hover:text-blue-100 mb-4"
+          <button
+            onClick={() => setShowExitModal(true)}
+            className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white mb-4"
           >
             <ArrowLeft size={20} />
             Back to Dashboard
-          </Link>
-          <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-4">
-            <h1 className="text-2xl font-bold text-white mb-2">
+          </button>
+          <div className="bg-white dark:bg-white/10 backdrop-blur-sm rounded-xl p-5 border border-gray-200 dark:border-white/10 shadow-sm">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
               Study Mode: {deck?.title}
             </h1>
-            <div className="flex items-center justify-between text-blue-100">
+            <div className="flex items-center justify-between text-gray-500 dark:text-blue-100 text-sm">
               <span>
                 Card {currentCardIndex + 1} of {cards.length}
               </span>
@@ -655,9 +664,9 @@ function StudyPage() {
         </div>
 
         {/* Progress bar */}
-        <div className="w-full bg-white bg-opacity-20 rounded-full h-2 mb-8">
+        <div className="w-full bg-gray-100 dark:bg-white/20 rounded-full h-1.5 mb-8">
           <div
-            className="bg-white rounded-full h-2 transition-all duration-300"
+            className="bg-gradient-to-r from-blue-500 to-indigo-500 dark:from-white dark:to-blue-200 rounded-full h-1.5 transition-all duration-500 ease-out"
             style={{
               width: `${((currentCardIndex + 1) / cards.length) * 100}%`,
             }}
@@ -665,17 +674,25 @@ function StudyPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white rounded-xl shadow-2xl p-8 mb-6 min-h-[400px] flex flex-col justify-center items-center">
+        <AnimatePresence mode="wait">
+        <motion.div
+          key={`${currentCardIndex}-${isFlipped}`}
+          initial={{ opacity: 0, y: 16, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -12, scale: 0.98 }}
+          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+          className="bg-white dark:bg-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.06)] dark:shadow-2xl border border-gray-100 dark:border-gray-700 p-8 mb-6 min-h-[400px] flex flex-col justify-center items-center"
+        >
           {!isFlipped ? (
             // QUESTION SIDE
             <div className="text-center w-full">
               {currentVariant === VARIANT_A ? (
                 // Variant A: Spanish → English (Listening)
                 <>
-                  <p className="text-sm text-gray-500 mb-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                     Listen and understand
                   </p>
-                  <p className="text-4xl font-bold text-gray-900 mb-6">
+                  <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
                     {currentCard.prompt_es}
                   </p>
                   <div className="flex justify-center">
@@ -689,10 +706,10 @@ function StudyPage() {
               ) : currentVariant === VARIANT_C ? (
                 // Variant C: English → Spanish (Written)
                 <>
-                  <p className="text-sm text-gray-500 mb-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                     Write the Spanish translation
                   </p>
-                  <p className="text-4xl font-bold text-gray-900 mb-6">
+                  <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
                     {currentCard.translation_en || currentCard.prompt_es}
                   </p>
                   <div className="mt-6 max-w-md mx-auto">
@@ -705,13 +722,13 @@ function StudyPage() {
               ) : (
                 // Variant B: English → Spanish (Recall)
                 <>
-                  <p className="text-sm text-gray-500 mb-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                     Recall the Spanish
                   </p>
-                  <p className="text-4xl font-bold text-gray-900 mb-6">
+                  <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
                     {currentCard.translation_en || currentCard.prompt_es}
                   </p>
-                  <p className="text-gray-500 italic">
+                  <p className="text-gray-500 dark:text-gray-400 italic">
                     (Think of the Spanish word/phrase)
                   </p>
                 </>
@@ -723,16 +740,16 @@ function StudyPage() {
               {currentVariant === VARIANT_A ? (
                 // Variant A Answer: English meaning
                 <>
-                  <p className="text-sm text-gray-500 mb-4">English meaning</p>
-                  <p className="text-4xl font-bold text-gray-900 mb-6">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">English meaning</p>
+                  <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
                     {currentCard.translation_en || currentCard.prompt_es}
                   </p>
                 </>
               ) : currentVariant === VARIANT_C ? (
                 // Variant C Answer: Show the Spanish answer
                 <>
-                  <p className="text-sm text-gray-500 mb-4">Spanish answer</p>
-                  <p className="text-4xl font-bold text-gray-900 mb-6">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Spanish answer</p>
+                  <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
                     {currentCard.prompt_es}
                   </p>
                   {writtenFeedback && (
@@ -761,10 +778,10 @@ function StudyPage() {
               ) : (
                 // Variant B Answer: Spanish text + mic
                 <>
-                  <p className="text-sm text-gray-500 mb-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                     {micEnabled ? 'Spanish answer - Try saying it!' : 'Spanish answer'}
                   </p>
-                  <p className="text-4xl font-bold text-gray-900 mb-6">
+                  <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
                     {currentCard.prompt_es}
                   </p>
 
@@ -811,14 +828,15 @@ function StudyPage() {
               )}
             </div>
           )}
-        </div>
+        </motion.div>
+        </AnimatePresence>
 
         {/* Action buttons */}
         <div className="flex gap-4">
           {!isFlipped ? (
             <button
               onClick={handleFlip}
-              className="flex-1 bg-white text-blue-600 font-bold py-4 rounded-lg hover:bg-blue-50 transition-colors shadow-lg flex items-center justify-center gap-2"
+              className="flex-1 bg-white dark:bg-gray-800 text-blue-600 font-bold py-4 rounded-xl hover:bg-blue-50 dark:hover:bg-gray-700 transition-all duration-200 shadow-[0_1px_3px_rgba(0,0,0,0.06),0_4px_12px_rgba(59,130,246,0.08)] hover:shadow-[0_2px_8px_rgba(59,130,246,0.15)] dark:shadow-lg flex items-center justify-center gap-2 border border-blue-100 dark:border-gray-700"
             >
               <RotateCw size={20} />
               Show Answer
@@ -827,13 +845,13 @@ function StudyPage() {
             <>
               <button
                 onClick={() => handleMarkCard("hard")}
-                className="flex-1 bg-orange-500 text-white font-bold py-4 rounded-lg hover:bg-orange-600 transition-colors shadow-lg"
+                className="flex-1 bg-gradient-to-b from-orange-400 to-orange-500 text-white font-bold py-4 rounded-xl hover:from-orange-500 hover:to-orange-600 transition-all duration-200 shadow-[0_2px_8px_rgba(249,115,22,0.3)] hover:shadow-[0_4px_16px_rgba(249,115,22,0.4)]"
               >
                 Hard
               </button>
               <button
                 onClick={() => handleMarkCard("correct")}
-                className="flex-1 bg-green-500 text-white font-bold py-4 rounded-lg hover:bg-green-600 transition-colors shadow-lg"
+                className="flex-1 bg-gradient-to-b from-emerald-400 to-emerald-500 text-white font-bold py-4 rounded-xl hover:from-emerald-500 hover:to-emerald-600 transition-all duration-200 shadow-[0_2px_8px_rgba(16,185,129,0.3)] hover:shadow-[0_4px_16px_rgba(16,185,129,0.4)]"
               >
                 Easy
               </button>
@@ -844,28 +862,28 @@ function StudyPage() {
         {/* Study Mode Tips or Notes */}
         <div className="mt-6">
           {!isFlipped ? (
-            <div className="bg-gradient-to-br from-blue-500/20 to-indigo-500/20 backdrop-blur-md rounded-xl p-5 border border-white/30 shadow-lg">
+            <div className="bg-white dark:bg-blue-500/10 rounded-xl p-5 border border-gray-100 dark:border-white/10 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.04)] dark:shadow-lg">
               <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                <div className="flex-shrink-0 w-10 h-10 bg-blue-50 dark:bg-white/20 rounded-xl flex items-center justify-center">
                   <span className="text-2xl">📚</span>
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-white mb-3 text-base uppercase tracking-wide">Study Mode Tips:</p>
-                  <ul className="space-y-2 text-white/90 text-sm">
+                  <p className="font-bold text-gray-800 dark:text-white mb-3 text-sm uppercase tracking-wide">Study Mode Tips</p>
+                  <ul className="space-y-2 text-gray-600 dark:text-white/90 text-sm">
                     <li className="flex items-start gap-2">
-                      <span className="text-white/60 mt-0.5">•</span>
+                      <span className="text-blue-400 dark:text-white/60 mt-0.5">•</span>
                       <span>Take your time - no timers or scores</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-white/60 mt-0.5">•</span>
+                      <span className="text-blue-400 dark:text-white/60 mt-0.5">•</span>
                       <span>Mark "Hard" for cards you want to review more</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-white/60 mt-0.5">•</span>
+                      <span className="text-blue-400 dark:text-white/60 mt-0.5">•</span>
                       <span>Mark "Easy" for cards you know well</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-white/60 mt-0.5">•</span>
+                      <span className="text-blue-400 dark:text-white/60 mt-0.5">•</span>
                       <span>Your progress is tracked to help you learn more effectively</span>
                     </li>
                   </ul>
@@ -887,28 +905,28 @@ function StudyPage() {
               </div>
             </div>
           ) : (
-            <div className="bg-gradient-to-br from-blue-500/20 to-indigo-500/20 backdrop-blur-md rounded-xl p-5 border border-white/30 shadow-lg">
+            <div className="bg-white dark:bg-blue-500/10 rounded-xl p-5 border border-gray-100 dark:border-white/10 shadow-[0_1px_3px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.04)] dark:shadow-lg">
               <div className="flex items-start gap-3">
-                <div className="flex-shrink-0 w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+                <div className="flex-shrink-0 w-10 h-10 bg-blue-50 dark:bg-white/20 rounded-xl flex items-center justify-center">
                   <span className="text-2xl">📚</span>
                 </div>
                 <div className="flex-1">
-                  <p className="font-bold text-white mb-3 text-base uppercase tracking-wide">Study Mode Tips:</p>
-                  <ul className="space-y-2 text-white/90 text-sm">
+                  <p className="font-bold text-gray-800 dark:text-white mb-3 text-sm uppercase tracking-wide">Study Mode Tips</p>
+                  <ul className="space-y-2 text-gray-600 dark:text-white/90 text-sm">
                     <li className="flex items-start gap-2">
-                      <span className="text-white/60 mt-0.5">•</span>
+                      <span className="text-blue-400 dark:text-white/60 mt-0.5">•</span>
                       <span>Take your time - no timers or scores</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-white/60 mt-0.5">•</span>
+                      <span className="text-blue-400 dark:text-white/60 mt-0.5">•</span>
                       <span>Mark "Hard" for cards you want to review more</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-white/60 mt-0.5">•</span>
+                      <span className="text-blue-400 dark:text-white/60 mt-0.5">•</span>
                       <span>Mark "Easy" for cards you know well</span>
                     </li>
                     <li className="flex items-start gap-2">
-                      <span className="text-white/60 mt-0.5">•</span>
+                      <span className="text-blue-400 dark:text-white/60 mt-0.5">•</span>
                       <span>Your progress is tracked to help you learn more effectively</span>
                     </li>
                   </ul>
@@ -918,6 +936,51 @@ function StudyPage() {
           )}
         </div>
       </div>
+
+      {/* Exit Confirmation Modal */}
+      <AnimatePresence>
+        {showExitModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowExitModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-sm w-full p-6 border border-gray-200 dark:border-gray-700"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">
+                Are you sure you want to exit this set?
+              </h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
+                You will lose all your progress.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  autoFocus
+                  onClick={() => setShowExitModal(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => navigate("/dashboard")}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors"
+                >
+                  Yes
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }

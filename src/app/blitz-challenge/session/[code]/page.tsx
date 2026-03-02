@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
+import { motion, AnimatePresence } from "motion/react";
 import DashboardLayout from "@/shared/components/DashboardLayout";
 import useUser from "@/shared/hooks/useUser";
 import { Trophy, Crown, Medal, Zap, Users, Clock, ArrowLeft, Timer, Play, Mic } from "lucide-react";
@@ -138,7 +139,14 @@ function GameView({
       </div>
 
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-2 text-center">Question {question.position} of {totalQuestions}</p>
-      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4 shadow-sm">
+      <AnimatePresence mode="wait">
+      <motion.div
+        key={question.id}
+        initial={{ opacity: 0, y: 16, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -12, scale: 0.98 }}
+        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+        className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 mb-4 shadow-sm">
         <div className="block px-3 py-1 bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 rounded-full text-xs font-medium mb-3 mx-auto text-center">
           {getQuestionTypeLabelText()}
         </div>
@@ -263,7 +271,8 @@ function GameView({
             )}
           </div>
         )}
-      </div>
+      </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

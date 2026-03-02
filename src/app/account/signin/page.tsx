@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
-import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff } from "lucide-react";
+import logoDark from "@/assets/logo-dark.avif";
 import useAuth from "@/shared/hooks/useAuth";
 import useUser from "@/shared/hooks/useUser";
 
@@ -13,6 +14,7 @@ function MainComponent() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const { signIn } = useAuth();
   const { data: user, loading: userLoading } = useUser();
@@ -65,7 +67,7 @@ function MainComponent() {
               className="relative z-10 mb-8"
             >
               <div className="w-48 h-48 mx-auto bg-[#1CB0F6] rounded-3xl flex items-center justify-center shadow-2xl">
-                <Lock className="w-24 h-24 text-white" />
+                <img src={logoDark} alt="Spanish Blitz" className="w-28 h-28 object-contain" />
               </div>
             </motion.div>
 
@@ -140,15 +142,22 @@ function MainComponent() {
                     <Lock className="h-5 w-5 text-gray-400" />
                   </div>
                   <input
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="block w-full pl-12 pr-4 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl
+                    className="block w-full pl-12 pr-12 py-3 border-2 border-gray-200 dark:border-gray-600 rounded-xl
                       bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100
                       focus:ring-2 focus:ring-[#1CB0F6] focus:border-[#1CB0F6] transition outline-none"
                     placeholder="••••••••"
                     required
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                  </button>
                 </div>
               </div>
 

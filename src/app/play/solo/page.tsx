@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { motion, AnimatePresence } from "motion/react";
 import DashboardLayout from "@/shared/components/DashboardLayout";
 import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition from "@/shared/components/SpeechRecognition";
 import MicPermissionModal from "@/shared/components/MicPermissionModal";
 import WrittenAnswer, { type WrittenResult } from "@/shared/components/WrittenAnswer";
-import { Trophy, Target, Clock, BookOpen, ArrowRight } from "lucide-react";
+import { Trophy, Target, Clock, BookOpen, ArrowRight, ArrowLeft } from "lucide-react";
 import { api } from "@/config/api";
 import useUser from "@/shared/hooks/useUser";
 import { useMicrophone } from "@/lib/microphone-context";
@@ -57,6 +58,8 @@ export default function PlaySoloPage() {
   const [currentOptions, setCurrentOptions] = useState<string[]>([]);
   const [xpEarned, setXpEarned] = useState<number>(0);
   const [xpTotal, setXpTotal] = useState<number>(0);
+  const [showExitModal, setShowExitModal] = useState(false);
+  const navigate = useNavigate();
 
   // Reset mic state on mount so the prompt always shows when entering solo mode
   useEffect(() => {
@@ -579,6 +582,15 @@ export default function PlaySoloPage() {
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto">
+        {/* Back to Dashboard */}
+        <button
+          onClick={() => setShowExitModal(true)}
+          className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white mb-4"
+        >
+          <ArrowLeft size={20} />
+          Back to Dashboard
+        </button>
+
         {/* Header */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
@@ -608,7 +620,14 @@ export default function PlaySoloPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-8 mb-6">
+        <AnimatePresence mode="wait">
+        <motion.div
+          key={currentIndex}
+          initial={{ opacity: 0, y: 16, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -12, scale: 0.98 }}
+          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+          className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-8 mb-6">
           <div className="text-center mb-8">
             <div className="inline-block px-4 py-2 bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 rounded-full text-sm font-medium mb-4">
               {resolvedLabel}
@@ -760,9 +779,55 @@ export default function PlaySoloPage() {
               )}
             </div>
           )}
-        </div>
+        </motion.div>
+        </AnimatePresence>
 
       </div>
+
+      {/* Exit Confirmation Modal */}
+      <AnimatePresence>
+        {showExitModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowExitModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-sm w-full p-6 border border-gray-200 dark:border-gray-700"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">
+                Are you sure you want to exit this set?
+              </h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
+                You will lose all your progress.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  autoFocus
+                  onClick={() => setShowExitModal(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => navigate("/dashboard")}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors"
+                >
+                  Yes
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }
