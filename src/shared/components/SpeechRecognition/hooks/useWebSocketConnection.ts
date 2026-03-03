@@ -52,6 +52,7 @@ export function useWebSocketConnection({
     wsRef.current = ws;
 
     ws.onopen = () => {
+      console.log('[Speech] ✅ WebSocket connected');
       wsConnectedRef.current = true;
       reconnectAttemptsRef.current = 0;
 
@@ -59,6 +60,7 @@ export function useWebSocketConnection({
       if (pendingSessionRef.current) {
         const { sessionId, mimeType } = pendingSessionRef.current;
         pendingSessionRef.current = null;
+        console.log('[Speech] 📤 Sending pending speech:start', { sessionId, mimeType });
         ws.send(JSON.stringify({ type: 'speech:start', sessionId, locale, mimeType }));
       }
     };
@@ -68,6 +70,7 @@ export function useWebSocketConnection({
       if (typeof event.data !== 'string') return;
       try {
         const data = JSON.parse(event.data);
+        console.log('[Speech] 📥 WS message:', data.type, data.type === 'transcript' ? { transcript: data.transcript, isFinal: data.isFinal } : '');
 
         if (data.type === 'stream:started') {
           wsReadyRef.current = true;
@@ -75,6 +78,7 @@ export function useWebSocketConnection({
         } else if (data.type === 'transcript') {
           onTranscriptRef.current(data as TranscriptMessage);
         } else if (data.type === 'error') {
+          console.error('[Speech] ❌ Server error:', data.message);
           onErrorRef.current(data as ErrorMessage);
         }
       } catch (e) {
@@ -82,11 +86,13 @@ export function useWebSocketConnection({
       }
     };
 
-    ws.onerror = () => {
+    ws.onerror = (err) => {
+      console.error('[Speech] ❌ WebSocket error:', err);
       wsConnectedRef.current = false;
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      console.log('[Speech] 🔌 WebSocket closed, code:', event.code, 'reason:', event.reason);
       wsConnectedRef.current = false;
       wsReadyRef.current = false;
       wsRef.current = null;
@@ -106,9 +112,8 @@ export function useWebSocketConnection({
   const sendMessage = useCallback((message: WebSocketMessage) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(message));
-    } else {
-      console.warn('[Speech] Cannot send message - WebSocket not open');
     }
+    // Silently skip if WS is not open — speech:stop after correct answer is best-effort
   }, []);
 
   /**
@@ -117,15 +122,31 @@ export function useWebSocketConnection({
    */
   const sendBinary = useCallback((data: ArrayBuffer | Blob) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      wsRef.current.send(data);
+      if (data instanceof Blob) {
+        // Convert Blob → ArrayBuffer so it's sent as a binary frame
+        // (Blob may be sent as text by some browsers)
+        data.arrayBuffer().then((buf) => {
+          if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+            console.log('[Speech] 🎤 Sending binary audio chunk, size:', buf.byteLength);
+            wsRef.current.send(buf);
+          }
+        });
+      } else {
+        console.log('[Speech] 🎤 Sending binary audio chunk, size:', data.byteLength);
+        wsRef.current.send(data);
+      }
+    } else {
+      console.warn('[Speech] ⚠️ Cannot send binary - WS not open, state:', wsRef.current?.readyState);
     }
   }, []);
 
   const startSession = useCallback((sessionId: string, mimeType: string = '') => {
     wsReadyRef.current = false; // Reset until stream:started comes back
+    console.log('[Speech] 🚀 startSession', { sessionId, mimeType, connected: wsConnectedRef.current, wsState: wsRef.current?.readyState });
     if (wsConnectedRef.current && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'speech:start', sessionId, locale, mimeType }));
     } else {
+      console.log('[Speech] ⏳ WS not open, queuing session as pending');
       pendingSessionRef.current = { sessionId, mimeType };
       initializeWebSocket();
     }

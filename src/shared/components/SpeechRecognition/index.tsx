@@ -31,6 +31,11 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     const isStartingRef = useRef(false);
     const receivedFinalRef = useRef(false);
 
+    // Refs for cleanup functions — avoids stale closures in WS callbacks
+    const stopRecordingRef = useRef<() => void>(() => {});
+    const stopSessionRef = useRef<(id: string) => void>(() => {});
+    const sendBinaryRef = useRef<(data: ArrayBuffer | Blob) => void>(() => {});
+
     // ─── Custom Hooks ─────────────────────────────────────────────
     const { audioLevel, setupVisualizer, stopVisualizer } = useAudioVisualizer();
 
@@ -48,13 +53,25 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       setCurrentTranscript('');
     }, []);
 
+    // ─── Full Cleanup Helper ───────────────────────────────────────
+    // Uses refs so it's always up-to-date, even inside WS callbacks
+    const fullCleanup = useCallback(() => {
+      stopRecordingRef.current();
+      stopVisualizer();
+      if (sessionIdRef.current) {
+        stopSessionRef.current(sessionIdRef.current);
+        sessionIdRef.current = null;
+      }
+      resetSession();
+    }, [stopVisualizer, resetSession]);
+
     // ─── WebSocket Handlers ───────────────────────────────────────
     const handleStreamReady = useCallback(() => {
       // Flush any audio buffered while Deepgram was connecting
       const buffered = audioBufferRef.current;
       audioBufferRef.current = [];
       buffered.forEach((blob) => {
-        sendBinary(blob);
+        sendBinaryRef.current(blob);
       });
     }, []);
 
@@ -78,10 +95,10 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
           onTranscript(filtered, confidence);
 
           if (autoStop) {
-            // Full cleanup — session is done
-            stopRecording();
+            // Full cleanup via refs — no stale closures
+            stopRecordingRef.current();
             stopVisualizer();
-            if (sessionIdRef.current) stopSession(sessionIdRef.current);
+            if (sessionIdRef.current) stopSessionRef.current(sessionIdRef.current);
             if (maxDurationRef.current) { clearTimeout(maxDurationRef.current); maxDurationRef.current = null; }
             sessionIdRef.current = null;
             setIsListening(false);
@@ -91,7 +108,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
           setCurrentTranscript(transcript);
         }
       },
-      [autoStop, onTranscript]
+      [autoStop, onTranscript, stopVisualizer]
     );
 
     const handleErrorMessage = useCallback(
@@ -111,14 +128,10 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
 
         setTimeout(() => setErrorMessage(null), TIMING.ERROR_DISPLAY_DURATION);
 
-        // Full cleanup
-        stopRecording();
-        stopVisualizer();
-        if (sessionIdRef.current) stopSession(sessionIdRef.current);
-        resetSession();
-        sessionIdRef.current = null;
+        // Full cleanup via refs
+        fullCleanup();
       },
-      [onError, resetSession]
+      [onError, fullCleanup]
     );
 
     const { sendMessage, sendBinary, startSession, stopSession, wsReadyRef } = useWebSocketConnection({
@@ -127,6 +140,9 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       onErrorMessage: handleErrorMessage,
       onStreamReady: handleStreamReady,
     });
+
+    // Keep refs in sync with latest function references
+    sendBinaryRef.current = sendBinary;
 
     // ─── Audio Recording Handlers ─────────────────────────────────
     const handleAudioChunk = useCallback(
@@ -170,6 +186,10 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       onError: handleRecordingError,
     });
 
+    // Keep refs in sync with latest function references
+    stopRecordingRef.current = stopRecording;
+    stopSessionRef.current = stopSession;
+
     // ─── Core Functions ───────────────────────────────────────────
     const startListening = useCallback(async () => {
       // Create unique session ID per student per recording
@@ -207,11 +227,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
 
       // If stuck in processing, reset so student can try again
       if (isProcessing) {
-        stopRecording();
-        stopVisualizer();
-        if (sessionIdRef.current) stopSession(sessionIdRef.current);
-        resetSession();
-        sessionIdRef.current = null;
+        fullCleanup();
         return;
       }
 
@@ -224,7 +240,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
           }
         }, TIMING.DEBOUNCE_DELAY);
       }
-    }, [isProcessing, isListening, errorMessage, startListening, resetSession, stopRecording, stopVisualizer, stopSession]);
+    }, [isProcessing, isListening, errorMessage, startListening, fullCleanup]);
 
     const handlePressEnd = useCallback(() => {
       // Cancel debounce if released before recording started
@@ -280,12 +296,9 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     // ─── Imperative Handle ────────────────────────────────────────
     useImperativeHandle(ref, () => ({
       stop: () => {
-        if (isListening || isProcessing) {
-          stopRecording();
-          stopVisualizer();
-          if (sessionIdRef.current) stopSession(sessionIdRef.current);
-          resetSession();
-          sessionIdRef.current = null;
+        // Idempotent — safe to call multiple times (study page + autoStop)
+        if (sessionIdRef.current || isListening || isProcessing) {
+          fullCleanup();
         }
       },
       isListening: () => isListening,
