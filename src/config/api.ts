@@ -7,28 +7,55 @@ import { WS_URL, API_BASE_URL } from './env';
 // Re-export for consumers that import from this module
 export { API_BASE_URL };
 
+// ─── Token Storage ─────────────────────────────────────────────────────────
+// Safari/iOS blocks cross-origin cookies via ITP (Intelligent Tracking Prevention).
+// We store the JWT in localStorage and send it via Authorization header as a
+// reliable fallback. Cookies are still set for Chrome/Firefox where they work.
+const TOKEN_KEY = 'sb-auth-token';
+
+export function getStoredToken(): string | null {
+  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
+}
+
+export function setStoredToken(token: string): void {
+  try { localStorage.setItem(TOKEN_KEY, token); } catch { /* noop */ }
+}
+
+export function clearStoredToken(): void {
+  try { localStorage.removeItem(TOKEN_KEY); } catch { /* noop */ }
+}
+
 /**
  * Fetch wrapper with authentication and error handling
  */
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
-  
-  const defaultOptions: RequestInit = {
-    credentials: 'include', // Important: include cookies for authentication
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+
+  // Build headers — always include Authorization if we have a stored token
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string> || {}),
   };
 
-  const response = await fetch(url, { ...defaultOptions, ...options });
+  const token = getStoredToken();
+  if (token && !headers['Authorization']) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const defaultOptions: RequestInit = {
+    credentials: 'include', // Still send cookies for browsers that support them
+    headers,
+  };
+
+  const response = await fetch(url, { ...defaultOptions, ...options, headers });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
     const errorMessage = error.error || error.message || `Request failed with status ${response.status}`;
     
-    // For 401 errors, use a specific message that can be detected
+    // For 401 errors, clear stale token and use a specific message
     if (response.status === 401) {
+      clearStoredToken();
       throw new Error('Not authenticated');
     }
     

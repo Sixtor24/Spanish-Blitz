@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api } from '@/config/api';
+import { setStoredToken, clearStoredToken } from '@/config/api';
 import type { DbUser } from '@/types/api.types';
 
 interface AuthContextType {
@@ -46,64 +47,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    try {
-      await api.auth.signIn(email, password);
-      // Wait for cookies to be set (especially important for Safari)
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Retry fetching user up to 2 times for Safari compatibility
-      let attempts = 0;
-      const maxAttempts = 2;
-      let success = false;
-      
-      while (attempts < maxAttempts && !success) {
-        success = await fetchUser();
-        if (success) {
-          break;
-        }
-        attempts++;
-        if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      }
-    } catch (error) {
-      throw error;
+    const result = await api.auth.signIn(email, password);
+
+    // Store JWT in localStorage so Safari/iOS can authenticate via
+    // Authorization header (ITP blocks cross-origin cookies)
+    if (result.token) {
+      setStoredToken(result.token);
     }
+
+    await fetchUser();
   };
 
   const signUp = async (email: string, password: string, opts?: { firstName?: string; lastName?: string; displayName?: string }) => {
-    try {
-      await api.auth.signUp(email, password, opts);
-      // Wait for cookies to be set (especially important for Safari)
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Retry fetching user up to 2 times for Safari compatibility
-      let attempts = 0;
-      const maxAttempts = 2;
-      let success = false;
-      
-      while (attempts < maxAttempts && !success) {
-        success = await fetchUser();
-        if (success) {
-          break;
-        }
-        attempts++;
-        if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-      }
-    } catch (error) {
-      throw error;
+    const result = await api.auth.signUp(email, password, opts);
+
+    // Store JWT in localStorage for Safari/iOS
+    if (result.token) {
+      setStoredToken(result.token);
     }
+
+    await fetchUser();
   };
 
   const signOut = async () => {
     try {
       await api.auth.signOut();
-      setUser(null);
-      window.location.href = '/';
     } catch (error) {
       console.error('Sign out error:', error);
+    } finally {
+      clearStoredToken();
       setUser(null);
       window.location.href = '/';
     }

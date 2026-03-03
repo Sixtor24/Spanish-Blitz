@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import useUser from '@/shared/hooks/useUser';
-import heroImg from '@/assets/hero-image.avif';
-import step1Img from '@/assets/step1.avif';
-import step2Img from '@/assets/step2.avif';
-import step3Img from '@/assets/step3.avif';
+import heroImg from '@/assets/hero-image.png';
+import step1Img from '@/assets/step1.png';
+import step2Img from '@/assets/step2.png';
+import step3Img from '@/assets/step3.png';
 import logoSvg from '@/assets/logo.svg';
 
 
