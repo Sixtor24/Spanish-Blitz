@@ -20,6 +20,22 @@ export function useAudioRecording({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const isRecordingRef = useRef(false);
+  const mimeTypeRef = useRef<string>('');
+
+  /**
+   * Detect the best supported MIME type for this browser.
+   * Called once and cached so startSession can include it.
+   */
+  const detectMimeType = useCallback((): string => {
+    if (mimeTypeRef.current) return mimeTypeRef.current;
+    if (typeof MediaRecorder === 'undefined') return '';
+    if (MediaRecorder.isTypeSupported('audio/webm')) {
+      mimeTypeRef.current = 'audio/webm';
+    } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+      mimeTypeRef.current = 'audio/mp4';
+    }
+    return mimeTypeRef.current;
+  }, []);
 
   const startRecording = useCallback(async () => {
     if (isRecordingRef.current) {
@@ -42,11 +58,7 @@ export function useAudioRecording({
 
       // Create MediaRecorder — pick a supported MIME type
       // Safari: no webm support, use mp4 or let browser choose
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm')
-        ? 'audio/webm'
-        : MediaRecorder.isTypeSupported('audio/mp4')
-          ? 'audio/mp4'
-          : undefined;
+      const mimeType = detectMimeType();
       const mediaRecorder = new MediaRecorder(stream, {
         ...(mimeType ? { mimeType } : {}),
       });
@@ -61,7 +73,6 @@ export function useAudioRecording({
 
       // Handle stop
       mediaRecorder.onstop = () => {
-        console.log('📦 [Speech] MediaRecorder stopped');
         onRecordingStop();
       };
 
@@ -77,7 +88,7 @@ export function useAudioRecording({
       onError(error);
       return null;
     }
-  }, [onAudioChunk, onRecordingStart, onRecordingStop, onError]);
+  }, [onAudioChunk, onRecordingStart, onRecordingStop, onError, detectMimeType]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current?.state === 'recording') {
@@ -101,5 +112,6 @@ export function useAudioRecording({
     startRecording,
     stopRecording,
     isRecording,
+    detectMimeType,
   };
 }

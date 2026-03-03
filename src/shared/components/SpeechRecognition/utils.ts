@@ -3,25 +3,14 @@
  */
 
 /**
- * Filter evaluation keywords from transcript display
+ * Filter evaluation keywords from transcript display.
+ * Previously filtered words like "bien" but those can be valid answers
+ * in a language learning context. Now just trims whitespace.
  * @param transcript - Raw transcript from speech recognition
- * @returns Filtered transcript or empty string
+ * @returns Cleaned transcript
  */
 export function filterEvaluationKeywords(transcript: string): string {
-  const normalized = transcript.toLowerCase().trim();
-
-  // Don't show "bien" or variations
-  if (normalized === 'bien' || normalized === 'muy bien') {
-    return '';
-  }
-
-  // Don't show "regular" or "medio correcta"
-  if (normalized === 'regular' || normalized === 'medio correcta' || normalized === 'medio') {
-    return '';
-  }
-
-  // Show everything else (including "incorrecta")
-  return transcript;
+  return transcript.trim();
 }
 
 /**

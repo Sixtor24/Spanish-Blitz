@@ -7,8 +7,8 @@
 export const TIMING = {
   MAX_DURATION: 10000,        // 10s max recording — slow speakers need time for long words
   AUDIO_CHUNK_INTERVAL: 250,  // 250ms chunks — good balance between latency and overhead
-  DEBOUNCE_DELAY: 100,        // 100ms — prevent accidental double-taps
-  STOP_SIGNAL_DELAY: 500,     // 500ms — flush remaining audio before sending stop to backend
+  DEBOUNCE_DELAY: 50,         // 50ms — prevent accidental double-taps (fast response)
+  STOP_SIGNAL_DELAY: 200,     // 200ms — flush remaining audio before sending stop to backend
   PROCESSING_TIMEOUT: 6000,   // 6s — wait for backend after user releases mic
   ERROR_DISPLAY_DURATION: 3000, // 3s — students need time to read the message
 } as const;

@@ -9,7 +9,7 @@ import { Mic, MicOff } from 'lucide-react';
 import { useWebSocketConnection } from './hooks/useWebSocketConnection';
 import { useAudioRecording } from './hooks/useAudioRecording';
 import { useAudioVisualizer } from './hooks/useAudioVisualizer';
-import { filterEvaluationKeywords, blobToBase64, isSilenceError, getMicrophoneErrorMessage } from './utils';
+import { filterEvaluationKeywords, isSilenceError, getMicrophoneErrorMessage } from './utils';
 import { TIMING } from './constants';
 import type { SpeechRecognitionHandle, SpeechRecognitionProps, TranscriptMessage, ErrorMessage } from './types';
 
@@ -50,16 +50,11 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
 
     // ─── WebSocket Handlers ───────────────────────────────────────
     const handleStreamReady = useCallback(() => {
+      // Flush any audio buffered while Deepgram was connecting
       const buffered = audioBufferRef.current;
       audioBufferRef.current = [];
       buffered.forEach((blob) => {
-        blobToBase64(blob).then((base64) => {
-          sendMessage({
-            type: 'speech:audio',
-            sessionId: sessionIdRef.current!,
-            audio: base64,
-          });
-        });
+        sendBinary(blob);
       });
     }, []);
 
@@ -126,7 +121,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       [onError, resetSession]
     );
 
-    const { sendMessage, startSession, stopSession, wsReadyRef } = useWebSocketConnection({
+    const { sendMessage, sendBinary, startSession, stopSession, wsReadyRef } = useWebSocketConnection({
       locale,
       onTranscriptMessage: handleTranscriptMessage,
       onErrorMessage: handleErrorMessage,
@@ -137,18 +132,14 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
     const handleAudioChunk = useCallback(
       (blob: Blob) => {
         if (wsReadyRef.current && sessionIdRef.current) {
-          blobToBase64(blob).then((base64) => {
-            sendMessage({
-              type: 'speech:audio',
-              sessionId: sessionIdRef.current!,
-              audio: base64,
-            });
-          });
+          // Send raw binary — no Base64/JSON overhead (~33% smaller)
+          sendBinary(blob);
         } else {
+          // Buffer audio while Deepgram connection is opening
           audioBufferRef.current.push(blob);
         }
       },
-      [sendMessage, wsReadyRef]
+      [sendBinary, wsReadyRef]
     );
 
     const handleRecordingStart = useCallback(() => {
@@ -172,7 +163,7 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       [onError, resetSession]
     );
 
-    const { startRecording, stopRecording } = useAudioRecording({
+    const { startRecording, stopRecording, detectMimeType } = useAudioRecording({
       onAudioChunk: handleAudioChunk,
       onRecordingStart: handleRecordingStart,
       onRecordingStop: handleRecordingStop,
@@ -189,8 +180,10 @@ const SpeechRecognition = forwardRef<SpeechRecognitionHandle, SpeechRecognitionP
       sessionIdRef.current = sessionId;
       receivedFinalRef.current = false;
 
-      // Start WebSocket session (Deepgram)
-      startSession(sessionId);
+      // Start WebSocket session (Deepgram) — pass MIME type so backend
+      // tells Deepgram the correct encoding (opus for Chrome, aac for Safari)
+      const mimeType = detectMimeType();
+      startSession(sessionId, mimeType);
 
       // Start recording and get audio stream
       const stream = await startRecording();
