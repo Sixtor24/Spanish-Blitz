@@ -6,11 +6,12 @@ import TTSButton from "@/shared/components/TTSButton";
 import SpeechRecognition, { type SpeechRecognitionHandle } from "@/shared/components/SpeechRecognition";
 import MicPermissionModal from "@/shared/components/MicPermissionModal";
 import WrittenAnswer, { type WrittenResult } from "@/shared/components/WrittenAnswer";
-import { ArrowLeft, Check, X, Zap, Trophy, RefreshCw, RotateCw } from "lucide-react";
+import { ArrowLeft, Check, X, Zap, Trophy, RefreshCw, RotateCw, Undo2 } from "lucide-react";
 import { api } from "@/config/api";
 import { withAuth } from "@/shared/hoc/withAuth";
 import useUser from "@/shared/hooks/useUser";
 import { useMicrophone } from "@/lib/microphone-context";
+import { useNavigationGuard } from "@/lib/navigation-guard-context";
 import { usePrefetchVocabularyAudio } from "@/shared/hooks/usePrefetchAudio";
 import type { DbDeck, DbCard } from "@/types/api.types";
 
@@ -94,10 +95,71 @@ function StudyPage() {
   const [completionPhrase, setCompletionPhrase] = useState("");
   const [showExitModal, setShowExitModal] = useState(false);
 
+  const { setGuard } = useNavigationGuard();
+
   // Reset mic state on mount so the prompt always shows when entering study mode
   useEffect(() => {
     resetMic();
   }, []);
+
+  // ─── Navigation Guard (sidebar / in-app links) ────────────────
+  // Register a guard while the study session is active so sidebar
+  // clicks show the exit modal instead of navigating away.
+  useEffect(() => {
+    if (isCompleted) return;
+    const unregister = setGuard(() => setShowExitModal(true));
+    return unregister;
+  }, [isCompleted, setGuard]);
+
+  // ─── Navigation Protection ─────────────────────────────────────
+  // Prevent accidental exit: browser back, tab close, reload
+  const pendingBackRef = useRef(false);
+
+  useEffect(() => {
+    // 1) beforeunload — native browser prompt for tab close / reload
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isCompleted) {
+        e.preventDefault();
+        // Chrome requires returnValue to be set
+        e.returnValue = '';
+      }
+    };
+
+    // 2) Push a sentinel history entry so back button triggers popstate
+    //    instead of immediately leaving the page
+    window.history.pushState({ studyGuard: true }, '');
+
+    // 3) popstate — browser back button
+    const handlePopState = (e: PopStateEvent) => {
+      if (isCompleted) {
+        // Session done — let navigation happen normally
+        return;
+      }
+      // Prevent leaving by pushing state back and showing our custom modal
+      window.history.pushState({ studyGuard: true }, '');
+      pendingBackRef.current = true;
+      setShowExitModal(true);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isCompleted]);
+
+  // When user confirms exit from modal triggered by back button
+  const handleConfirmExit = useCallback(() => {
+    if (pendingBackRef.current) {
+      pendingBackRef.current = false;
+      // Pop the sentinel entry we pushed, then go back for real
+      window.history.go(-2);
+    } else {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
 
   useEffect(() => {
     // Set random completion phrase on mount
@@ -673,161 +735,174 @@ function StudyPage() {
           />
         </div>
 
-        {/* Card */}
+        {/* Card — 3D horizontal flip */}
         <AnimatePresence mode="wait">
         <motion.div
-          key={`${currentCardIndex}-${isFlipped}`}
+          key={currentCardIndex}
           initial={{ opacity: 0, y: 16, scale: 0.98 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -12, scale: 0.98 }}
           transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-          className="bg-white dark:bg-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.06)] dark:shadow-2xl border border-gray-100 dark:border-gray-700 p-8 mb-6 min-h-[400px] flex flex-col justify-center items-center"
+          className="flip-perspective mb-6"
         >
-          {!isFlipped ? (
-            // QUESTION SIDE
-            <div className="text-center w-full">
-              {currentVariant === VARIANT_A ? (
-                // Variant A: Spanish → English (Listening)
-                <>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    Listen and understand
-                  </p>
-                  <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-                    {currentCard.prompt_es}
-                  </p>
-                  <div className="flex justify-center">
-                    <TTSButton
-                      text={currentCard.prompt_es || currentCard.question}
-                      locale={userLocale}
-                      size="large"
-                    />
-                  </div>
-                </>
-              ) : currentVariant === VARIANT_C ? (
-                // Variant C: English → Spanish (Written)
-                <>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    Write the Spanish translation
-                  </p>
-                  <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-                    {currentCard.translation_en || currentCard.prompt_es}
-                  </p>
-                  <div className="mt-6 max-w-md mx-auto">
-                    <WrittenAnswer
-                      correctAnswer={currentCard.prompt_es || currentCard.question}
-                      onResult={handleWrittenResult}
-                    />
-                  </div>
-                </>
-              ) : (
-                // Variant B: English → Spanish (Recall)
-                <>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    Recall the Spanish
-                  </p>
-                  <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-                    {currentCard.translation_en || currentCard.prompt_es}
-                  </p>
-                  <p className="text-gray-500 dark:text-gray-400 italic">
-                    (Think of the Spanish word/phrase)
-                  </p>
-                </>
-              )}
-            </div>
-          ) : (
-            // ANSWER SIDE
-            <div className="text-center w-full">
-              {currentVariant === VARIANT_A ? (
-                // Variant A Answer: English meaning
-                <>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">English meaning</p>
-                  <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-                    {currentCard.translation_en || currentCard.prompt_es}
-                  </p>
-                </>
-              ) : currentVariant === VARIANT_C ? (
-                // Variant C Answer: Show the Spanish answer
-                <>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Spanish answer</p>
-                  <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-                    {currentCard.prompt_es}
-                  </p>
-                  {writtenFeedback && (
-                    <div className={`mt-4 p-4 rounded-lg ${
-                      writtenFeedback.isCorrect
-                        ? 'bg-green-50 border border-green-200'
-                        : 'bg-yellow-50 border border-yellow-200'
-                    }`}>
-                      <p className={`font-medium ${
-                        writtenFeedback.isCorrect ? 'text-green-800' : 'text-yellow-800'
-                      }`}>
-                        {writtenFeedback.isCorrect
-                          ? writtenFeedback.isAlmostCorrect
-                            ? '👍 Almost correct! Check the spelling above.'
-                            : '✓ Correct!'
-                          : '💡 Review the correct answer above'}
-                      </p>
-                      {!writtenFeedback.isCorrect && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          You wrote: "{writtenFeedback.userAnswer}"
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </>
-              ) : (
-                // Variant B Answer: Spanish text + mic
-                <>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    {micEnabled ? 'Spanish answer - Try saying it!' : 'Spanish answer'}
-                  </p>
-                  <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
-                    {currentCard.prompt_es}
-                  </p>
-
-                  {micEnabled && (
-                    <div className="flex justify-center mt-6">
-                      <SpeechRecognition
-                        ref={speechRecognitionRef}
-                        onTranscript={handleSpeechResult}
+          <div className={`flip-card-inner min-h-[400px] ${isFlipped ? 'flipped' : ''}`}>
+            {/* ─── FRONT (Question) ──────────────────────── */}
+            <div className="flip-card-front bg-white dark:bg-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.06)] dark:shadow-2xl border border-gray-100 dark:border-gray-700 p-8 min-h-[400px] flex flex-col justify-center items-center">
+              <div className="text-center w-full">
+                {currentVariant === VARIANT_A ? (
+                  // Variant A: Spanish → English (Listening)
+                  <>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                      Listen and understand
+                    </p>
+                    <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+                      {currentCard.prompt_es}
+                    </p>
+                    <div className="flex justify-center">
+                      <TTSButton
+                        text={currentCard.prompt_es || currentCard.question}
                         locale={userLocale}
-                        autoStop={false}
-                        showTranscript={false}
-                        userId={userId ?? user?.id}
+                        size="large"
                       />
                     </div>
-                  )}
+                  </>
+                ) : currentVariant === VARIANT_C ? (
+                  // Variant C: English → Spanish (Written)
+                  <>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                      Write the Spanish translation
+                    </p>
+                    <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+                      {currentCard.translation_en || currentCard.prompt_es}
+                    </p>
+                    <div className="mt-6 max-w-md mx-auto">
+                      <WrittenAnswer
+                        correctAnswer={currentCard.prompt_es || currentCard.question}
+                        onResult={handleWrittenResult}
+                      />
+                    </div>
+                  </>
+                ) : (
+                  // Variant B: English → Spanish (Recall)
+                  <>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                      Recall the Spanish
+                    </p>
+                    <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+                      {currentCard.translation_en || currentCard.prompt_es}
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400 italic">
+                      (Think of the Spanish word/phrase)
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
 
-                  {micEnabled && speechFeedback && (
-                    <div
-                      className={`mt-4 p-4 rounded-lg ${
-                        speechFeedback.isCorrect
-                          ? "bg-green-50 border border-green-200"
-                          : "bg-yellow-50 border border-yellow-200"
-                      }`}
-                    >
-                      <p
-                        className={`font-medium ${
+            {/* ─── BACK (Answer) ─────────────────────────── */}
+            <div className="flip-card-back relative bg-white dark:bg-gray-800 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.04),0_6px_24px_rgba(0,0,0,0.06)] dark:shadow-2xl border border-gray-100 dark:border-gray-700 p-8 min-h-[400px] flex flex-col justify-center items-center">
+              {/* Flip-back button — top right corner */}
+              <button
+                onClick={() => setIsFlipped(false)}
+                className="absolute top-4 right-4 p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                title="Back to question"
+              >
+                <Undo2 size={20} />
+              </button>
+
+              <div className="text-center w-full">
+                {currentVariant === VARIANT_A ? (
+                  // Variant A Answer: English meaning
+                  <>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">English meaning</p>
+                    <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+                      {currentCard.translation_en || currentCard.prompt_es}
+                    </p>
+                  </>
+                ) : currentVariant === VARIANT_C ? (
+                  // Variant C Answer: Show the Spanish answer
+                  <>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Spanish answer</p>
+                    <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+                      {currentCard.prompt_es}
+                    </p>
+                    {writtenFeedback && (
+                      <div className={`mt-4 p-4 rounded-lg ${
+                        writtenFeedback.isCorrect
+                          ? 'bg-green-50 border border-green-200'
+                          : 'bg-yellow-50 border border-yellow-200'
+                      }`}>
+                        <p className={`font-medium ${
+                          writtenFeedback.isCorrect ? 'text-green-800' : 'text-yellow-800'
+                        }`}>
+                          {writtenFeedback.isCorrect
+                            ? writtenFeedback.isAlmostCorrect
+                              ? '👍 Almost correct! Check the spelling above.'
+                              : '✓ Correct!'
+                            : '💡 Review the correct answer above'}
+                        </p>
+                        {!writtenFeedback.isCorrect && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            You wrote: "{writtenFeedback.userAnswer}"
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  // Variant B Answer: Spanish text + mic
+                  <>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                      {micEnabled ? 'Spanish answer - Try saying it!' : 'Spanish answer'}
+                    </p>
+                    <p className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-6">
+                      {currentCard.prompt_es}
+                    </p>
+
+                    {micEnabled && (
+                      <div className="flex justify-center mt-6">
+                        <SpeechRecognition
+                          ref={speechRecognitionRef}
+                          onTranscript={handleSpeechResult}
+                          locale={userLocale}
+                          autoStop={false}
+                          showTranscript={false}
+                          userId={userId ?? user?.id}
+                        />
+                      </div>
+                    )}
+
+                    {micEnabled && speechFeedback && (
+                      <div
+                        className={`mt-4 p-4 rounded-lg ${
                           speechFeedback.isCorrect
-                            ? "text-green-800"
-                            : "text-yellow-800"
+                            ? "bg-green-50 border border-green-200"
+                            : "bg-yellow-50 border border-yellow-200"
                         }`}
                       >
-                        {speechFeedback.isCorrect
-                          ? "✓ Correct!"
-                          : "Try again - keep practicing!"}
-                      </p>
-                      {!speechFeedback.isCorrect && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          You said: "{speechFeedback.transcript}"
+                        <p
+                          className={`font-medium ${
+                            speechFeedback.isCorrect
+                              ? "text-green-800"
+                              : "text-yellow-800"
+                          }`}
+                        >
+                          {speechFeedback.isCorrect
+                            ? "✓ Correct!"
+                            : "Try again - keep practicing!"}
                         </p>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
+                        {!speechFeedback.isCorrect && (
+                          <p className="text-sm text-gray-600 mt-1">
+                            You said: "{speechFeedback.transcript}"
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-          )}
+          </div>
         </motion.div>
         </AnimatePresence>
 
@@ -971,7 +1046,7 @@ function StudyPage() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => navigate("/dashboard")}
+                  onClick={handleConfirmExit}
                   className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors"
                 >
                   Yes

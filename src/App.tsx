@@ -3,6 +3,7 @@ import { Toaster } from 'sonner';
 import { AuthProvider } from './lib/auth-context';
 import { MicrophoneProvider } from './lib/microphone-context';
 import { ThemeProvider } from './lib/theme-context';
+import { NavigationGuardProvider } from './lib/navigation-guard-context';
 import './app/global.css';
 
 // Pages
@@ -35,6 +36,7 @@ export default function App() {
     <ThemeProvider>
     <AuthProvider>
       <MicrophoneProvider>
+      <NavigationGuardProvider>
       <Toaster position="bottom-right" />
       <Routes>
         {/* Public routes */}
@@ -76,6 +78,7 @@ export default function App() {
         {/* 404 catch-all */}
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
+      </NavigationGuardProvider>
       </MicrophoneProvider>
     </AuthProvider>
     </ThemeProvider>

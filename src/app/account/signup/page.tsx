@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { Mail, Lock, User, ArrowRight, Loader2, Eye, EyeOff } from "lucide-react";
-import logoDark from "@/assets/logo.svg";
+import logoDark from "@/assets/logo-dark.svg";
 import useAuth from "@/shared/hooks/useAuth";
 import useUser from "@/shared/hooks/useUser";
 

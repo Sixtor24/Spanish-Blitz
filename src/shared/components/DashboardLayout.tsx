@@ -1,11 +1,12 @@
-import { useState, type ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useState, useCallback, type ReactNode, type MouseEvent } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Swords, Gamepad2, Users, GraduationCap, Shield,
   User, LogOut, Sun, Moon, PanelLeft, Menu,
 } from "lucide-react";
 import useUser from "@/shared/hooks/useUser";
 import { useTheme } from "@/lib/theme-context";
+import { useNavigationGuard } from "@/lib/navigation-guard-context";
 
 const DARK_BLUE = "#084178";
 const LIGHT_BLUE = "#10A5C3";
@@ -15,6 +16,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { data: user } = useUser();
   const { toggleTheme, isDark } = useTheme();
   const location = useLocation();
+  const { tryNavigate } = useNavigationGuard();
 
   const mainLinks = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -37,6 +39,13 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   const allLinks = [...mainLinks, ...studentLinks, ...teacherLinks, ...adminLinks];
 
+  const guardedClick = (e: React.MouseEvent) => {
+    if (!tryNavigate()) {
+      e.preventDefault();
+      onClose();
+    }
+  };
+
   return (
     <>
       {/* Overlay (mobile only) */}
@@ -52,7 +61,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
       >
         {/* Logo + collapse */}
         <div className="flex items-center justify-between px-4 h-16 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-          <Link to="/dashboard" className="flex items-center gap-3 min-w-0">
+          <Link to="/dashboard" onClick={guardedClick} className="flex items-center gap-3 min-w-0">
             <img src={faviconPng} alt="" className="h-10 w-10 flex-shrink-0" />
             <span className="text-lg font-extrabold tracking-tight text-[#084178] dark:text-white whitespace-nowrap">
               The Spanish <span className="text-[#10A5C3]">Blitz</span>
@@ -76,7 +85,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
               <Link
                 key={link.to}
                 to={link.to}
-                onClick={onClose}
+                onClick={(e) => { if (!tryNavigate()) { e.preventDefault(); onClose(); return; } onClose(); }}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors
                   ${isActive
                     ? "text-white"
@@ -106,6 +115,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
           {/* Logout */}
           <Link
             to="/account/logout"
+            onClick={guardedClick}
             className="flex items-center gap-3 w-full px-3 py-2.5 rounded-xl text-sm font-medium
               text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
           >
@@ -160,7 +170,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-2 ml-3">
             <img src={faviconPng} alt="" className="h-8 w-8 flex-shrink-0" />
             <span className="text-sm font-extrabold tracking-tight text-[#084178] dark:text-white">
-              Spanish <span className="text-[#10A5C3]">Blitz</span>
+              The Spanish <span className="text-[#10A5C3]">Blitz</span>
             </span>
           </div>
         </header>
