@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import DashboardLayout from "@/shared/components/DashboardLayout";
 import useUser from "@/shared/hooks/useUser";
@@ -12,6 +12,7 @@ import SpeechRecognition from "@/shared/components/SpeechRecognition";
 import BlitzMicModal from "@/shared/components/BlitzMicModal";
 import WrittenAnswer, { type WrittenResult, evaluateWrittenAnswer } from "@/shared/components/WrittenAnswer";
 import { useMicrophone } from "@/lib/microphone-context";
+import { useNavigationGuard } from "@/lib/navigation-guard-context";
 import {
   QUESTION_TYPES,
   getSpanishPrompt,
@@ -291,6 +292,10 @@ function BlitzSessionPage() {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<number>(0);
   const [xpFinalized, setXpFinalized] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
+  const navigate = useNavigate();
+  const { setGuard } = useNavigationGuard();
+  const pendingBackRef = useRef(false);
 
   const sessionId = state?.session?.id;
   const me = (state?.players ?? []).find((p) => p.email === user?.email);
@@ -460,6 +465,50 @@ function BlitzSessionPage() {
 
   const allAnswered = !currentQuestion && currentAnswers.length > 0;
   const status = state?.session?.status;
+
+  const isSessionActive = status === 'active' && !allAnswered;
+
+  // ─── Navigation Guard (sidebar / in-app links) ────────────────
+  useEffect(() => {
+    if (!isSessionActive) return;
+    const unregister = setGuard(() => setShowExitModal(true));
+    return unregister;
+  }, [isSessionActive, setGuard]);
+
+  // ─── Navigation Protection (reload, tab close, browser back) ──
+  useEffect(() => {
+    if (!isSessionActive) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    window.history.pushState({ blitzGuard: true }, '');
+
+    const handlePopState = () => {
+      window.history.pushState({ blitzGuard: true }, '');
+      pendingBackRef.current = true;
+      setShowExitModal(true);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [isSessionActive]);
+
+  const handleConfirmExit = useCallback(() => {
+    if (pendingBackRef.current) {
+      pendingBackRef.current = false;
+      window.history.go(-2);
+    } else {
+      navigate('/blitz-challenge');
+    }
+  }, [navigate]);
 
   // Auto-finalize XP when game completes
   useEffect(() => {
@@ -1195,6 +1244,51 @@ function BlitzSessionPage() {
           </div>
         )}
       </div>
+
+      {/* Exit Confirmation Modal */}
+      <AnimatePresence>
+        {showExitModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowExitModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+              className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-sm w-full p-6 border border-gray-200 dark:border-gray-700"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-gray-900 dark:text-gray-100 mb-2">
+                Are you sure you want to exit this set?
+              </h3>
+              <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
+                You will lose all your progress.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  autoFocus
+                  onClick={() => setShowExitModal(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 text-gray-700 dark:text-gray-300 font-medium hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirmExit}
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors"
+                >
+                  Yes
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </DashboardLayout>
   );
 }

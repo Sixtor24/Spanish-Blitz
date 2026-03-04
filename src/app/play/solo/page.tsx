@@ -10,6 +10,7 @@ import { Trophy, Target, Clock, BookOpen, ArrowRight, ArrowLeft } from "lucide-r
 import { api } from "@/config/api";
 import useUser from "@/shared/hooks/useUser";
 import { useMicrophone } from "@/lib/microphone-context";
+import { useNavigationGuard } from "@/lib/navigation-guard-context";
 import type { DbDeck, DbCard } from "@/types/api.types";
 
 import {
@@ -60,12 +61,56 @@ export default function PlaySoloPage() {
   const [xpTotal, setXpTotal] = useState<number>(0);
   const [showExitModal, setShowExitModal] = useState(false);
   const navigate = useNavigate();
+  const { setGuard } = useNavigationGuard();
+  const pendingBackRef = useRef(false);
 
   // Reset mic state on mount so the prompt always shows when entering solo mode
   useEffect(() => {
     resetMic();
     setShowVoicePrompt(true);
   }, []);
+
+  // ─── Navigation Guard (sidebar / in-app links) ────────────────
+  useEffect(() => {
+    if (gameEnded || showSetSelection) return;
+    const unregister = setGuard(() => setShowExitModal(true));
+    return unregister;
+  }, [gameEnded, showSetSelection, setGuard]);
+
+  // ─── Navigation Protection (reload, tab close, browser back) ──
+  useEffect(() => {
+    if (gameEnded || showSetSelection) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    window.history.pushState({ soloGuard: true }, '');
+
+    const handlePopState = () => {
+      window.history.pushState({ soloGuard: true }, '');
+      pendingBackRef.current = true;
+      setShowExitModal(true);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, [gameEnded, showSetSelection]);
+
+  const handleConfirmExit = useCallback(() => {
+    if (pendingBackRef.current) {
+      pendingBackRef.current = false;
+      window.history.go(-2);
+    } else {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
 
   useEffect(() => {
     // Reset game state when deck changes
@@ -818,7 +863,7 @@ export default function PlaySoloPage() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => navigate("/dashboard")}
+                  onClick={handleConfirmExit}
                   className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 text-white font-medium hover:bg-red-600 transition-colors"
                 >
                   Yes
