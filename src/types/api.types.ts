@@ -192,10 +192,23 @@ export interface CreateStudyEventBody {
 // API Response Types
 // ============================================================================
 
+export interface MasteryLevel {
+  name: string;
+  current: number;
+  min: number;
+  max: number;
+  progress: number;
+}
+
 export interface StatsResponse {
   cardsStudied: number;
   accuracy: number;
   streak: number;
+  streakName: string;
+  wordsMastered: number;
+  masteryLevel: MasteryLevel;
+  xpRank: number;
+  setsCreated: number;
 }
 
 export interface PlaySessionStateResponse {

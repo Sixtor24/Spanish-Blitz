@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import DashboardLayout from "@/shared/components/DashboardLayout";
-import { User, Globe, LogOut, Users, Plus, BookOpen, Target, Flame, Zap, Settings, Mic, Camera, Clock, CheckCircle, ChevronRight } from "lucide-react";
+import { User, Globe, LogOut, Users, Plus, BookOpen, Settings, Mic, Camera, Clock, CheckCircle, ChevronRight } from "lucide-react";
 import useAuth from "@/shared/hooks/useAuth";
 import { useAuth as useAuthContext } from "@/lib/auth-context";
 import { api } from "@/config/api";
@@ -22,9 +22,9 @@ function ProfilePage() {
   const [preferredVoiceGender, setPreferredVoiceGender] = useState<'male' | 'female'>('female');
   const [ttsConfigured, setTtsConfigured] = useState(false);
   const [stats, setStats] = useState({
-    cardsStudied: 0,
-    accuracy: 0,
-    streak: 0,
+    cardsStudied: 0, accuracy: 0, streak: 0, streakName: '',
+    wordsMastered: 0, masteryLevel: { name: '', current: 0, min: 0, max: 249, progress: 0 },
+    xpRank: 0, setsCreated: 0,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -335,7 +335,7 @@ function ProfilePage() {
       </div>
 
       {/* ─── Stats Row ─── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
           <div className="flex items-center justify-between">
             <div>
@@ -348,10 +348,10 @@ function ProfilePage() {
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Accuracy</p>
-              <p className="text-2xl font-bold text-green-600">{stats.accuracy}%</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Words Mastered</p>
+              <p className="text-2xl font-bold text-green-600">≈{stats.wordsMastered}</p>
             </div>
-            <Zap size={28} className="text-green-500" />
+            <span className="text-2xl">📚</span>
           </div>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
@@ -373,6 +373,42 @@ function ProfilePage() {
             <span className="text-3xl">⚡</span>
           </div>
         </div>
+      </div>
+
+      {/* ─── Mastery Progress Bar + XP Rank ─── */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        {stats.masteryLevel.name && (
+          <div className="md:col-span-2 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 px-5 py-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                {stats.masteryLevel.current}/{stats.masteryLevel.max}
+              </span>
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {stats.masteryLevel.name}
+              </span>
+            </div>
+            <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${stats.masteryLevel.progress}%`,
+                  background: `linear-gradient(90deg, ${DARK_BLUE} 0%, ${LIGHT_BLUE} 100%)`,
+                }}
+              />
+            </div>
+          </div>
+        )}
+        {stats.xpRank > 0 && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 flex items-center gap-4">
+            <span className="text-3xl">🏆</span>
+            <div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Global XP Rank</p>
+              <p className="text-2xl font-bold" style={{ color: DARK_BLUE }}>
+                <span className="dark:text-blue-300">#{stats.xpRank}</span>
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ─── Main Content Grid ─── */}

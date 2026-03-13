@@ -117,11 +117,13 @@ Each use case defines its own **repository interface** (Dependency Inversion Pri
 
 | Component | Description |
 |-----------|-------------|
-| `Navigation` | Role-aware navbar (student, teacher, admin). Memoised with `React.memo`. |
+| `DashboardLayout` | Shared sidebar layout wrapping all authenticated pages. Role-aware nav links, theme toggle, mobile overlay, logout. Replaces old `Navigation` component. |
+| `Navigation` | Legacy navbar (only used on public `/privacy` page). |
 | `ProtectedRoute` | Route guard using React Router navigation. |
 | `TTSButton` | Google Cloud TTS audio playback with caching. |
 | `SpeechRecognition/` | WebSocket-based speech recognition with Deepgram fallback for Brave. |
 | `WelcomeModal` | First-time onboarding modal. |
+| `NavigationGuard` | Sidebar navigation interception during active study/play sessions (exit confirmation modal). |
 
 #### Hooks
 
@@ -202,6 +204,18 @@ All API calls go through `apiFetch()` which:
 3. Sets `Content-Type: application/json`
 4. Parses JSON responses
 5. Throws `Error` on non-OK responses (with 401 detection)
+
+### Backend Email System (API Endpoints)
+
+The backend provides automated email notifications via Resend. The frontend interacts with these endpoints:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/email-preferences` | GET | Get current user's email notification preferences |
+| `/api/email-preferences` | PUT | Update preferences (7 boolean flags: mission_assigned, mission_reminder, mission_completed, xp_milestones, streak_reminders, inactivity_reminders, weekly_digest) |
+| `/api/auth/verify-email` | GET | Email verification link (clicked from email, redirects to dashboard) |
+
+Emails are sent automatically by the backend on events like signup, assignment creation, mission completion, and via cron jobs (streaks, inactivity, weekly digest). No frontend action needed beyond the preferences API.
 
 ### WebSocket
 

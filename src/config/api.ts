@@ -615,6 +615,21 @@ export const api = {
       return { ws, sessionId };
     },
   },
+
+  // ============================================================================
+  // Felicitaciones (Teacher Recognition)
+  // ============================================================================
+  felicitaciones: {
+    send: (data: { student_id: string; assignment_id?: string; message?: string }) =>
+      apiFetch('/api/felicitaciones', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    pending: () => apiFetch('/api/felicitaciones/pending'),
+    markViewed: (id: string) =>
+      apiFetch(`/api/felicitaciones/${id}/viewed`, { method: 'PATCH' }),
+    teacherPending: () => apiFetch('/api/felicitaciones/teacher/pending'),
+  },
 };
 
 // ============================================================================

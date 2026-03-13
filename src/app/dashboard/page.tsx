@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import DashboardLayout from "@/shared/components/DashboardLayout";
 import WelcomeModal from "@/shared/components/WelcomeModal";
+import FelicitacionesPopup from "@/shared/components/FelicitacionesPopup";
 import {
-  BookOpen, Zap, Search, Plus, Swords, Gamepad2,
+  BookOpen, Search, Plus, Swords, Gamepad2,
   Clock, CheckCircle, ChevronRight,
 } from "lucide-react";
 import useUser from "@/shared/hooks/useUser";
@@ -142,7 +143,11 @@ function DashboardPage() {
   const location = useLocation();
   const { data: user } = useUser();
   const [decks, setDecks] = useState<DbDeck[]>([]);
-  const [stats, setStats] = useState({ cardsStudied: 0, accuracy: 0, streak: 0 });
+  const [stats, setStats] = useState({
+    cardsStudied: 0, accuracy: 0, streak: 0, streakName: '',
+    wordsMastered: 0, masteryLevel: { name: '', current: 0, min: 0, max: 249, progress: 0 },
+    xpRank: 0, setsCreated: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterMode, setFilterMode] = useState("owned");
@@ -244,6 +249,9 @@ function DashboardPage() {
         <WelcomeModal onDismiss={handleDismissWelcome} onCreateSet={handleCreateFirstSet} />
       )}
 
+      {/* Felicitaciones popup — shown when student has unviewed teacher recognitions */}
+      <FelicitacionesPopup />
+
       <div className="flex flex-col xl:flex-row gap-6">
         {/* ═══ CENTER COLUMN ═══ */}
         <div className="flex-1 min-w-0 space-y-6">
@@ -258,7 +266,9 @@ function DashboardPage() {
                 Welcome back, {user?.display_name || "Learner"}! 👋
               </h2>
               <p className="text-blue-100 text-sm md:text-base">
-                You're on a {stats.streak}-day streak! Keep it up and reach your goals.
+                {stats.streak > 0
+                  ? `You're on a ${stats.streak}-day streak! Keep it up and reach your goals.`
+                  : "Start studying today to build your streak!"}
               </p>
               <div className="flex flex-wrap gap-2 mt-4">
                 <span className="px-3 py-1 rounded-full text-xs font-bold bg-white/20 backdrop-blur-sm">
@@ -273,6 +283,9 @@ function DashboardPage() {
             <div className="absolute right-6 top-1/2 -translate-y-1/2 text-center hidden sm:block">
               <p className="text-4xl font-black">{stats.streak}</p>
               <p className="text-xs font-semibold text-blue-100 uppercase tracking-wider">Day Streak</p>
+              {stats.streakName && (
+                <p className="text-sm font-semibold text-yellow-300 mt-1">{stats.streakName}! 🔥</p>
+              )}
             </div>
             {/* Decorative circles */}
             <div className="absolute -right-10 -bottom-10 w-40 h-40 rounded-full bg-white/5" />
@@ -293,16 +306,16 @@ function DashboardPage() {
             <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Accuracy</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.accuracy}%</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Words Mastered</p>
+                  <p className="text-2xl font-bold text-green-600">≈{stats.wordsMastered}</p>
                 </div>
-                <Zap size={28} className="text-green-500" />
+                <span className="text-2xl">📚</span>
               </div>
             </div>
             <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Day Streak</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Current Streak</p>
                   <p className="text-2xl font-bold text-orange-500">{stats.streak} 🔥</p>
                 </div>
               </div>
@@ -319,6 +332,29 @@ function DashboardPage() {
               </div>
             </div>
           </div>
+
+          {/* Mastery Progress Bar */}
+          {stats.masteryLevel.name && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 px-5 py-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                  {stats.masteryLevel.current}/{stats.masteryLevel.max}
+                </span>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  {stats.masteryLevel.name}
+                </span>
+              </div>
+              <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${stats.masteryLevel.progress}%`,
+                    background: `linear-gradient(90deg, ${DARK_BLUE} 0%, ${LIGHT_BLUE} 100%)`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Quick Actions */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
