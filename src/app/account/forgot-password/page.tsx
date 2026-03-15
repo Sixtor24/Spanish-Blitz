@@ -15,9 +15,9 @@ export default function ForgotPasswordPage() {
     setMessage(null);
     try {
       await api.auth.forgotPassword(email);
-      setMessage('Si el correo existe, hemos enviado instrucciones para restablecer tu contraseña.');
+      setMessage('If this email exists, we\'ve sent instructions to reset your password.');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al enviar');
+      setError(err instanceof Error ? err.message : 'Failed to send');
     } finally {
       setSubmitting(false);
     }
@@ -30,7 +30,7 @@ export default function ForgotPasswordPage() {
           Forgot Password
         </h1>
         <p className="text-sm sm:text-base text-gray-600 mb-6 text-center">
-          Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.
+          Enter your email and we'll send you a link to reset your password.
         </p>
 
         <form onSubmit={onSubmit} className="space-y-5">
@@ -45,7 +45,7 @@ export default function ForgotPasswordPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full bg-transparent text-base sm:text-lg outline-none"
-                placeholder="tucorreo@ejemplo.com"
+                placeholder="you@example.com"
               />
             </div>
           </div>
@@ -55,7 +55,7 @@ export default function ForgotPasswordPage() {
             disabled={submitting}
             className="w-full rounded-lg bg-blue-600 text-white font-semibold py-3 sm:py-3.5 text-base sm:text-lg transition hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {submitting ? 'Enviando…' : 'Enviar enlace'}
+            {submitting ? 'Sending…' : 'Send Reset Link'}
           </button>
         </form>
 
@@ -75,7 +75,7 @@ export default function ForgotPasswordPage() {
             to="/account/signin"
             className="text-sm sm:text-base text-blue-600 hover:text-blue-700 font-medium transition-colors"
           >
-            Volver a iniciar sesión
+            Back to Sign In
           </Link>
         </div>
       </div>
